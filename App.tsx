@@ -9,6 +9,9 @@ import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, Align
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 
+// Mobile Tab Type
+type MobileTab = 'control' | 'playlist' | 'preview';
+
 const App: React.FC = () => {
   // Initialize state from LocalStorage if available
   const [playlist, setPlaylist] = useState<PresentationItem[]>(() => {
@@ -37,6 +40,9 @@ const App: React.FC = () => {
 
   // State for External Projector Window
   const [externalWindow, setExternalWindow] = useState<Window | null>(null);
+
+  // Mobile State
+  const [mobileTab, setMobileTab] = useState<MobileTab>('playlist');
 
   const [session, setSession] = useState<Session | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -589,9 +595,9 @@ const App: React.FC = () => {
   }, [navigateNext, navigatePrev, toggleFullscreen, toggleProjectorFullscreen, openProjectorWindow, closeProjectorWindow, externalWindow]);
 
   return (
-    <div className="flex h-screen bg-black text-white font-sans overflow-hidden select-none">
+    <div className="flex flex-col lg:flex-row h-screen bg-black text-white font-sans overflow-hidden select-none">
       {/* LEFT: Control Center (30%) */}
-      <div className="w-[30%] flex-shrink-0 scrollbar-hide overflow-y-auto bg-gray-950 border-r border-gray-800 flex flex-col">
+      <div className={`${mobileTab === 'control' ? 'flex h-full' : 'hidden'} lg:flex w-full lg:w-[30%] flex-shrink-0 scrollbar-hide overflow-hidden bg-gray-950 border-r border-gray-800 flex-col`}>
         <ControlPanel
           onAddItem={handleAddItem}
           currentTheme={stagedTheme}
@@ -614,7 +620,7 @@ const App: React.FC = () => {
       </div>
 
       {/* MIDDLE: Playlist & Management (45%) */}
-      <div className="flex-1 flex flex-col border-r border-gray-800 min-w-[300px] overflow-hidden">
+      <div className={`${mobileTab === 'playlist' ? 'flex h-full' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-gray-800 min-w-0 lg:min-w-[300px] overflow-hidden`}>
         <div className="bg-gray-900 p-4 border-b border-gray-800 flex justify-between items-center shrink-0">
           <h1 className="text-xl font-bold tracking-tight text-indigo-400">FlujoEclesial <span className="text-white font-light">Studio</span></h1>
           <div className="flex items-center gap-4">
@@ -719,7 +725,7 @@ const App: React.FC = () => {
       </div>
 
       {/* RIGHT: Live Preview & Presenter Tools (35%) */}
-      <div className="w-[35%] flex-shrink-0 flex flex-col bg-gray-950 relative border-l border-gray-800 overflow-hidden">
+      <div className={`${mobileTab === 'preview' ? 'flex h-full' : 'hidden'} lg:flex w-full lg:w-[35%] flex-shrink-0 flex-col bg-gray-950 relative border-l border-gray-800 overflow-hidden`}>
 
         {/* TOP BAR: Clock and Status */}
         <div className="h-12 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 shrink-0">
@@ -915,6 +921,32 @@ const App: React.FC = () => {
           ></iframe>
         </div>
       )}
+
+      {/* MOBILE BOTTOM NAV */}
+      <div className="lg:hidden shrink-0 h-16 bg-gray-900 border-t border-gray-800 flex items-center justify-around z-50 p-1 safe-area-pb">
+        <button
+          onClick={() => setMobileTab('control')}
+          className={`flex flex-col items-center justify-center gap-1 p-2 w-full h-full rounded-xl transition-all ${mobileTab === 'control' ? 'text-indigo-400 bg-indigo-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+        >
+          <Edit2 size={20} />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Editor</span>
+        </button>
+        <button
+          onClick={() => setMobileTab('playlist')}
+          className={`flex flex-col items-center justify-center gap-1 p-2 w-full h-full rounded-xl transition-all ${mobileTab === 'playlist' ? 'text-indigo-400 bg-indigo-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+        >
+          <Music size={20} />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Lista</span>
+        </button>
+        <button
+          onClick={() => setMobileTab('preview')}
+          className={`flex flex-col items-center justify-center gap-1 p-2 w-full h-full rounded-xl transition-all ${mobileTab === 'preview' ? 'text-indigo-400 bg-indigo-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+        >
+          <PlayCircle size={20} />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Vivo</span>
+        </button>
+      </div>
+
     </div>
   );
 };
