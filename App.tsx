@@ -621,7 +621,41 @@ const App: React.FC = () => {
 
       {/* MIDDLE: Playlist & Management (45%) */}
       <div className={`${mobileTab === 'playlist' ? 'flex h-full' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-gray-800 min-w-0 lg:min-w-[300px] overflow-hidden`}>
-        <div className="bg-gray-900 p-4 border-b border-gray-800 flex justify-between items-center shrink-0">
+        {/* Mobile Header - Compact with Live Status */}
+        <div className="lg:hidden bg-gradient-to-r from-gray-900 via-gray-850 to-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center shrink-0">
+          <h1 className="text-lg font-black tracking-tight text-indigo-400">Flujo<span className="text-white font-light">Eclesial</span></h1>
+          <div className="flex items-center gap-2">
+            {liveItemId && (
+              <div className="flex items-center gap-1.5 bg-red-600/20 border border-red-500/50 rounded-full px-2.5 py-1">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-[10px] font-black text-red-400 uppercase">VIVO</span>
+              </div>
+            )}
+            {session?.user?.user_metadata?.avatar_url && (
+              <img src={session.user.user_metadata.avatar_url} alt="" className="w-8 h-8 rounded-full border-2 border-indigo-500" />
+            )}
+          </div>
+        </div>
+        {/* Mobile Quick Actions Bar */}
+        <div className="lg:hidden bg-gray-950 px-3 py-2 border-b border-gray-800 flex gap-2 shrink-0">
+          <button
+            onClick={() => makeLive()}
+            disabled={!activeItemId}
+            className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-sm uppercase tracking-wide transition-all active:scale-95 ${activeItemId ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-500/30' : 'bg-gray-800 text-gray-600 cursor-not-allowed'}`}
+          >
+            <PlayCircle size={20} /> EN VIVO
+          </button>
+          {liveItemId && (
+            <button
+              onClick={stopLive}
+              className="px-4 py-3.5 rounded-xl bg-gray-800 border border-red-500/50 text-red-400 font-bold uppercase active:scale-95 transition-all"
+            >
+              <Square size={18} fill="currentColor" />
+            </button>
+          )}
+        </div>
+        {/* Desktop Header */}
+        <div className="hidden lg:flex bg-gray-900 p-4 border-b border-gray-800 justify-between items-center shrink-0">
           <h1 className="text-xl font-bold tracking-tight text-indigo-400">FlujoEclesial <span className="text-white font-light">Studio</span></h1>
           <div className="flex items-center gap-4">
             {externalWindow ? (
@@ -714,7 +748,8 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gray-900 p-4 border-t border-gray-800 flex flex-col gap-2 shrink-0">
+        {/* Desktop Only Footer */}
+        <div className="hidden lg:flex bg-gray-900 p-4 border-t border-gray-800 flex-col gap-2 shrink-0">
           <div className="text-[10px] text-gray-600 text-center mt-1">
             Atajos: Espacio (Sig), Flechas (Nav), B (Black), C (Clear), L (Logo), F (Pantalla), P (Proyector)
           </div>
@@ -727,16 +762,16 @@ const App: React.FC = () => {
       {/* RIGHT: Live Preview & Presenter Tools (35%) */}
       <div className={`${mobileTab === 'preview' ? 'flex h-full' : 'hidden'} lg:flex w-full lg:w-[35%] flex-shrink-0 flex-col bg-gray-950 relative border-l border-gray-800 overflow-hidden`}>
 
-        {/* TOP BAR: Clock and Status */}
-        <div className="h-12 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 shrink-0">
-          <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm truncate max-w-[50%]">
-            <PlayCircle size={14} />
+        {/* TOP BAR: Clock and Status - Responsive */}
+        <div className="h-11 lg:h-12 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-3 lg:px-4 shrink-0">
+          <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs lg:text-sm truncate max-w-[55%] lg:max-w-[50%]">
+            <PlayCircle size={14} className="shrink-0" />
             <span className="truncate">{activeItem ? activeItem.title : 'Sin Selección'}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-xl font-mono text-gray-300 font-bold flex items-center gap-2 bg-black px-2 py-0.5 rounded border border-gray-700">
-              <Clock size={14} className="text-indigo-500" />
-              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          <div className="flex items-center gap-2 lg:gap-3">
+            <div className="text-base lg:text-xl font-mono text-gray-300 font-bold flex items-center gap-1.5 lg:gap-2 bg-black px-2 py-0.5 rounded border border-gray-700">
+              <Clock size={12} className="text-indigo-500 hidden sm:block" />
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
         </div>
@@ -838,43 +873,67 @@ const App: React.FC = () => {
         {/* PRESENTER CONTROLS & MINI GRID */}
         <div className="bg-gray-900 border-t border-gray-800 flex flex-col shadow-[0_-5px_15px_rgba(0,0,0,0.3)] z-30 shrink-0">
 
-          {/* Row 1: Quick Actions */}
+          {/* Mobile Navigation Arrows */}
+          <div className="lg:hidden flex items-center justify-center gap-6 py-3 border-b border-gray-800 bg-gray-950">
+            <button
+              onClick={navigateLivePrev}
+              disabled={!liveItemId || liveSlideIndex <= 0}
+              className="flex items-center justify-center w-14 h-12 rounded-xl bg-gray-800 text-white active:bg-indigo-600 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={28} />
+            </button>
+            <div className="flex flex-col items-center min-w-[60px]">
+              <span className="text-[9px] text-gray-500 uppercase font-bold">Slide</span>
+              <span className="text-2xl font-black text-indigo-400">
+                {liveItemId && liveItem ? `${liveSlideIndex + 1}/${liveItem.slides.length}` : '-'}
+              </span>
+            </div>
+            <button
+              onClick={navigateLiveNext}
+              disabled={!liveItemId || !liveItem || liveSlideIndex >= liveItem.slides.length - 1}
+              className="flex items-center justify-center w-14 h-12 rounded-xl bg-gray-800 text-white active:bg-indigo-600 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={28} />
+            </button>
+          </div>
+
+          {/* Row 1: Quick Actions - Larger on Mobile */}
           <div className="grid grid-cols-4 gap-1 p-2 border-b border-gray-800">
-            <button onClick={() => setIsPreviewHidden(!isPreviewHidden)} className={`flex flex-col items-center justify-center p-2 rounded transition-all ${isPreviewHidden ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
-              {isPreviewHidden ? <EyeOff size={16} /> : <Eye size={16} />}
-              <span className="text-[9px] font-bold mt-1">BLACK</span>
+            <button onClick={() => setIsPreviewHidden(!isPreviewHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isPreviewHidden ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+              {isPreviewHidden ? <EyeOff size={20} className="lg:w-4 lg:h-4" /> : <Eye size={20} className="lg:w-4 lg:h-4" />}
+              <span className="text-[8px] lg:text-[9px] font-bold mt-1">BLACK</span>
             </button>
-            <button onClick={() => setIsTextHidden(!isTextHidden)} className={`flex flex-col items-center justify-center p-2 rounded transition-all ${isTextHidden ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
-              <Eraser size={16} />
-              <span className="text-[9px] font-bold mt-1">CLEAR</span>
+            <button onClick={() => setIsTextHidden(!isTextHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isTextHidden ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+              <Eraser size={20} className="lg:w-4 lg:h-4" />
+              <span className="text-[8px] lg:text-[9px] font-bold mt-1">CLEAR</span>
             </button>
-            <button onClick={() => { setIsLogoActive(!isLogoActive); setIsPreviewHidden(false); }} className={`flex flex-col items-center justify-center p-2 rounded transition-all ${isLogoActive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
-              <Image size={16} />
-              <span className="text-[9px] font-bold mt-1">LOGO</span>
+            <button onClick={() => { setIsLogoActive(!isLogoActive); setIsPreviewHidden(false); }} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isLogoActive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+              <Image size={20} className="lg:w-4 lg:h-4" />
+              <span className="text-[8px] lg:text-[9px] font-bold mt-1">LOGO</span>
             </button>
             <div className="flex flex-col gap-1">
               {!externalWindow ? (
-                <button onClick={openProjectorWindow} className="flex-1 bg-indigo-900/50 hover:bg-indigo-600 text-indigo-200 hover:text-white rounded flex items-center justify-center gap-1 text-[9px] font-bold transition-colors">
-                  <ExternalLink size={12} /> PROYECTOR
+                <button onClick={openProjectorWindow} className="flex-1 bg-indigo-900/50 hover:bg-indigo-600 active:bg-indigo-600 text-indigo-200 hover:text-white rounded-lg lg:rounded flex items-center justify-center gap-1 text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
+                  <ExternalLink size={12} /> <span className="hidden sm:inline">PROY</span><span className="sm:hidden">P</span>
                 </button>
               ) : (
                 <div className="flex flex-1 gap-1">
-                  <button onClick={toggleProjectorFullscreen} className="flex-1 bg-green-600 hover:bg-green-500 text-white rounded flex items-center justify-center gap-1 text-[9px] font-bold transition-colors">
-                    <Maximize2 size={12} /> PROY-FULL
+                  <button onClick={toggleProjectorFullscreen} className="flex-1 bg-green-600 hover:bg-green-500 active:bg-green-400 text-white rounded-lg lg:rounded flex items-center justify-center text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
+                    <Maximize2 size={14} />
                   </button>
-                  <button onClick={closeProjectorWindow} className="flex-1 bg-red-900/50 hover:bg-red-600 text-red-200 hover:text-white rounded flex items-center justify-center gap-1 text-[9px] font-bold transition-colors">
-                    <XCircle size={12} /> CERRAR
+                  <button onClick={closeProjectorWindow} className="flex-1 bg-red-900/50 hover:bg-red-600 active:bg-red-500 text-red-200 hover:text-white rounded-lg lg:rounded flex items-center justify-center text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
+                    <XCircle size={14} />
                   </button>
                 </div>
               )}
-              <button onClick={toggleFullscreen} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded flex items-center justify-center gap-1 text-[9px] font-bold transition-colors">
-                <Maximize2 size={12} /> FULL
+              <button onClick={toggleFullscreen} className="flex-1 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 text-gray-400 hover:text-white rounded-lg lg:rounded flex items-center justify-center gap-1 text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
+                <Maximize2 size={12} /> <span className="hidden sm:inline">FULL</span>
               </button>
             </div>
           </div>
 
-          {/* Row 2: Theme Tweaks */}
-          <div className="flex items-center justify-between p-2 bg-gray-950 border-b border-gray-800">
+          {/* Row 2: Theme Tweaks - Desktop Only */}
+          <div className="hidden lg:flex items-center justify-between p-2 bg-gray-950 border-b border-gray-800">
             <div className="flex gap-1">
               <button onClick={() => cycleFontSize('down')} className="p-1.5 bg-gray-900 hover:bg-gray-800 rounded text-gray-400"><Minus size={14} /></button>
               <button onClick={() => cycleFontSize('up')} className="p-1.5 bg-gray-900 hover:bg-gray-800 rounded text-gray-400"><Plus size={14} /></button>
@@ -887,7 +946,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Row 3: Active Slide Grid (Mini) */}
-          <div className="h-24 bg-gray-900 overflow-x-auto no-scrollbar whitespace-nowrap p-2 flex gap-2 items-center" ref={miniGridRef}>
+          <div className="h-20 lg:h-24 bg-gray-900 overflow-x-auto no-scrollbar whitespace-nowrap p-2 flex gap-2 items-center" ref={miniGridRef}>
             {activeItem ? activeItem.slides.map((slide, idx) => (
               <button
                 key={slide.id}
@@ -922,28 +981,31 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* MOBILE BOTTOM NAV */}
-      <div className="lg:hidden shrink-0 h-16 bg-gray-900 border-t border-gray-800 flex items-center justify-around z-50 p-1 safe-area-pb">
+      {/* MOBILE BOTTOM NAV - Enhanced */}
+      <div className="lg:hidden shrink-0 h-[68px] bg-gradient-to-t from-gray-900 via-gray-850 to-gray-800 border-t border-gray-700 flex items-center justify-around z-50 px-2 pb-1 pt-1">
         <button
           onClick={() => setMobileTab('control')}
-          className={`flex flex-col items-center justify-center gap-1 p-2 w-full h-full rounded-xl transition-all ${mobileTab === 'control' ? 'text-indigo-400 bg-indigo-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center gap-0.5 py-2 flex-1 h-full rounded-2xl transition-all active:scale-95 ${mobileTab === 'control' ? 'text-indigo-400 bg-indigo-900/30 shadow-lg shadow-indigo-500/20' : 'text-gray-500'}`}
         >
-          <Edit2 size={20} />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Editor</span>
+          <Edit2 size={22} />
+          <span className="text-[9px] font-black uppercase tracking-wide">Editor</span>
         </button>
         <button
           onClick={() => setMobileTab('playlist')}
-          className={`flex flex-col items-center justify-center gap-1 p-2 w-full h-full rounded-xl transition-all ${mobileTab === 'playlist' ? 'text-indigo-400 bg-indigo-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center gap-0.5 py-2 flex-1 h-full rounded-2xl transition-all active:scale-95 ${mobileTab === 'playlist' ? 'text-indigo-400 bg-indigo-900/30 shadow-lg shadow-indigo-500/20' : 'text-gray-500'}`}
         >
-          <Music size={20} />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Lista</span>
+          <Music size={22} />
+          <span className="text-[9px] font-black uppercase tracking-wide">Lista</span>
         </button>
         <button
           onClick={() => setMobileTab('preview')}
-          className={`flex flex-col items-center justify-center gap-1 p-2 w-full h-full rounded-xl transition-all ${mobileTab === 'preview' ? 'text-indigo-400 bg-indigo-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center gap-0.5 py-2 flex-1 h-full rounded-2xl transition-all active:scale-95 relative ${mobileTab === 'preview' ? 'text-indigo-400 bg-indigo-900/30 shadow-lg shadow-indigo-500/20' : 'text-gray-500'}`}
         >
-          <PlayCircle size={20} />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Vivo</span>
+          {liveItemId && (
+            <div className="absolute top-1 right-1/4 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border border-red-400" />
+          )}
+          <PlayCircle size={22} />
+          <span className="text-[9px] font-black uppercase tracking-wide">Vivo</span>
         </button>
       </div>
 
