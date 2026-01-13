@@ -403,7 +403,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <textarea
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Escribe aquí tu texto...sssss"
+                      placeholder="Escribe aquí tu texto..."
                       className="w-full h-32 bg-gray-800 rounded-xl px-4 py-3 text-white text-sm border border-gray-600/50 focus:border-indigo-500/50 outline-none resize-none transition-colors"
                     />
                     {activeSlide && inputText !== activeSlide.content && (
