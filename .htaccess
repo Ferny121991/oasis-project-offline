@@ -1,0 +1,11 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  
+  # Serve dist/index.html for root request
+  RewriteRule ^$ dist/index.html [L]
+
+  # If file doesn't exist in root, try finding it in dist
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ dist/$1 [L]
+</IfModule>
