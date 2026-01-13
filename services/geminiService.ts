@@ -11,7 +11,7 @@ const ai = new GoogleGenAI({ apiKey });
 // Helper to create a unique ID
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-export type DensityMode = 'impact' | 'classic' | 'stanza' | 'dense';
+export type DensityMode = 'impact' | 'classic' | 'strophe' | 'reading';
 
 export interface SongSearchResult {
   title: string;
@@ -24,8 +24,8 @@ const getDensityInstruction = (mode: DensityMode): string => {
   switch (mode) {
     case 'impact': return "REGLA DE ORO: MÁXIMO 2 líneas cortas por diapositiva. La letra debe ser GIGANTE. Divide el texto en fragmentos muy pequeños.";
     case 'classic': return "REGLA DE ORO: MÁXIMO 4 líneas por diapositiva. Formato estándar para himnos y coros.";
-    case 'stanza': return "REGLA DE ORO: Cada diapositiva DEBE contener una estrofa completa o un coro completo. No cortes las estrofas a la mitad.";
-    case 'dense': return "REGLA DE ORO: Agrupa mucho texto (8-12 líneas) por diapositiva para lectura bíblica o anuncios largos.";
+    case 'strophe': return "REGLA DE ORO: Cada diapositiva DEBE contener una estrofa completa o un coro completo. No cortes las estrofas a la mitad.";
+    case 'reading': return "REGLA DE ORO: Agrupa mucho texto (8-12 líneas) por diapositiva para lectura bíblica o anuncios largos.";
     default: return "MÁXIMO 4 líneas por diapositiva.";
   }
 };
@@ -35,19 +35,19 @@ const manualGroupText = (text: string, density: DensityMode): Slide[] => {
   const slides: Slide[] = [];
   const textNormalized = text.replace(/\r\n/g, '\n').trim();
 
-  if (density === 'stanza' || density === 'dense') {
+  if (density === 'strophe' || density === 'reading') {
     // Try paragraph-based splitting for stanza/dense
     const paragraphs = textNormalized.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
 
     if (paragraphs.length > 1) {
-      const pPerSlide = density === 'stanza' ? 1 : 3;
+      const pPerSlide = density === 'strophe' ? 1 : 3;
       for (let i = 0; i < paragraphs.length; i += pPerSlide) {
         const chunk = paragraphs.slice(i, i + pPerSlide);
         slides.push({
           id: generateId(),
           type: 'text',
           content: chunk.join('\n\n'),
-          label: density === 'stanza' ? `Estrofa ${Math.floor(i / pPerSlide) + 1}` : `Bloque ${Math.floor(i / pPerSlide) + 1}`
+          label: density === 'strophe' ? `Estrofa ${Math.floor(i / pPerSlide) + 1}` : `Bloque ${Math.floor(i / pPerSlide) + 1}`
         });
       }
       return slides;
@@ -59,8 +59,8 @@ const manualGroupText = (text: string, density: DensityMode): Slide[] => {
   const maxLines = {
     'impact': 2,
     'classic': 4,
-    'stanza': 8,
-    'dense': 14
+    'strophe': 8,
+    'reading': 14
   }[density] || 4;
 
   for (let i = 0; i < allLines.length; i += maxLines) {
@@ -370,8 +370,8 @@ export const fetchBiblePassage = async (reference: string, version: string = 'Re
   const getVersesPerSlide = (mode: DensityMode) => {
     switch (mode) {
       case 'impact': return 1;
-      case 'stanza': return 4;
-      case 'dense': return 10;
+      case 'strophe': return 4;
+      case 'reading': return 10;
       case 'classic': default: return 2;
     }
   };
@@ -677,6 +677,23 @@ export const fetchSongLyrics = async (songQuery: string, density: DensityMode = 
 };
 
 export const processManualText = async (text: string, density: DensityMode = 'classic'): Promise<PresentationItem> => {
+  // Check if text is actually a base64 image
+  if (text.trim().startsWith('data:image/')) {
+    return {
+      id: generateId(),
+      title: "Imagen Pegada",
+      type: 'custom',
+      slides: [{
+        id: generateId(),
+        type: 'image',
+        content: '',
+        mediaUrl: text.trim(),
+        label: 'IMAGEN'
+      }],
+      theme: { ...DEFAULT_THEME }
+    };
+  }
+
   if (!apiKey) {
     return {
       id: generateId(),

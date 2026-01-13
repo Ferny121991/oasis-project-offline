@@ -116,6 +116,9 @@ export interface PresentationItem {
   type: 'song' | 'scripture' | 'custom' | 'image-deck';
   slides: Slide[];
   theme: Theme; // Theme is now specific to the item
+  query?: string; // Original search query for refreshing
+  density?: 'impact' | 'classic' | 'strophe' | 'reading';
+  bibleVersion?: string;
 }
 
 export interface AppState {

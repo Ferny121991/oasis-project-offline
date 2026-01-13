@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PresentationItem, Slide } from '../types';
-import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor } from 'lucide-react';
+import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload } from 'lucide-react';
 
 interface PlaylistProps {
   items: PresentationItem[];
@@ -12,15 +12,36 @@ interface PlaylistProps {
   onSlideDoubleClick: (itemId: string, index: number) => void;
   onToggleBackgroundAudio?: (videoId: string, title: string) => void;
   onDeleteItem: (id: string) => void;
+  onDeleteSlide: (itemId: string, slideId: string) => void;
+  onRefreshItem: (item: PresentationItem) => void;
+  onUploadImages: (files: FileList | null, itemId?: string) => void;
   onUpdateSlideLabel: (itemId: string, slideId: string, newLabel: string) => void;
   onUpdateItemTitle: (itemId: string, newTitle: string) => void;
 }
 
-const Playlist: React.FC<PlaylistProps> = ({ items, activeItemId, activeSlideIndex, liveItemId, liveSlideIndex, onSlideClick, onSlideDoubleClick, onToggleBackgroundAudio, onDeleteItem, onUpdateSlideLabel, onUpdateItemTitle }) => {
+const Playlist: React.FC<PlaylistProps> = ({
+  items,
+  activeItemId,
+  activeSlideIndex,
+  liveItemId,
+  liveSlideIndex,
+  onSlideClick,
+  onSlideDoubleClick,
+  onToggleBackgroundAudio,
+  onDeleteItem,
+  onDeleteSlide,
+  onRefreshItem,
+  onUploadImages,
+  onUpdateSlideLabel,
+  onUpdateItemTitle
+}) => {
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [tempLabel, setTempLabel] = useState('');
   const [tempTitle, setTempTitle] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [activeUploadItemId, setActiveUploadItemId] = useState<string | undefined>();
 
   const startEditingSlide = (e: React.MouseEvent, slide: Slide) => {
     e.stopPropagation();
@@ -53,18 +74,40 @@ const Playlist: React.FC<PlaylistProps> = ({ items, activeItemId, activeSlideInd
 
   if (items.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center relative">
         <div className="bg-gray-800 p-4 rounded-full mb-4">
           <Music className="opacity-20" size={32} />
         </div>
         <p className="text-sm">Tu lista está vacía.</p>
-        <p className="text-xs mt-1">Usa el panel izquierdo para agregar canciones o citas bíblicas con IA.</p>
+        <p className="text-xs mt-1 mb-6">Usa el panel izquierdo o sube imágenes directamente.</p>
+
+        <button
+          onClick={() => {
+            setActiveUploadItemId(undefined);
+            fileInputRef.current?.click();
+          }}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95"
+        >
+          <Upload size={18} /> SUBIR IMÁGENES
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-6 pb-32">
+    <div className="flex-1 flex flex-col min-h-0 bg-gray-950/20">
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
+        multiple
+        onChange={(e) => {
+          onUploadImages(e.target.files, activeUploadItemId);
+          setActiveUploadItemId(undefined);
+          if (e.target) e.target.value = '';
+        }}
+      />
       {items.map((item) => (
         <div key={item.id} className="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
           {/* Item Header */}
@@ -97,6 +140,23 @@ const Playlist: React.FC<PlaylistProps> = ({ items, activeItemId, activeSlideInd
               )}
             </div>
             <div className="flex items-center gap-1 ml-2">
+              <button
+                onClick={() => {
+                  setActiveUploadItemId(item.id);
+                  fileInputRef.current?.click();
+                }}
+                className="text-gray-500 hover:text-indigo-400 transition-colors p-1"
+                title="Subir imágenes a este elemento"
+              >
+                <Upload size={14} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRefreshItem(item); }}
+                className="text-gray-500 hover:text-indigo-400 transition-colors p-1"
+                title="Actualizar / Regenerar contenido"
+              >
+                <RefreshCw size={14} />
+              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onSlideDoubleClick(item.id, 0); }}
                 className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded transition-all ${liveItemId === item.id ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-700 text-gray-300 hover:bg-indigo-600 hover:text-white'}`}
@@ -169,6 +229,17 @@ const Playlist: React.FC<PlaylistProps> = ({ items, activeItemId, activeSlideInd
                     )}
                   </div>
 
+                  {/* Delete Slide Button - Absolute Bottom Right Overlay */}
+                  {!isEditing && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDeleteSlide(item.id, slide.id); }}
+                      className="absolute bottom-1 right-1 p-1 rounded-md text-gray-600 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                      title="Eliminar diapositiva"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+
                   {/* Slide Content Preview */}
                   <div className={`text-[11px] leading-tight line-clamp-3 mt-4 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}`}>
                     {slide.type === 'youtube' ? (
@@ -185,6 +256,13 @@ const Playlist: React.FC<PlaylistProps> = ({ items, activeItemId, activeSlideInd
                         >
                           <Music size={10} /> FONDO PERSISTENTE
                         </button>
+                      </div>
+                    ) : slide.type === 'image' && slide.mediaUrl ? (
+                      <div className="absolute inset-x-0 bottom-0 top-7 flex items-center justify-center bg-black/20 rounded-b-lg overflow-hidden border-t border-white/5">
+                        <img src={slide.mediaUrl} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent flex items-end p-2">
+                          <span className="text-[8px] font-bold text-white/50 uppercase tracking-tighter truncate w-full">{slide.label || 'Imagen'}</span>
+                        </div>
                       </div>
                     ) : slide.content}
                   </div>

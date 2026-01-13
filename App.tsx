@@ -8,6 +8,7 @@ import { DEFAULT_THEME } from './constants';
 import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
+import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
 
 // Mobile Tab Type
 type MobileTab = 'control' | 'playlist' | 'preview';
@@ -282,6 +283,76 @@ const App: React.FC = () => {
         )
       };
     }));
+  };
+
+  const handleDeleteSlide = (itemId: string, slideId: string) => {
+    setPlaylist(prev => prev.map(item => {
+      if (item.id !== itemId) return item;
+      return {
+        ...item,
+        slides: item.slides.filter(s => s.id !== slideId)
+      };
+    }).filter(item => item.slides.length > 0)); // Remove item if it has no slides left
+  };
+
+  const handleRefreshItem = async (item: PresentationItem) => {
+    if (!item.query) {
+      alert("Este elemento no se puede actualizar automáticamente (no tiene búsqueda guardada).");
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const { slides } = await (item.type === 'song'
+        ? fetchSongLyrics(item.query, item.density || 'classic')
+        : fetchBiblePassage(item.query, item.bibleVersion || 'Reina Valera 1960', item.density || 'classic'));
+
+      setPlaylist(prev => prev.map(i =>
+        i.id === item.id ? { ...i, slides: slides } : i
+      ));
+    } catch (e) {
+      console.error("Error refreshing item", e);
+      alert("Error al actualizar: " + (e as Error).message);
+    }
+    setIsSyncing(false);
+  };
+
+  const handleUploadImages = async (files: FileList | null, itemId?: string) => {
+    if (!files || files.length === 0) return;
+
+    const newSlides: Slide[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const reader = new FileReader();
+      const promise = new Promise<string>((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+      });
+      reader.readAsDataURL(file);
+      const dataUrl = await promise;
+
+      newSlides.push({
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'image',
+        content: '',
+        mediaUrl: dataUrl,
+        label: file.name.split('.')[0].toUpperCase()
+      });
+    }
+
+    if (itemId) {
+      setPlaylist(prev => prev.map(item =>
+        item.id === itemId ? { ...item, slides: [...item.slides, ...newSlides] } : item
+      ));
+    } else {
+      const newItem: PresentationItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        title: files.length === 1 ? files[0].name : `Galería (${files.length} fotos)`,
+        type: 'custom',
+        slides: newSlides,
+        theme: stagedTheme
+      };
+      setPlaylist(prev => [...prev, newItem]);
+    }
   };
 
   // Logic to add a manual slide (Image or Text) to the current item
@@ -703,6 +774,9 @@ const App: React.FC = () => {
           onSlideDoubleClick={(itemId, index) => makeLive(itemId, index)}
           onToggleBackgroundAudio={(vid, title) => setBackgroundAudioItem({ videoId: vid, title })}
           onDeleteItem={handleDeleteItem}
+          onDeleteSlide={handleDeleteSlide}
+          onRefreshItem={handleRefreshItem}
+          onUploadImages={handleUploadImages}
           onUpdateSlideLabel={handleUpdateSlideLabel}
           onUpdateItemTitle={handleUpdateItemTitle}
         />
