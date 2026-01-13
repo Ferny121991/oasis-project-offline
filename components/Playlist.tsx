@@ -95,7 +95,7 @@ const Playlist: React.FC<PlaylistProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-gray-950/20">
+    <div className="flex-1 h-full overflow-y-auto p-6 space-y-10 pb-40 bg-gray-950/20 scroll-smooth">
       <input
         type="file"
         ref={fileInputRef}
@@ -109,9 +109,9 @@ const Playlist: React.FC<PlaylistProps> = ({
         }}
       />
       {items.map((item) => (
-        <div key={item.id} className="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
+        <div key={item.id} className="bg-gray-800/40 rounded-2xl border border-gray-700/50 overflow-hidden shadow-2xl hover:border-indigo-500/30 transition-all duration-300">
           {/* Item Header */}
-          <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center sticky top-0 z-10">
+          <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center z-10">
             <div className="flex items-center gap-2 text-indigo-400 flex-1 min-w-0">
               {item.type === 'song' ? <Music size={16} className="shrink-0" /> : <BookOpen size={16} className="shrink-0" />}
               {editingItemId === item.id ? (
@@ -175,7 +175,7 @@ const Playlist: React.FC<PlaylistProps> = ({
           </div>
 
           {/* Slides Grid */}
-          <div className="p-3 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4">
             {item.slides.map((slide, index) => {
               const isActive = activeItemId === item.id && activeSlideIndex === index;
               const isEditing = editingSlideId === slide.id;

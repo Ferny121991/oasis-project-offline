@@ -666,7 +666,7 @@ const App: React.FC = () => {
   }, [navigateNext, navigatePrev, toggleFullscreen, toggleProjectorFullscreen, openProjectorWindow, closeProjectorWindow, externalWindow]);
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen lg:h-screen h-[100dvh] bg-black text-white font-sans overflow-hidden select-none">
+    <div className="flex flex-col lg:flex-row h-[100dvh] bg-black text-white font-sans overflow-hidden select-none">
       {/* LEFT: Control Center (30%) */}
       <div className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[30%] flex-shrink-0 scrollbar-hide overflow-hidden bg-gray-950 border-r border-gray-800 flex-col`}>
         <ControlPanel
