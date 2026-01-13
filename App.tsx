@@ -5,7 +5,7 @@ import Playlist from './components/Playlist';
 import LiveScreen from './components/LiveScreen';
 import { PresentationItem, Theme, Slide } from './types';
 import { DEFAULT_THEME } from './constants';
-import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut } from 'lucide-react';
+import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
@@ -68,32 +68,47 @@ const App: React.FC = () => {
   }, []);
 
   // Sync from Supabase on Login
+  const fetchUserData = useCallback(async () => {
+    if (!session?.user) return;
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('playlist')
+        .single();
+
+      if (data && data.playlist) {
+        setPlaylist(data.playlist);
+        dataLoaded.current = true;
+      } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
+        // No settings found, create initial ones
+        await supabase.from('user_settings').insert([
+          { id: session.user.id, playlist: playlist }
+        ]);
+        dataLoaded.current = true;
+      }
+    } catch (e) {
+      console.error("Error fetching user data", e);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [session, playlist]);
+
   useEffect(() => {
     if (session?.user) {
-      const fetchUserData = async () => {
-        setIsSyncing(true);
-        const { data, error } = await supabase
-          .from('user_settings')
-          .select('playlist')
-          .single();
-
-        if (data && data.playlist) {
-          setPlaylist(data.playlist);
-          dataLoaded.current = true;
-        } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
-          // No settings found, create initial ones
-          await supabase.from('user_settings').insert([
-            { id: session.user.id, playlist: playlist }
-          ]);
-          dataLoaded.current = true;
-        }
-        setIsSyncing(false);
-      };
       fetchUserData();
     } else {
       dataLoaded.current = false;
     }
-  }, [session]);
+  }, [session, fetchUserData]);
+
+  const handleSyncCloud = async () => {
+    if (!session) {
+      alert("Debes iniciar sesión con Google para sincronizar.");
+      return;
+    }
+    await fetchUserData();
+  };
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
@@ -696,6 +711,16 @@ const App: React.FC = () => {
         <div className="lg:hidden bg-gradient-to-r from-gray-900 via-gray-850 to-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center shrink-0">
           <h1 className="text-lg font-black tracking-tight text-indigo-400">Flujo<span className="text-white font-light">Eclesial</span></h1>
           <div className="flex items-center gap-2">
+            {session && (
+              <button
+                onClick={handleSyncCloud}
+                disabled={isSyncing}
+                className={`p-2 rounded-full bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 transition-all ${isSyncing ? 'animate-spin' : ''}`}
+                title="Sincronizar con la nube"
+              >
+                <RefreshCw size={18} />
+              </button>
+            )}
             {liveItemId && (
               <div className="flex items-center gap-1.5 bg-red-600/20 border border-red-500/50 rounded-full px-2.5 py-1">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
@@ -726,41 +751,39 @@ const App: React.FC = () => {
           )}
         </div>
         {/* Desktop Header */}
-        <div className="hidden lg:flex bg-gray-900 p-4 border-b border-gray-800 justify-between items-center shrink-0">
-          <h1 className="text-xl font-bold tracking-tight text-indigo-400">FlujoEclesial <span className="text-white font-light">Studio</span></h1>
-          <div className="flex items-center gap-4">
-            {externalWindow ? (
-              <div className="flex items-center gap-2">
-                {backgroundAudioItem && (
-                  <div className="flex items-center gap-2 px-3 py-1 bg-red-950/40 border border-red-500/30 rounded-full mr-2">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                    <span className="text-[10px] font-bold text-red-200 truncate max-w-[80px] uppercase">{backgroundAudioItem.title}</span>
-                    <div className="flex items-center gap-0.5 border-l border-red-500/30 ml-2 pl-2">
-                      <button onClick={toggleAudioPlayback} className="hover:text-white text-red-400 p-1" title={isAudioPlaying ? "Pausa" : "Reproducir"}>
-                        {isAudioPlaying ? <Square size={10} fill="currentColor" /> : <PlayCircle size={10} />}
-                      </button>
-                      <button onClick={stopBackgroundAudio} className="hover:text-white text-red-400 p-1" title="Detener"><XCircle size={10} /></button>
-                    </div>
-                  </div>
-                )}
-                {liveItemId && (
-                  <button
-                    onClick={stopLive}
-                    className="flex items-center gap-2 text-white text-[10px] font-bold px-3 py-1 bg-red-600 hover:bg-red-500 rounded-full border border-red-400 shadow-lg transition-all transform active:scale-95"
-                    title="Detener Todo en el Proyector"
-                  >
-                    <Square size={10} fill="currentColor" /> DETENER VIVO
-                  </button>
-                )}
-                <div className="flex items-center gap-2 text-green-400 text-xs font-bold px-3 py-1 bg-green-900/30 rounded-full border border-green-600 animate-fade-in">
-                  <MonitorIcon size={12} /> PROYECTOR
-                  <div className="flex items-center gap-1 ml-2 border-l border-green-600/50 pl-2">
-                    <button onClick={toggleProjectorFullscreen} title="Pantalla Completa Proyector (G)" className="hover:text-white p-1 hover:bg-green-600/30 rounded transition-colors"><Maximize2 size={12} /></button>
-                    <button onClick={closeProjectorWindow} title="Cerrar Proyector" className="hover:text-red-400 p-1 hover:bg-red-600/30 rounded transition-colors"><XCircle size={14} /></button>
+        <div className="hidden lg:flex bg-gray-900 px-6 py-4 border-b border-gray-800 justify-between items-center shrink-0">
+          <div className="flex flex-col">
+            <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+              <span className="bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">FlujoEclesial</span>
+              <span className="font-light text-gray-400">Studio</span>
+            </h1>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Centro de Control Proyectores</p>
+          </div>
+
+          <div className="flex items-center gap-6">
+            {session ? (
+              <div className="flex items-center gap-4 bg-gray-850/50 p-1.5 pr-4 rounded-xl border border-gray-700/50 shadow-inner">
+                <button
+                  onClick={handleSyncCloud}
+                  disabled={isSyncing}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition-all font-black text-[10px] uppercase shadow-lg shadow-indigo-600/20 active:scale-95 disabled:opacity-50 ${isSyncing ? 'animate-pulse' : ''}`}
+                >
+                  <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                  {isSyncing ? 'Sincronizando...' : 'Sincronizar Nube'}
+                </button>
+                <div className="flex flex-col">
+                  <div className="text-[9px] text-gray-500 font-black uppercase tracking-tight">Estado</div>
+                  <div className="text-[10px] text-green-500 font-bold flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></div>
+                    Conectado
                   </div>
                 </div>
               </div>
-            ) : <div className="text-xs text-gray-500">Guardado Local Activo</div>}
+            ) : (
+              <div className="text-xs text-gray-500 italic bg-gray-850 px-3 py-1.5 rounded-lg border border-gray-800">
+                Guardado Local Activo
+              </div>
+            )}
           </div>
         </div>
 
@@ -1044,6 +1067,7 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
+
       {/* HIDDEN BACKGROUND AUDIO PLAYER */}
       {backgroundAudioItem && (
         <div className="fixed bottom-[-100px] left-[-100px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden">
@@ -1082,7 +1106,6 @@ const App: React.FC = () => {
           <span className="text-[9px] font-black uppercase tracking-wide">Vivo</span>
         </button>
       </div>
-
     </div>
   );
 };

@@ -399,13 +399,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
               <div className="flex flex-col gap-3">
                 {inputType === 'manual' ? (
-                  <div className="relative">
+                  <div className="relative group/manual">
                     <textarea
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
                       placeholder="Escribe aquí tu texto..."
-                      className="w-full h-32 bg-gray-800 rounded-xl px-4 py-3 text-white text-sm border border-gray-600/50 focus:border-indigo-500/50 outline-none resize-none transition-colors"
+                      className="w-full h-40 bg-gray-800 rounded-xl px-4 py-3 text-white text-sm border border-gray-600/50 focus:border-indigo-500/50 outline-none resize-none transition-all scrollbar-hide"
                     />
+
+                    {/* Quick Image Upload Button in Manual Area */}
+                    <div className="absolute bottom-3 left-3 flex gap-2">
+                      <button
+                        onClick={() => slideFileInputRef.current?.click()}
+                        className="p-2 rounded-lg bg-gray-700/80 hover:bg-pink-600 text-white transition-all border border-gray-600/50 shadow-lg group/imgbtn"
+                        title="Insertar diapositiva de imagen"
+                      >
+                        <ImageIcon size={16} className="group-hover/imgbtn:scale-110 transition-transform" />
+                      </button>
+                    </div>
+
                     {activeSlide && inputText !== activeSlide.content && (
                       <div className="absolute top-2 right-2 flex gap-1">
                         <button
