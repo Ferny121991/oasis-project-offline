@@ -1,0 +1,121 @@
+
+import { Theme } from './types';
+
+export const DEFAULT_THEME: Theme = {
+  id: 'default-blue',
+  name: 'Azul Profundo',
+  background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)',
+  aspectRatio: '16/9',
+  padding: 4,
+  textColor: '#ffffff',
+  textBackgroundColor: 'transparent',
+  textOpacity: 1,
+  fontFamily: 'Montserrat, sans-serif',
+  fontSize: 'text-9xl',
+  fontWeight: 'bold',
+  fontStyle: 'normal',
+  textDecoration: 'none',
+  textTransform: 'none',
+  alignment: 'center',
+  lineHeight: 1.2,
+  letterSpacing: 0,
+  shadow: true,
+  shadowColor: 'rgba(0,0,0,0.8)',
+  shadowBlur: 10,
+  shadowOffsetX: 4,
+  shadowOffsetY: 4,
+  textStrokeWidth: 0,
+  textStrokeColor: '#000000',
+  animation: 'fade',
+  bgImageBlur: 0,
+  bgBrightness: 1,
+  bgOverlayOpacity: 0,
+  bgOverlayColor: '#000000',
+
+  // Text Styling Extra
+  textRotation: 0,
+  textSkewX: 0,
+  textHighlightPadding: 8,
+  textHighlightRadius: 4,
+  textGradient: null,
+  textCase: 'none',
+  textShadowSpread: 0,
+
+  // Default Image Content Styling
+  imageContentFit: 'contain',
+  imageContentScale: 1.0,
+  imageContentOpacity: 1.0,
+  imageContentBrightness: 1.0,
+  imageContentContrast: 1.0,
+  imageContentSaturate: 1.0,
+  imageContentGrayscale: 0,
+  imageContentSepia: 0,
+  imageContentHueRotate: 0,
+  imageContentInvert: 0,
+  imageContentBlur: 0,
+  imageContentRotation: 0,
+  imageContentFlipH: false,
+  imageContentFlipV: false,
+  imageContentRadius: 0,
+  imageContentBorderWidth: 0,
+  imageContentBorderColor: '#ffffff',
+  imageContentShadowBlur: 0,
+  imageContentShadowColor: 'rgba(0,0,0,0.5)',
+  imageContentShadowOffsetX: 0,
+  imageContentShadowOffsetY: 0,
+  imageContentBlendMode: 'normal'
+};
+
+export const THEME_PRESETS: Theme[] = [
+  DEFAULT_THEME,
+  {
+    ...DEFAULT_THEME,
+    id: 'warm-worship',
+    name: 'Adoración Cálida',
+    background: 'linear-gradient(to right, #ffecd2 0%, #fcb69f 100%)',
+    textColor: '#333333',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    shadow: false,
+    animation: 'fade-slide-up',
+  },
+  {
+    ...DEFAULT_THEME,
+    id: 'nature',
+    name: 'Naturaleza',
+    background: 'url(https://picsum.photos/1920/1080?grayscale&blur=2) center/cover no-repeat',
+    fontFamily: 'Merriweather, serif',
+    fontStyle: 'italic',
+    textStrokeWidth: 2,
+    bgBrightness: 0.7,
+    bgOverlayOpacity: 0.2,
+    animation: 'zoom-in',
+  }
+];
+
+// 20 "Word-like" Text Style Editions
+export const TEXT_STYLE_EDITIONS: { name: string; style: Partial<Theme> }[] = [
+  { name: 'Simple', style: { shadow: false, textStrokeWidth: 0, fontWeight: 'normal', fontStyle: 'normal', textDecoration: 'none' } },
+  { name: 'Negrita', style: { fontWeight: '800', shadow: false } },
+  { name: 'Sombra Suave', style: { shadow: true, shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)', shadowOffsetX: 2, shadowOffsetY: 2 } },
+  { name: 'Sombra Dura', style: { shadow: true, shadowBlur: 0, shadowColor: '#000000', shadowOffsetX: 6, shadowOffsetY: 6 } },
+  { name: 'Contorno', style: { textStrokeWidth: 2, textStrokeColor: '#ffffff', textColor: 'transparent', shadow: false } },
+  { name: 'Contorno Negro', style: { textStrokeWidth: 3, textStrokeColor: '#000000', textColor: '#ffffff' } },
+  { name: 'Neon Azul', style: { textColor: '#e0f2fe', shadow: true, shadowColor: '#0ea5e9', shadowBlur: 20, shadowOffsetX: 0, shadowOffsetY: 0, textStrokeWidth: 1, textStrokeColor: '#0ea5e9' } },
+  { name: 'Neon Rosa', style: { textColor: '#fce7f3', shadow: true, shadowColor: '#ec4899', shadowBlur: 20, shadowOffsetX: 0, shadowOffsetY: 0, textStrokeWidth: 1, textStrokeColor: '#ec4899' } },
+  { name: 'Retro 3D', style: { shadow: true, shadowColor: '#ea580c', shadowBlur: 0, shadowOffsetX: 8, shadowOffsetY: 8, textColor: '#fef3c7' } },
+  { name: 'Elegante', style: { fontFamily: 'Playfair Display, serif', fontStyle: 'italic', letterSpacing: 2, fontWeight: 'normal' } },
+  { name: 'Impacto', style: { fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', fontWeight: '800', letterSpacing: 1 } },
+  { name: 'Subrayado', style: { textDecoration: 'underline' } },
+  { name: 'Resaltado', style: { textBackgroundColor: '#facc15', textColor: '#000000' } },
+  { name: 'Etiqueta', style: { textBackgroundColor: '#000000', textColor: '#ffffff', padding: 2 } },
+  { name: 'Metal', style: { background: 'linear-gradient(to bottom, #9ca3af, #374151)', textColor: 'transparent', bgClip: 'text' } }, // Note: bgClip requires specific rendering handling
+  { name: 'Glitch', style: { shadow: true, shadowColor: 'red', shadowOffsetX: -2, shadowOffsetY: 0, textStrokeWidth: 1, textStrokeColor: 'cyan' } },
+  { name: 'Carta', style: { fontFamily: 'Courier New, monospace', fontWeight: 'normal', letterSpacing: -1 } },
+  { name: 'Cine', style: { fontFamily: 'Impact, sans-serif', textStrokeWidth: 1, textStrokeColor: '#000', shadow: true, shadowBlur: 20, shadowColor: 'rgba(0,0,0,0.8)' } },
+  { name: 'Minimal', style: { fontWeight: '300', letterSpacing: 4, textTransform: 'uppercase', shadow: false } },
+  { name: 'Gótico', style: { fontFamily: 'Oswald, sans-serif', fontWeight: 'bold', textStrokeWidth: 1, textStrokeColor: '#4a0404', textColor: '#991b1b' } },
+];
+
+export const MOCK_PLAYLIST_ITEM_ID = 'mock-1';

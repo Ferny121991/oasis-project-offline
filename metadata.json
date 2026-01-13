@@ -1,0 +1,5 @@
+{
+  "name": "Oasis project offline",
+  "description": "Software de presentación para iglesias impulsado por IA. Genera diapositivas de canciones y versículos bíblicos automáticamente, con modos de edición y presentación en vivo.",
+  "requestFramePermissions": []
+}
