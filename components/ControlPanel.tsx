@@ -229,7 +229,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     if (file) {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        if (ev.target?.result) updatePendingTheme({ ...currentTheme, background: `url(${ev.target.result}) center/cover no-repeat` });
+        if (ev.target?.result) {
+          updatePendingTheme({ ...currentTheme, background: `url(${ev.target.result}) center/cover no-repeat` });
+          e.target.value = ''; // Reset
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -249,6 +252,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             label: 'IMAGEN'
           };
           onAddSlide(newSlide);
+          e.target.value = ''; // Reset so the same file can be uploaded again
         }
       };
       reader.readAsDataURL(file);
@@ -312,6 +316,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <Edit3 size={14} /> Editor
         </button>
       </div>
+
+      {/* Hidden File Inputs moved to top level to be accessible from any tab */}
+      <input type="file" accept="image/*" ref={slideFileInputRef} className="hidden" onChange={handleSlideImageUpload} />
+      <input type="file" accept="image/*" ref={bgFileInputRef} className="hidden" onChange={handleBgUpload} />
 
       <div className="flex-1 overflow-y-auto no-scrollbar bg-gradient-to-b from-gray-800 to-gray-900">
         {activeTab === 'content' && (
@@ -605,7 +613,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 {/* ADD IMAGE SLIDE QUICK ACTION (Available in Theme Tab) */}
                 <div className="mb-5 bg-gradient-to-r from-green-900/20 to-emerald-900/20 rounded-xl p-3 border border-green-500/20">
-                  <input type="file" accept="image/*" ref={slideFileInputRef} className="hidden" onChange={handleSlideImageUpload} />
                   <button onClick={() => slideFileInputRef.current?.click()} className="w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-[11px] font-black flex items-center justify-center gap-2 shadow-md transition-all uppercase tracking-tighter">
                     <Plus size={14} /> Nueva Diapositiva de Imagen
                   </button>
@@ -835,7 +842,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         {bgMode === 'image' && (
                           <div className="space-y-3">
                             <input type="text" placeholder="URL imagen..." className="w-full bg-gray-900 rounded p-2 text-[10px] text-white border border-gray-700 outline-none" onChange={(e) => { if (e.target.value) updatePendingTheme({ ...currentTheme, background: `url(${e.target.value}) center/cover no-repeat` }); }} />
-                            <button onClick={() => bgFileInputRef.current?.click()} className="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs p-2 rounded flex items-center justify-center gap-2"><Upload size={14} /> Subir Imagen</button>
+                            <button
+                              onClick={() => bgFileInputRef.current?.click()}
+                              className="flex items-center gap-2 p-3 rounded-xl bg-gray-800 border border-gray-700 hover:border-indigo-500 transition-all group"
+                            >
+                              <Upload size={16} className="text-indigo-400 group-hover:scale-110 transition-transform" />
+                              <span className="text-xs font-bold">Subir Fondo Personalizado</span>
+                            </button>
                             <input type="file" accept="image/*" ref={bgFileInputRef} className="hidden" onChange={handleBgUpload} />
                           </div>
                         )}

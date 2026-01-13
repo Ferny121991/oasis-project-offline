@@ -68,9 +68,12 @@ const App: React.FC = () => {
   }, []);
 
   // Sync from Supabase on Login
+  const isCloudLoading = useRef(false);
+
   const fetchUserData = useCallback(async () => {
     if (!session?.user) return;
     setIsSyncing(true);
+    isCloudLoading.current = true;
     try {
       const { data, error } = await supabase
         .from('user_settings')
@@ -81,9 +84,9 @@ const App: React.FC = () => {
         setPlaylist(data.playlist);
         dataLoaded.current = true;
       } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
-        // No settings found, create initial ones
+        // No settings found, create initial ones with empty playlist or current local one
         await supabase.from('user_settings').insert([
-          { id: session.user.id, playlist: playlist }
+          { id: session.user.id, playlist: [] }
         ]);
         dataLoaded.current = true;
       }
@@ -91,8 +94,10 @@ const App: React.FC = () => {
       console.error("Error fetching user data", e);
     } finally {
       setIsSyncing(false);
+      // Wait a bit before allowing persistence to push back to cloud
+      setTimeout(() => { isCloudLoading.current = false; }, 500);
     }
-  }, [session, playlist]);
+  }, [session]);
 
   useEffect(() => {
     if (session?.user) {
@@ -130,20 +135,25 @@ const App: React.FC = () => {
     try {
       localStorage.setItem('flujo_playlist_v2', JSON.stringify(playlist));
 
-      // Update Supabase if logged in AND data has been loaded at least once
-      if (session?.user && dataLoaded.current) {
-        setIsSyncing(true);
+      // Update Supabase if logged in AND data has been loaded AND NOT currently loading from cloud
+      if (session?.user && dataLoaded.current && !isCloudLoading.current) {
         const updateCloud = async () => {
-          await supabase
-            .from('user_settings')
-            .upsert({
-              id: session.user.id,
-              playlist,
-              updated_at: new Date().toISOString()
-            });
-          setIsSyncing(false);
+          setIsSyncing(true);
+          try {
+            await supabase
+              .from('user_settings')
+              .upsert({
+                id: session.user.id,
+                playlist,
+                updated_at: new Date().toISOString()
+              });
+          } catch (e) {
+            console.error("Cloud update failed", e);
+          } finally {
+            setIsSyncing(false);
+          }
         };
-        const timeoutId = setTimeout(updateCloud, 1000); // Debounce saves
+        const timeoutId = setTimeout(updateCloud, 2000); // 2 second debounce for saves
         return () => clearTimeout(timeoutId);
       }
     } catch (e) {
@@ -372,7 +382,21 @@ const App: React.FC = () => {
 
   // Logic to add a manual slide (Image or Text) to the current item
   const handleAddSlideToActiveItem = (newSlide: Slide) => {
-    if (!activeItemId) return;
+    if (!activeItemId) {
+      // Create a new item if nothing is selected
+      const newItem: PresentationItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        title: newSlide.label === 'IMAGEN' ? 'Nueva Imagen' : (newSlide.label || 'Nuevo Elemento'),
+        type: 'custom',
+        slides: [newSlide],
+        theme: stagedTheme
+      };
+      setPlaylist(prev => [...prev, newItem]);
+      setActiveItemId(newItem.id);
+      setActiveSlideIndex(0);
+      return;
+    }
+
     setPlaylist(prev => prev.map(item => {
       if (item.id !== activeItemId) return item;
       return {

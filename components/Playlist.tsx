@@ -232,8 +232,11 @@ const Playlist: React.FC<PlaylistProps> = ({
                   {/* Delete Slide Button - Absolute Bottom Right Overlay */}
                   {!isEditing && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); onDeleteSlide(item.id, slide.id); }}
-                      className="absolute bottom-1 right-1 p-1 rounded-md text-gray-600 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteSlide(item.id, slide.id);
+                      }}
+                      className="absolute bottom-1 right-1 z-30 p-1.5 rounded-lg text-white bg-red-600/80 hover:bg-red-500 shadow-lg opacity-0 group-hover:opacity-100 transition-all active:scale-95"
                       title="Eliminar diapositiva"
                     >
                       <Trash2 size={12} />
@@ -258,10 +261,11 @@ const Playlist: React.FC<PlaylistProps> = ({
                         </button>
                       </div>
                     ) : slide.type === 'image' && slide.mediaUrl ? (
-                      <div className="absolute inset-x-0 bottom-0 top-7 flex items-center justify-center bg-black/20 rounded-b-lg overflow-hidden border-t border-white/5">
-                        <img src={slide.mediaUrl} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent flex items-end p-2">
-                          <span className="text-[8px] font-bold text-white/50 uppercase tracking-tighter truncate w-full">{slide.label || 'Imagen'}</span>
+                      <div className="absolute inset-0 top-6 flex items-center justify-center bg-black/40 rounded-b-lg overflow-hidden border-t border-white/5 group-hover:bg-black/20 transition-all">
+                        <img src={slide.mediaUrl} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-all duration-300" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent opacity-60"></div>
+                        <div className="absolute inset-0 flex items-end p-2 pointer-events-none">
+                          <span className="text-[8px] font-black text-white uppercase tracking-widest drop-shadow-md truncate w-full">{slide.label || 'Imagen'}</span>
                         </div>
                       </div>
                     ) : slide.content}
