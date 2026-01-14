@@ -445,7 +445,8 @@ export const fetchBiblePassage = async (reference: string, version: string = 'Re
       };
     }
 
-    // 3. OFFLINE JSON SEARCH (Reina Valera 1960)
+    // 3. OFFLINE JSON SEARCH (Reina Valera 1960 - Local Data)
+    // Prioritized because it is now verified to be correct RVR1960 and faster/offline-capable.
     if (version.includes("Reina") || version === 'Reina Valera 1960') {
       try {
         const bookIndex = BIBLE_BOOKS_ORDER.findIndex(b =>
@@ -461,7 +462,8 @@ export const fetchBiblePassage = async (reference: string, version: string = 'Re
 
             for (let i = verseStart; i <= actualEnd; i++) {
               if (chapterVerses[i - 1]) {
-                rawVerses.push({ text: chapterVerses[i - 1], ref: `${officialBookName} ${chapter}:${i}` });
+                // Ensure text is clean (sometimes JSONs have extra spaces)
+                rawVerses.push({ text: chapterVerses[i - 1].trim(), ref: `${officialBookName} ${chapter}:${i}` });
               }
             }
 
@@ -567,6 +569,7 @@ export const fetchBiblePassage = async (reference: string, version: string = 'Re
   } catch (e) {
     console.error("Final fallback error", e);
   }
+
 
   throw new Error(`Pasaje no encontrado: "${reference}". Revisa que el nombre del libro sea correcto.`);
 };
