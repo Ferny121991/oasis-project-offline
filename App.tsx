@@ -726,6 +726,10 @@ const App: React.FC = () => {
           onUndo={handleUndo}
           onRestoreOriginal={handleRestoreOriginal}
           canUndo={history.length > 0}
+          onDeselect={() => {
+            setActiveItemId(null);
+            setActiveSlideIndex(-1);
+          }}
         />
       </div>
 

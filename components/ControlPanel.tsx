@@ -22,6 +22,7 @@ interface ControlPanelProps {
   onUndo: () => void;
   onRestoreOriginal: () => void;
   canUndo: boolean;
+  onDeselect?: () => void;
 }
 
 // Updated Bible Versions as requested
@@ -103,7 +104,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   isLiveActive,
   onUndo,
   onRestoreOriginal,
-  canUndo
+  canUndo,
+  onDeselect
 }) => {
   const [activeTab, setActiveTab] = useState<'content' | 'theme'>('content');
   const [bgMode, setBgMode] = useState<'image' | 'solid' | 'gradient'>('image');
@@ -327,7 +329,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/30">
               <label className="text-[10px] uppercase text-gray-500 font-bold tracking-widest mb-3 block">📺 Seleccionar Origen</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <button
                   onClick={() => { setInputType('youtube'); setSongResults([]); }}
                   className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${inputType === 'youtube' ? 'bg-gradient-to-br from-red-600/30 to-rose-600/30 border-red-500/50 shadow-lg shadow-red-500/10' : 'bg-gray-900/50 border-gray-700/50 hover:border-gray-500'}`}
@@ -358,6 +360,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <Book size={18} className="text-white" />
                   </div>
                   <span className={`text-[10px] font-bold uppercase ${inputType === 'scripture' ? 'text-amber-300' : 'text-gray-400'}`}>Biblia</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setInputType('manual');
+                    setSongResults([]);
+                    setInputText('');
+                    onDeselect?.();
+                  }}
+                  className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 bg-gray-900/50 border-gray-700/50 hover:border-emerald-500/50 group/nv`}
+                >
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-700 group-hover/nv:bg-emerald-600 transition-colors">
+                    <Plus size={18} className="text-white" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase text-gray-400 group-hover/nv:text-emerald-300">NV</span>
                 </button>
               </div>
             </div>
