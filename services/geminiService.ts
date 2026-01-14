@@ -2,6 +2,22 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Slide, PresentationItem } from "../types";
 import { DEFAULT_THEME } from "../constants";
 import rv1960Data from '../data/bibles/es_rvr.json';
+import nviData from '../data/bibles/es_nvi.json';
+import lblaData from '../data/bibles/es_lbla.json';
+import ntvData from '../data/bibles/es_ntv.json';
+import nivEnglishData from '../data/bibles/en_niv.json';
+import kjvData from '../data/bibles/en_kjv.json';
+import nkjvData from '../data/bibles/en_nkjv.json';
+
+const BIBLE_DATA_MAP: Record<string, any> = {
+  'Reina Valera 1960': rv1960Data,
+  'Nueva Versión Internacional': nviData,
+  'Nueva Traducción Viviente': ntvData,
+  'La Biblia de las Américas': lblaData,
+  'New International Version': nivEnglishData,
+  'King James Version': kjvData,
+  'New King James Version': nkjvData
+};
 
 // Safety check for environment variable
 const apiKey = "AIzaSyAGOmu0CL4VFuz82Jd-jCfIrKj4j9kMAfg";
@@ -120,7 +136,9 @@ const BIBLE_BOOKS_ORDER = [
 
 // Mapeo de libros para API pública (biblia-api.com)
 const mapVersionToApiCode = (versionName: string) => {
+  if (versionName.includes("New King James")) return "kjv"; // bible-api doesn't have nkjv, fallback to kjv
   if (versionName.includes("King James")) return "kjv";
+  if (versionName.includes("International Version")) return "niv";
   if (versionName.includes("Reina Valera")) return "rvr";
   if (versionName.includes("Internacional")) return "rvr";
   if (versionName.includes("Américas")) return "rvr";
@@ -273,9 +291,12 @@ const BOOK_NAME_TO_ID: Record<string, number> = {
 
 // Map version to bolls.life translation code
 const getBollsCode = (v: string): string => {
-  if (v.includes("Internacional") || v === "NVI") return "NVI";
+  if (v.includes("Internacional") && !v.includes("New")) return "NVI"; // Spanish NVI
+  if (v.includes("New International")) return "NIV"; // English NIV
   if (v.includes("Reina")) return "RV1960";
   if (v.includes("Américas")) return "LBLA";
+  if (v.includes("Traducción Viviente") || v === "NTV") return "NTV";
+  if (v.includes("New King James")) return "NKJV";
   if (v.includes("King James")) return "KJV";
   return "NVI";
 };
@@ -445,16 +466,17 @@ export const fetchBiblePassage = async (reference: string, version: string = 'Re
       };
     }
 
-    // 3. OFFLINE JSON SEARCH (Reina Valera 1960 - Local Data)
-    // Prioritized because it is now verified to be correct RVR1960 and faster/offline-capable.
-    if (version.includes("Reina") || version === 'Reina Valera 1960') {
+    // 3. OFFLINE JSON SEARCH (Local Data)
+    // Prioritized because it is faster and offline-capable.
+    const offlineData = BIBLE_DATA_MAP[version];
+    if (offlineData) {
       try {
         const bookIndex = BIBLE_BOOKS_ORDER.findIndex(b =>
           b === bookName || normalizeBookKey(b) === bookName
         );
 
-        if (bookIndex !== -1 && (rv1960Data as any)[bookIndex]) {
-          const bookData = (rv1960Data as any)[bookIndex];
+        if (bookIndex !== -1 && (offlineData as any)[bookIndex]) {
+          const bookData = (offlineData as any)[bookIndex];
           if (bookData.chapters && bookData.chapters[chapter - 1]) {
             const chapterVerses = bookData.chapters[chapter - 1];
             const rawVerses: { text: string, ref: string }[] = [];
@@ -462,7 +484,6 @@ export const fetchBiblePassage = async (reference: string, version: string = 'Re
 
             for (let i = verseStart; i <= actualEnd; i++) {
               if (chapterVerses[i - 1]) {
-                // Ensure text is clean (sometimes JSONs have extra spaces)
                 rawVerses.push({ text: chapterVerses[i - 1].trim(), ref: `${officialBookName} ${chapter}:${i}` });
               }
             }
@@ -480,7 +501,7 @@ export const fetchBiblePassage = async (reference: string, version: string = 'Re
           }
         }
       } catch (e) {
-        console.warn("Offline search failed", e);
+        console.warn(`Offline search failed for ${version}`, e);
       }
     }
 

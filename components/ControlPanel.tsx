@@ -29,8 +29,11 @@ interface ControlPanelProps {
 const BIBLE_VERSIONS = [
   'Reina Valera 1960',
   'Nueva Versión Internacional',
+  'Nueva Traducción Viviente',
   'La Biblia de las Américas',
-  'King James Version'
+  'New International Version',
+  'King James Version',
+  'New King James Version'
 ];
 
 const FONTS = [
