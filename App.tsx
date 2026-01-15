@@ -29,18 +29,9 @@ const App: React.FC = () => {
     }
   });
 
-  // Projects/Portfolio System
-  const [projects, setProjects] = useState<Project[]>(() => {
-    try {
-      const saved = localStorage.getItem('flujo_projects_v1');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(() => {
-    return localStorage.getItem('flujo_current_project_id') || null;
-  });
+  // Projects/Portfolio System (Cloud-only, no localStorage)
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
 
   const [activeView, setActiveView] = useState<'main' | 'lyrics-search'>('main');
@@ -415,17 +406,7 @@ const App: React.FC = () => {
     }
   }, [playlist, customThemes, projects, currentProjectId, session]);
 
-  // Projects Persistence
-  useEffect(() => {
-    try {
-      localStorage.setItem('flujo_projects_v1', JSON.stringify(projects));
-      if (currentProjectId) {
-        localStorage.setItem('flujo_current_project_id', currentProjectId);
-      }
-    } catch (e) {
-      console.error("Failed to save projects", e);
-    }
-  }, [projects, currentProjectId]);
+
 
   // Auto-save current project's playlist (with guard to prevent infinite loop)
   const isUpdatingProjectRef = useRef(false);
