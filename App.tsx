@@ -264,10 +264,29 @@ const App: React.FC = () => {
         }
       } else if (data && data.length > 0) {
         const settings = data[0] as any;
-        if (settings.playlist) setPlaylist(settings.playlist);
-        if (settings.custom_themes) setCustomThemes(settings.custom_themes);
+
+        // Load projects first
         if (settings.projects) setProjects(settings.projects);
-        if (settings.current_project_id) setCurrentProjectId(settings.current_project_id);
+
+        // Check if there's a current project and load its data
+        if (settings.current_project_id && settings.projects) {
+          const currentProject = settings.projects.find((p: any) => p.id === settings.current_project_id);
+          if (currentProject) {
+            setCurrentProjectId(settings.current_project_id);
+            setPlaylist(currentProject.playlist || []);
+            setCustomThemes(currentProject.customThemes || []);
+          } else {
+            // Project not found, load main playlist
+            setCurrentProjectId(null);
+            if (settings.playlist) setPlaylist(settings.playlist);
+            if (settings.custom_themes) setCustomThemes(settings.custom_themes);
+          }
+        } else {
+          // No project selected, load main playlist
+          if (settings.playlist) setPlaylist(settings.playlist);
+          if (settings.custom_themes) setCustomThemes(settings.custom_themes);
+        }
+
         dataLoaded.current = true;
       } else {
         // Fallback for empty array result
@@ -408,16 +427,23 @@ const App: React.FC = () => {
     }
   }, [projects, currentProjectId]);
 
-  // Auto-save current project's playlist
+  // Auto-save current project's playlist (with guard to prevent infinite loop)
+  const isUpdatingProjectRef = useRef(false);
   useEffect(() => {
-    if (currentProjectId && projects.length > 0) {
-      setProjects(prev => prev.map(p =>
-        p.id === currentProjectId
-          ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
-          : p
-      ));
+    if (currentProjectId && projects.length > 0 && !isUpdatingProjectRef.current) {
+      isUpdatingProjectRef.current = true;
+      setProjects(prev => {
+        const updated = prev.map(p =>
+          p.id === currentProjectId
+            ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+            : p
+        );
+        return updated;
+      });
+      // Reset the guard after a short delay
+      setTimeout(() => { isUpdatingProjectRef.current = false; }, 100);
     }
-  }, [playlist, customThemes]);
+  }, [playlist, customThemes, currentProjectId]);
 
   // Project Management Functions
   const handleCreateProject = useCallback((name: string, description?: string) => {
