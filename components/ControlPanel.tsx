@@ -343,8 +343,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           img.src = ev.target.result as string;
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 1920;
-            const MAX_HEIGHT = 1080;
+            const MAX_WIDTH = 1280;
+            const MAX_HEIGHT = 720;
             let width = img.width;
             let height = img.height;
 
@@ -364,8 +364,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, width, height);
 
-            // Compress to JPEG with 0.7 quality
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            // Compress to JPEG with 0.5 quality for better sync
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
 
             updatePendingTheme({ ...currentTheme, background: `url(${compressedBase64}) center/cover no-repeat` });
             e.target.value = ''; // Reset
@@ -387,8 +387,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           img.src = ev.target.result as string;
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 1920;
-            const MAX_HEIGHT = 1080;
+            const MAX_WIDTH = 1280;
+            const MAX_HEIGHT = 720;
             let width = img.width;
             let height = img.height;
 
@@ -408,8 +408,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, width, height);
 
-            // Compress to JPEG with 0.7 quality
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            // Compress to JPEG with 0.5 quality for better sync
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
 
             const newSlide: Slide = {
               id: Math.random().toString(36).substr(2, 9),
