@@ -339,8 +339,37 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       const reader = new FileReader();
       reader.onload = (ev) => {
         if (ev.target?.result) {
-          updatePendingTheme({ ...currentTheme, background: `url(${ev.target.result}) center/cover no-repeat` });
-          e.target.value = ''; // Reset
+          const img = new Image();
+          img.src = ev.target.result as string;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1920;
+            const MAX_HEIGHT = 1080;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+
+            // Compress to JPEG with 0.7 quality
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+            updatePendingTheme({ ...currentTheme, background: `url(${compressedBase64}) center/cover no-repeat` });
+            e.target.value = ''; // Reset
+          };
         }
       };
       reader.readAsDataURL(file);
@@ -350,18 +379,48 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleSlideImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Compress/Resize image before saving to avoid database size limits
       const reader = new FileReader();
       reader.onload = (ev) => {
         if (ev.target?.result) {
-          const newSlide: Slide = {
-            id: Math.random().toString(36).substr(2, 9),
-            type: 'image',
-            content: '',
-            mediaUrl: ev.target.result as string,
-            label: 'IMAGEN'
+          const img = new Image();
+          img.src = ev.target.result as string;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1920;
+            const MAX_HEIGHT = 1080;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+
+            // Compress to JPEG with 0.7 quality
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+            const newSlide: Slide = {
+              id: Math.random().toString(36).substr(2, 9),
+              type: 'image',
+              content: '',
+              mediaUrl: compressedBase64,
+              label: 'IMAGEN'
+            };
+            onAddSlide(newSlide);
+            e.target.value = ''; // Reset
           };
-          onAddSlide(newSlide);
-          e.target.value = ''; // Reset so the same file can be uploaded again
         }
       };
       reader.readAsDataURL(file);
