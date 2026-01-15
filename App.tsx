@@ -32,6 +32,8 @@ const App: React.FC = () => {
   const [liveSlideIndex, setLiveSlideIndex] = useState<number>(-1);
   const [backgroundAudioItem, setBackgroundAudioItem] = useState<{ videoId: string; title: string } | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
+  const [audioStartTime, setAudioStartTime] = useState<number>(0);
+  const [audioElapsedOffset, setAudioElapsedOffset] = useState<number>(0);
   const audioIframeRef = useRef<HTMLIFrameElement>(null);
   const [isPreviewHidden, setIsPreviewHidden] = useState(false); // BLACKOUT
   const [isTextHidden, setIsTextHidden] = useState(false); // CLEAR TEXT (Background stays)
@@ -106,6 +108,15 @@ const App: React.FC = () => {
       dataLoaded.current = false;
     }
   }, [session, fetchUserData]);
+
+  // Handle Audio Start Time
+  useEffect(() => {
+    if (backgroundAudioItem) {
+      setAudioStartTime(Date.now());
+      setAudioElapsedOffset(0);
+      setIsAudioPlaying(true);
+    }
+  }, [backgroundAudioItem?.videoId]);
 
   const handleSyncCloud = async () => {
     if (!session) {
@@ -208,17 +219,40 @@ const App: React.FC = () => {
     if (!audioIframeRef.current) return;
     const msg = isAudioPlaying ? '{"event":"command","func":"pauseVideo","args":""}' : '{"event":"command","func":"playVideo","args":""}';
     audioIframeRef.current.contentWindow?.postMessage(msg, '*');
+
+    if (isAudioPlaying) {
+      // If pausing, save how much time has passed
+      setAudioElapsedOffset(prev => prev + (Date.now() - audioStartTime));
+    } else {
+      // If resuming, reset the base start time to now
+      setAudioStartTime(Date.now());
+    }
+
     setIsAudioPlaying(!isAudioPlaying);
-  }, [isAudioPlaying]);
+  }, [isAudioPlaying, audioStartTime]);
 
   const seekAudio = useCallback((seconds: number) => {
     if (!audioIframeRef.current) return;
-    // We use a simple message to seek. +30 or -30 is harder via postMessage without API loaded, 
-    // but we can try basic skip if we track time or just use the API.
-    // For simplicity, we'll implement skip 10s
-    const msg = `{"event":"command","func":"seekTo","args":[${seconds}, true]}`;
-    // Since we don't have current time easily, we'll just implement play/pause first as requested
-  }, []);
+
+    // Estimate current time: offset from previous plays + time since current play started
+    let currentEstimateSeconds = audioElapsedOffset / 1000;
+    if (isAudioPlaying) {
+      currentEstimateSeconds += (Date.now() - audioStartTime) / 1000;
+    }
+
+    const newTime = Math.max(0, currentEstimateSeconds + seconds);
+    const msg = `{"event":"command","func":"seekTo","args":[${newTime}, true]}`;
+    audioIframeRef.current.contentWindow?.postMessage(msg, '*');
+
+    // Update our baseline
+    if (isAudioPlaying) {
+      // If playing, we shift the start time backward/forward to match the new position
+      setAudioStartTime(prev => prev - (seconds * 1000));
+    } else {
+      // If paused, we just update the offset
+      setAudioElapsedOffset(newTime * 1000);
+    }
+  }, [audioStartTime, audioElapsedOffset, isAudioPlaying]);
 
   const handleDeleteItem = (id: string) => {
     setPlaylist(prev => prev.filter(item => item.id !== id));
@@ -720,7 +754,7 @@ const App: React.FC = () => {
           activeSlide={currentSlide}
           onUpdateSlideContent={handleUpdateSlideContent}
           onPreviewSlideUpdate={setPreviewSlide}
-          onSetBackgroundAudio={(vid, title) => setBackgroundAudioItem({ videoId: vid, title })}
+          onSetBackgroundAudio={(vid, title) => setBackgroundAudioItem(vid ? { videoId: vid, title } : null)}
           onStopLive={stopLive}
           isLiveActive={!!liveItemId}
           onUndo={handleUndo}
@@ -730,6 +764,11 @@ const App: React.FC = () => {
             setActiveItemId(null);
             setActiveSlideIndex(-1);
           }}
+          // Passing audio controls
+          isAudioPlaying={isAudioPlaying}
+          backgroundAudioItem={backgroundAudioItem}
+          onToggleAudioPlayback={toggleAudioPlayback}
+          onSeekAudio={seekAudio}
         />
       </div>
 

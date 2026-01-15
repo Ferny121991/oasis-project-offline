@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, DensityMode, SongSearchResult } from '../services/geminiService';
 import { PresentationItem, Theme, AnimationType, Slide } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
-import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check } from 'lucide-react';
+import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack } from 'lucide-react';
 
 interface ControlPanelProps {
   onAddItem: (item: PresentationItem) => void;
@@ -23,6 +23,11 @@ interface ControlPanelProps {
   onRestoreOriginal: () => void;
   canUndo: boolean;
   onDeselect?: () => void;
+  // Audio Control Props
+  isAudioPlaying?: boolean;
+  backgroundAudioItem?: { videoId: string; title: string } | null;
+  onToggleAudioPlayback?: () => void;
+  onSeekAudio?: (seconds: number) => void;
 }
 
 // Updated Bible Versions as requested
@@ -108,7 +113,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onUndo,
   onRestoreOriginal,
   canUndo,
-  onDeselect
+  onDeselect,
+  isAudioPlaying,
+  backgroundAudioItem,
+  onToggleAudioPlayback,
+  onSeekAudio
 }) => {
   const [activeTab, setActiveTab] = useState<'content' | 'theme'>('content');
   const [bgMode, setBgMode] = useState<'image' | 'solid' | 'gradient'>('image');
@@ -526,6 +535,53 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
 
 
+
+            {/* BACKGROUND AUDIO PLAYER CONTROLS */}
+            {backgroundAudioItem && (
+              <div className="bg-gray-900 border border-indigo-500/30 rounded-xl p-4 shadow-lg animate-fade-in mb-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-600/20">
+                    <Music size={16} className={isAudioPlaying ? 'animate-pulse' : ''} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest block">Musica de fondo</span>
+                    <p className="text-xs text-white font-bold truncate">{backgroundAudioItem.title}</p>
+                  </div>
+                  <button
+                    onClick={() => onSetBackgroundAudio?.('', '')}
+                    className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                    title="Detener musica"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => onSeekAudio?.(-15)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-all active:scale-90"
+                    title="Retroceder 15s"
+                  >
+                    <SkipBack size={20} />
+                  </button>
+
+                  <button
+                    onClick={() => onToggleAudioPlayback?.()}
+                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-all active:scale-95 shadow-lg ${isAudioPlaying ? 'bg-indigo-600 text-white shadow-indigo-600/30' : 'bg-white text-indigo-900 shadow-white/10'}`}
+                  >
+                    {isAudioPlaying ? <PauseCircle size={28} /> : <PlayCircle size={28} />}
+                  </button>
+
+                  <button
+                    onClick={() => onSeekAudio?.(15)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-all active:scale-90"
+                    title="Adelantar 15s"
+                  >
+                    <SkipForward size={20} />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* SONG RESULTS */}
             {songResults.length > 0 && (
