@@ -51,6 +51,16 @@ const App: React.FC = () => {
   // Staged Theme for previewing changes before applying to projector (Hoisted for Sync)
   const [stagedTheme, setStagedTheme] = useState<Theme>(DEFAULT_THEME);
 
+  // Custom Themes (Cloud Synced)
+  const [customThemes, setCustomThemes] = useState<Theme[]>(() => {
+    try {
+      const saved = localStorage.getItem('oasis_custom_themes');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Onboarding & Timer states
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return localStorage.getItem('oasis_onboarding_complete') !== 'true';
@@ -217,16 +227,17 @@ const App: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('user_settings')
-        .select('playlist')
+        .select('playlist, custom_themes')
         .single();
 
-      if (data && data.playlist) {
-        setPlaylist(data.playlist);
+      if (data) {
+        if (data.playlist) setPlaylist(data.playlist);
+        if (data.custom_themes) setCustomThemes(data.custom_themes);
         dataLoaded.current = true;
       } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
-        // No settings found, create initial ones with empty playlist or current local one
+        // No settings found, create initial ones
         await supabase.from('user_settings').insert([
-          { id: session.user.id, playlist: [] }
+          { id: session.user.id, playlist: [], custom_themes: [] }
         ]);
         dataLoaded.current = true;
       }
@@ -283,6 +294,7 @@ const App: React.FC = () => {
   useEffect(() => {
     try {
       localStorage.setItem('flujo_playlist_v2', JSON.stringify(playlist));
+      localStorage.setItem('oasis_custom_themes', JSON.stringify(customThemes));
 
       // Update Supabase if logged in AND data has been loaded AND NOT currently loading from cloud
       if (session?.user && dataLoaded.current && !isCloudLoading.current) {
@@ -294,6 +306,7 @@ const App: React.FC = () => {
               .upsert({
                 id: session.user.id,
                 playlist,
+                custom_themes: customThemes,
                 updated_at: new Date().toISOString()
               });
           } catch (e) {
@@ -308,7 +321,7 @@ const App: React.FC = () => {
     } catch (e) {
       console.error("Storage quota exceeded likely due to images", e);
     }
-  }, [playlist, session]);
+  }, [playlist, customThemes, session]);
 
   // Clock Timer
   useEffect(() => {
@@ -938,6 +951,9 @@ const App: React.FC = () => {
           backgroundAudioItem={backgroundAudioItem}
           onToggleAudioPlayback={toggleAudioPlayback}
           onSeekAudio={seekAudio}
+          // Custom Themes
+          customThemes={customThemes}
+          onUpdateCustomThemes={setCustomThemes}
         />
       </div>
 

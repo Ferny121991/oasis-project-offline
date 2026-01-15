@@ -17,6 +17,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
   horizontalListSortingStrategy,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -63,6 +64,7 @@ interface SortableSlideProps {
   onSetSplitRight?: (slide: Slide) => void;
   isLeftSplit?: boolean;
   isRightSplit?: boolean;
+  onUpdateLabel?: (newLabel: string) => void;
 }
 
 const SortableSlide: React.FC<SortableSlideProps> = ({
@@ -73,11 +75,13 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
   onSlideClick,
   onSlideDoubleClick,
   onDeleteSlide,
+  onToggleBackgroundAudio,
   isSplitMode,
   onSetSplitLeft,
   onSetSplitRight,
   isLeftSplit,
   isRightSplit,
+  onUpdateLabel
 }) => {
   const {
     attributes,
@@ -101,7 +105,7 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
       style={style}
       onClick={onSlideClick}
       onDoubleClick={onSlideDoubleClick}
-      className={`relative group text-left rounded-xl p-2.5 h-24 flex flex-col justify-between transition-all duration-200 border-2 cursor-pointer shrink-0 w-32 ${isActive
+      className={`relative group text-left rounded-xl p-3 h-28 flex flex-col justify-between transition-all duration-200 border-2 cursor-pointer shrink-0 w-36 ${isActive
         ? 'bg-indigo-900/40 border-indigo-500 ring-2 ring-indigo-500/30'
         : isLive
           ? 'bg-red-900/30 border-red-500/60'
@@ -114,37 +118,37 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
       <div
         {...attributes}
         {...listeners}
-        className="absolute top-1 left-1 z-20 cursor-grab active:cursor-grabbing text-gray-500 hover:text-indigo-400 transition-colors"
+        className="absolute top-1.5 left-1.5 z-20 cursor-grab active:cursor-grabbing text-gray-500 hover:text-indigo-400 transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
-        <GripVertical size={12} />
+        <GripVertical size={14} />
       </div>
 
-      {/* Label */}
-      <div className="absolute top-1 right-1 flex items-center gap-1">
+      {/* Label & Badges */}
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
         {isLive && (
-          <span className="bg-red-600 text-white text-[7px] px-1 rounded-sm font-black animate-pulse">LIVE</span>
+          <span className="bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded font-black animate-pulse">LIVE</span>
         )}
         {isLeftSplit && (
-          <span className="bg-purple-600 text-white text-[7px] px-1 rounded-sm font-black">L</span>
+          <span className="bg-purple-600 text-white text-[8px] px-1.5 py-0.5 rounded font-black">L</span>
         )}
         {isRightSplit && (
-          <span className="bg-pink-600 text-white text-[7px] px-1 rounded-sm font-black">R</span>
+          <span className="bg-pink-600 text-white text-[8px] px-1.5 py-0.5 rounded font-black">R</span>
         )}
-        <span className="text-[8px] font-bold text-gray-400 uppercase truncate max-w-[40px]">
+        <span className="text-[9px] font-bold text-gray-400 uppercase truncate max-w-[85px]">
           {slide.label || `#${index + 1}`}
         </span>
       </div>
 
       {/* Split Mode Buttons */}
       {isSplitMode && (
-        <div className="absolute bottom-1 left-1 z-30 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+        <div className="absolute bottom-1.5 left-1.5 z-30 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onSetSplitLeft?.(slide);
             }}
-            className={`p-1 rounded text-[8px] font-bold transition-all ${isLeftSplit ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-purple-600 hover:text-white'}`}
+            className={`p-1.5 rounded text-xs font-bold transition-all ${isLeftSplit ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-purple-600 hover:text-white'}`}
             title="Panel Izquierdo"
           >
             ⬅️
@@ -154,7 +158,7 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
               e.stopPropagation();
               onSetSplitRight?.(slide);
             }}
-            className={`p-1 rounded text-[8px] font-bold transition-all ${isRightSplit ? 'bg-pink-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-pink-600 hover:text-white'}`}
+            className={`p-1.5 rounded text-xs font-bold transition-all ${isRightSplit ? 'bg-pink-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-pink-600 hover:text-white'}`}
             title="Panel Derecho"
           >
             ➡️
@@ -162,31 +166,62 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
         </div>
       )}
 
-      {/* Delete Button */}
+      {/* Bottom Action Buttons */}
       {!isSplitMode && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteSlide();
-          }}
-          className="absolute bottom-1 right-1 z-30 p-1 rounded text-white bg-red-600/80 hover:bg-red-500 opacity-0 group-hover:opacity-100 transition-all"
-        >
-          <Trash2 size={10} />
-        </button>
+        <div className="absolute bottom-1.5 right-1.5 z-30 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          {/* Background Audio Button for YouTube */}
+          {slide.type === 'youtube' && onToggleBackgroundAudio && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleBackgroundAudio();
+              }}
+              className="p-1.5 rounded bg-green-600/80 hover:bg-green-500 text-white transition-all"
+              title="Reproducir audio en fondo"
+            >
+              <Music size={12} />
+            </button>
+          )}
+          {/* Edit Label Button */}
+          {onUpdateLabel && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const newLabel = prompt("Editar nombre:", slide.label || "");
+                if (newLabel !== null) onUpdateLabel(newLabel);
+              }}
+              className="p-1.5 rounded text-white bg-blue-600/80 hover:bg-blue-500 transition-all"
+              title="Editar nombre"
+            >
+              <Edit2 size={12} />
+            </button>
+          )}
+          {/* Delete Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteSlide();
+            }}
+            className="p-1.5 rounded text-white bg-red-600/80 hover:bg-red-500 transition-all"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
       )}
 
       {/* Content Preview */}
-      <div className={`text-[9px] leading-tight line-clamp-2 mt-4 ${isActive ? 'text-white' : 'text-gray-400'}`}>
+      <div className={`text-[10px] leading-tight line-clamp-3 mt-5 ${isActive ? 'text-white' : 'text-gray-400'}`}>
         {slide.type === 'youtube' ? (
-          <div className="flex items-center gap-1 text-red-400 font-bold">
-            <Monitor size={10} /> VIDEO
+          <div className="flex flex-col items-center justify-center gap-1 text-red-400 font-bold h-full">
+            <Monitor size={16} />
+            <span className="text-[9px]">VIDEO</span>
           </div>
         ) : slide.type === 'image' && slide.mediaUrl ? (
-          <div className="absolute inset-0 top-4 rounded-b overflow-hidden">
-            <img src={slide.mediaUrl} alt="" className="w-full h-full object-cover opacity-60" />
+          <div className="absolute inset-0 top-5 rounded-b-lg overflow-hidden">
+            <img src={slide.mediaUrl} alt="" className="w-full h-full object-cover opacity-70" />
           </div>
         ) : (
-          <span className="line-clamp-2">{slide.content?.substring(0, 40)}</span>
+          <span className="line-clamp-3">{slide.content?.substring(0, 60)}</span>
         )}
       </div>
     </div>
@@ -233,6 +268,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
   onDeleteSlide,
   onRefreshItem,
   onUploadClick,
+  onUpdateSlideLabel,
   onUpdateItemTitle,
   onReorderSlides,
   isExpanded,
@@ -400,8 +436,8 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
       {isExpanded && (
         <div className="p-4 bg-gray-900/60">
           <DndContext sensors={slideSensors} collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
-            <SortableContext items={item.slides.map(s => s.id)} strategy={horizontalListSortingStrategy}>
-              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+            <SortableContext items={item.slides.map(s => s.id)} strategy={rectSortingStrategy}>
+              <div className="flex flex-wrap gap-2.5">
                 {item.slides.map((slide, index) => (
                   <SortableSlide
                     key={slide.id}
@@ -420,6 +456,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
                     onSetSplitRight={onSetSplitRight}
                     isLeftSplit={splitLeftSlide?.id === slide.id}
                     isRightSplit={splitRightSlide?.id === slide.id}
+                    onUpdateLabel={(newLabel) => onUpdateSlideLabel(item.id, slide.id, newLabel)}
                   />
                 ))}
               </div>

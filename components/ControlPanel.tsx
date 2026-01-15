@@ -28,6 +28,9 @@ interface ControlPanelProps {
   backgroundAudioItem?: { videoId: string; title: string } | null;
   onToggleAudioPlayback?: () => void;
   onSeekAudio?: (seconds: number) => void;
+  // Custom Themes (cloud synced)
+  customThemes?: Theme[];
+  onUpdateCustomThemes?: (themes: Theme[]) => void;
 }
 
 // Updated Bible Versions as requested
@@ -71,15 +74,41 @@ const FONTS = [
 ];
 
 const ANIMATIONS: { name: string; value: AnimationType }[] = [
-  { name: 'Ninguna', value: 'none' },
-  { name: 'Desvanecer (Fade)', value: 'fade' },
-  { name: 'Fade + Subir', value: 'fade-slide-up' },
-  { name: 'Zoom Entrada', value: 'zoom-in' },
-  { name: 'Zoom Elástico', value: 'zoom-elastic' },
-  { name: 'Desenfoque (Blur)', value: 'blur-in' },
-  { name: 'Rebote (Bounce)', value: 'bounce-in' },
-  { name: 'Rotación', value: 'rotate-in' },
-  { name: 'Giro 3D', value: 'flip-in-x' },
+  // Básicas
+  { name: '🚫 Ninguna', value: 'none' },
+  { name: '✨ Desvanecer (Fade)', value: 'fade' },
+
+  // Fade + Dirección
+  { name: '⬆️ Fade + Subir', value: 'fade-slide-up' },
+  { name: '⬇️ Fade + Bajar', value: 'fade-slide-down' },
+  { name: '⬅️ Fade + Izquierda', value: 'fade-slide-left' },
+  { name: '➡️ Fade + Derecha', value: 'fade-slide-right' },
+
+  // Zoom
+  { name: '🔍 Zoom Entrada', value: 'zoom-in' },
+  { name: '🔎 Zoom Salida', value: 'zoom-out' },
+  { name: '🎯 Zoom Elástico', value: 'zoom-elastic' },
+
+  // Blur & Focus
+  { name: '💨 Desenfoque (Blur)', value: 'blur-in' },
+  { name: '🎬 Focus Expand', value: 'focus-in-expand' },
+
+  // Especiales
+  { name: '⌨️ Máquina Escribir', value: 'typewriter' },
+  { name: '🌀 Rotación', value: 'rotate-in' },
+  { name: '🔄 Giro 3D Horizontal', value: 'flip-in-x' },
+  { name: '🔃 Giro 3D Vertical', value: 'flip-in-y' },
+
+  // Bounce & Elastic
+  { name: '🏀 Rebote (Bounce)', value: 'bounce-in' },
+  { name: '⬇️ Rebote desde Arriba', value: 'bounce-in-top' },
+  { name: '🎢 Elástico Slide', value: 'elastic-slide' },
+
+  // Dramáticas
+  { name: '🎭 Swing (Balanceo)', value: 'swing-in' },
+  { name: '🎲 Roll In (Rodar)', value: 'roll-in' },
+  { name: '📐 Slit Vertical', value: 'slit-in-vertical' },
+  { name: '💥 Puff In (Explosión)', value: 'puff-in' },
 ];
 
 const FONT_SIZES = [
@@ -133,7 +162,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   isAudioPlaying,
   backgroundAudioItem,
   onToggleAudioPlayback,
-  onSeekAudio
+  onSeekAudio,
+  customThemes: propCustomThemes,
+  onUpdateCustomThemes
 }) => {
   const [activeTab, setActiveTab] = useState<'content' | 'theme'>('content');
   const [bgMode, setBgMode] = useState<'image' | 'solid' | 'gradient'>('image');
@@ -161,8 +192,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // Custom Themes (user-created)
-  const [customThemes, setCustomThemes] = useState<Theme[]>(() => {
+  // Custom Themes (user-created) - use props if cloud-synced, or local state as fallback
+  const [localCustomThemes, setLocalCustomThemes] = useState<Theme[]>(() => {
     try {
       const saved = localStorage.getItem('oasis_custom_themes');
       return saved ? JSON.parse(saved) : [];
@@ -173,10 +204,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [showSaveThemeModal, setShowSaveThemeModal] = useState(false);
   const [newThemeName, setNewThemeName] = useState('');
 
-  // Save custom themes to localStorage
+  // Use cloud themes if available, otherwise local
+  const customThemes = propCustomThemes ?? localCustomThemes;
+  const setCustomThemes = (updater: Theme[] | ((prev: Theme[]) => Theme[])) => {
+    const newThemes = typeof updater === 'function' ? updater(customThemes) : updater;
+    if (onUpdateCustomThemes) {
+      // Cloud sync
+      onUpdateCustomThemes(newThemes);
+    } else {
+      // Local only
+      setLocalCustomThemes(newThemes);
+    }
+  };
+
+  // Save local custom themes to localStorage (only if not using cloud)
   useEffect(() => {
-    localStorage.setItem('oasis_custom_themes', JSON.stringify(customThemes));
-  }, [customThemes]);
+    if (!onUpdateCustomThemes) {
+      localStorage.setItem('oasis_custom_themes', JSON.stringify(localCustomThemes));
+    }
+  }, [localCustomThemes, onUpdateCustomThemes]);
 
   const saveCurrentAsCustomTheme = () => {
     if (!newThemeName.trim()) return;
