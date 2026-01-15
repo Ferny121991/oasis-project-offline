@@ -308,9 +308,31 @@ const App: React.FC = () => {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setPlaylist([]);
-    localStorage.removeItem('flujo_playlist_v2');
+    try {
+      // 1. Stop any pending or future cloud updates immediately
+      dataLoaded.current = false;
+      setIsSyncing(true); // Show progress during logout
+
+      // 2. Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      // 3. Clear local state ONLY after sync protection is in place
+      setPlaylist([]);
+      setCustomThemes([]);
+
+      // 4. Clear local storage
+      localStorage.removeItem('flujo_playlist_v2');
+      localStorage.removeItem('oasis_custom_themes');
+
+      // 5. Reset internal flags
+      dataLoaded.current = false;
+    } catch (e) {
+      console.error("Logout failed", e);
+      alert("Error al cerrar sesión. Inténtalo de nuevo.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // Persistence Effect
@@ -322,6 +344,9 @@ const App: React.FC = () => {
       // Update Supabase if logged in AND data has been loaded AND NOT currently loading from cloud
       if (session?.user && dataLoaded.current && !isCloudLoading.current) {
         const updateCloud = async () => {
+          // Double check dataLoaded flag still true when task actually runs
+          if (!dataLoaded.current || !session?.user) return;
+
           setIsSyncing(true);
           try {
             const { error } = await supabase
