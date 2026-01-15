@@ -308,30 +308,28 @@ const App: React.FC = () => {
   };
 
   const handleSignOut = async () => {
+    // 1. DISABLE SYNC IMMEDIATELY
+    dataLoaded.current = false;
+
     try {
-      // 1. Stop any pending or future cloud updates immediately
-      dataLoaded.current = false;
-      setIsSyncing(true); // Show progress during logout
-
-      // 2. Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      // 3. Clear local state ONLY after sync protection is in place
+      // 2. Immediate visual feedback: Clear local state and session
+      setSession(null);
       setPlaylist([]);
       setCustomThemes([]);
 
-      // 4. Clear local storage
+      // 3. Wipe persistent storage
       localStorage.removeItem('flujo_playlist_v2');
       localStorage.removeItem('oasis_custom_themes');
 
-      // 5. Reset internal flags
-      dataLoaded.current = false;
+      // 4. Inform Supabase (don't let errors here block the local cleanup)
+      await supabase.auth.signOut().catch(err => console.warn("Supabase SignOut error:", err));
+
+      // 5. Hard reload to ensure all listeners and refs are destroyed
+      window.location.href = window.location.origin + window.location.pathname;
     } catch (e) {
-      console.error("Logout failed", e);
-      alert("Error al cerrar sesión. Inténtalo de nuevo.");
-    } finally {
-      setIsSyncing(false);
+      console.error("Critical logout error", e);
+      // Fail-safe: force a clean start
+      window.location.reload();
     }
   };
 
