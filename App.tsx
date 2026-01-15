@@ -8,7 +8,7 @@ import TimerWidget from './components/TimerWidget';
 import SplitScreen from './components/SplitScreen';
 import { PresentationItem, Theme, Slide } from './types';
 import { DEFAULT_THEME } from './constants';
-import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns } from 'lucide-react';
+import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
@@ -977,7 +977,7 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row h-[100dvh] bg-black text-white font-sans overflow-hidden select-none">
       {/* LEFT: Control Center (30%) */}
-      <div className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[30%] flex-shrink-0 scrollbar-hide overflow-hidden bg-gray-950 border-r border-gray-800 flex-col`}>
+      <div id="control-panel" className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[30%] flex-shrink-0 scrollbar-hide overflow-hidden bg-gray-950 border-r border-gray-800 flex-col`}>
         <ControlPanel
           onAddItem={handleAddItem}
           onUpdateTheme={handleUpdateActiveItemTheme}
@@ -1012,10 +1012,13 @@ const App: React.FC = () => {
       </div>
 
       {/* MIDDLE: Playlist & Management (45%) */}
-      <div className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-gray-800 min-w-0 lg:min-w-[300px] overflow-hidden`}>
+      <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-gray-800 min-w-0 lg:min-w-[300px] overflow-hidden`}>
         {/* Mobile Header - Compact with Live Status */}
         <div className="lg:hidden bg-gradient-to-r from-gray-900 via-gray-850 to-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center shrink-0">
-          <h1 className="text-lg font-black tracking-tight text-indigo-400">Flujo<span className="text-white font-light">Eclesial</span></h1>
+          <div className="flex items-center gap-2">
+            <img src="/header-logo.png" alt="Logo" className="w-10 h-10 object-contain brightness-110 contrast-125 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
+            <h1 className="text-lg font-black tracking-tight text-indigo-400">Flujo<span className="text-white font-light">Eclesial</span></h1>
+          </div>
           <div className="flex items-center gap-2">
             {session && (
               <button
@@ -1058,12 +1061,15 @@ const App: React.FC = () => {
         </div>
         {/* Desktop Header */}
         <div className="hidden lg:flex bg-gray-900 px-6 py-4 border-b border-gray-800 justify-between items-center shrink-0">
-          <div className="flex flex-col">
-            <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-              <span className="bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">FlujoEclesial</span>
-              <span className="font-light text-gray-400">Studio</span>
-            </h1>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Centro de Control Proyectores</p>
+          <div className="flex items-center gap-3">
+            <img src="/header-logo.png" alt="Logo" className="w-12 h-12 object-contain brightness-110 contrast-125 drop-shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+                <span className="bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">FlujoEclesial</span>
+                <span className="font-light text-gray-400">Studio</span>
+              </h1>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Centro de Control Proyectores</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-6">
@@ -1093,33 +1099,35 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <Playlist
-          items={playlist}
-          activeItemId={activeItemId}
-          activeSlideIndex={activeSlideIndex}
-          liveItemId={liveItemId}
-          liveSlideIndex={liveSlideIndex}
-          onSlideClick={handleSlideClick}
-          onSlideDoubleClick={(itemId, index) => makeLive(itemId, index)}
-          onToggleBackgroundAudio={(vid, title) => setBackgroundAudioItem({ videoId: vid, title })}
-          onDeleteItem={handleDeleteItem}
-          onDeleteSlide={handleDeleteSlide}
-          onRefreshItem={handleRefreshItem}
-          onUploadImages={handleUploadImages}
-          onUpdateSlideLabel={handleUpdateSlideLabel}
-          onUpdateItemTitle={handleUpdateItemTitle}
-          onReorderItems={(newItems) => setPlaylist(newItems)}
-          onReorderSlides={(itemId, newSlides) => {
-            setPlaylist(prev => prev.map(item =>
-              item.id === itemId ? { ...item, slides: newSlides } : item
-            ));
-          }}
-          isSplitMode={showSplitScreen}
-          onSetSplitLeft={setSplitLeftSlide}
-          onSetSplitRight={setSplitRightSlide}
-          splitLeftSlide={splitLeftSlide}
-          splitRightSlide={splitRightSlide}
-        />
+        <div id="playlist-panel" className="flex-1 flex flex-col min-h-0">
+          <Playlist
+            items={playlist}
+            activeItemId={activeItemId}
+            activeSlideIndex={activeSlideIndex}
+            liveItemId={liveItemId}
+            liveSlideIndex={liveSlideIndex}
+            onSlideClick={handleSlideClick}
+            onSlideDoubleClick={(itemId, index) => makeLive(itemId, index)}
+            onToggleBackgroundAudio={(vid, title) => setBackgroundAudioItem({ videoId: vid, title })}
+            onDeleteItem={handleDeleteItem}
+            onDeleteSlide={handleDeleteSlide}
+            onRefreshItem={handleRefreshItem}
+            onUploadImages={handleUploadImages}
+            onUpdateSlideLabel={handleUpdateSlideLabel}
+            onUpdateItemTitle={handleUpdateItemTitle}
+            onReorderItems={(newItems) => setPlaylist(newItems)}
+            onReorderSlides={(itemId, newSlides) => {
+              setPlaylist(prev => prev.map(item =>
+                item.id === itemId ? { ...item, slides: newSlides } : item
+              ));
+            }}
+            isSplitMode={showSplitScreen}
+            onSetSplitLeft={setSplitLeftSlide}
+            onSetSplitRight={setSplitRightSlide}
+            splitLeftSlide={splitLeftSlide}
+            splitRightSlide={splitRightSlide}
+          />
+        </div>
 
         {/* User Auth Bar */}
         <div className="bg-gray-900 px-4 py-2 border-t border-gray-800 flex justify-between items-center shrink-0">
@@ -1158,8 +1166,19 @@ const App: React.FC = () => {
               Ingresar con Google
             </button>
           )}
-          <div className="text-[10px] text-gray-500 italic">
-            {isSyncing ? 'Sincronizando...' : 'Nube Activa'}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => {
+                localStorage.removeItem('oasis_onboarding_complete');
+                setShowOnboarding(true);
+              }}
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 text-[10px] font-bold transition-all border border-indigo-500/20"
+            >
+              <HelpCircle size={12} /> Ver Tutorial
+            </button>
+            <div className="text-[10px] text-gray-500 italic">
+              {isSyncing ? 'Sincronizando...' : 'Nube Activa'}
+            </div>
           </div>
         </div>
 
@@ -1175,7 +1194,7 @@ const App: React.FC = () => {
       </div>
 
       {/* RIGHT: Live Preview & Presenter Tools (35%) */}
-      <div className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[35%] flex-shrink-0 flex-col bg-gray-950 relative border-l border-gray-800 overflow-hidden`}>
+      <div id="live-preview-panel" className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[35%] flex-shrink-0 flex-col bg-gray-950 relative border-l border-gray-800 overflow-hidden`}>
 
         {/* TOP BAR: Clock and Status - Responsive */}
         <div className="h-11 lg:h-12 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-3 lg:px-4 shrink-0">
@@ -1327,7 +1346,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Row 1: Quick Actions - Larger on Mobile */}
-          <div className="grid grid-cols-5 gap-1 p-2 border-b border-gray-800">
+          <div id="live-action-controls" className="grid grid-cols-5 gap-1 p-2 border-b border-gray-800">
             <button onClick={() => setIsPreviewHidden(!isPreviewHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isPreviewHidden ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
               {isPreviewHidden ? <EyeOff size={20} className="lg:w-4 lg:h-4" /> : <Eye size={20} className="lg:w-4 lg:h-4" />}
               <span className="text-[8px] lg:text-[9px] font-bold mt-1">BLACK</span>
@@ -1379,7 +1398,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Row 3: Active Slide Grid (Mini) */}
-          <div className="h-20 lg:h-24 bg-gray-900 overflow-x-auto no-scrollbar whitespace-nowrap p-2 flex gap-2 items-center" ref={miniGridRef}>
+          <div id="slide-grid" className="h-20 lg:h-24 bg-gray-900 overflow-x-auto no-scrollbar whitespace-nowrap p-2 flex gap-2 items-center" ref={miniGridRef}>
             {activeItem ? activeItem.slides.map((slide, idx) => (
               <button
                 key={slide.id}
@@ -1405,15 +1424,17 @@ const App: React.FC = () => {
       </div>
 
       {/* HIDDEN BACKGROUND AUDIO PLAYER */}
-      {backgroundAudioItem && (
-        <div className="fixed bottom-[-100px] left-[-100px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden">
-          <iframe
-            ref={audioIframeRef}
-            src={`https://www.youtube-nocookie.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&loop=1&playlist=${backgroundAudioItem.videoId}&origin=${window.location.protocol}//${window.location.host}`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          ></iframe>
-        </div>
-      )}
+      {
+        backgroundAudioItem && (
+          <div className="fixed bottom-[-100px] left-[-100px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden">
+            <iframe
+              ref={audioIframeRef}
+              src={`https://www.youtube-nocookie.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&loop=1&playlist=${backgroundAudioItem.videoId}&origin=${window.location.protocol}//${window.location.host}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            ></iframe>
+          </div>
+        )
+      }
 
       {/* MOBILE BOTTOM NAV - Enhanced */}
       <div className="lg:hidden shrink-0 h-[68px] bg-gradient-to-t from-gray-900 via-gray-850 to-gray-800 border-t border-gray-700 flex items-center justify-around z-50 px-2 pb-1 pt-1">
@@ -1444,17 +1465,21 @@ const App: React.FC = () => {
       </div>
 
       {/* Timer Widget Overlay */}
-      {showTimer && (
-        <div className="fixed top-20 right-4 z-[9000] animate-fade-in">
-          <TimerWidget onClose={() => setShowTimer(false)} />
-        </div>
-      )}
+      {
+        showTimer && (
+          <div className="fixed top-20 right-4 z-[9000] animate-fade-in">
+            <TimerWidget onClose={() => setShowTimer(false)} />
+          </div>
+        )
+      }
 
       {/* Onboarding Tutorial */}
-      {showOnboarding && (
-        <Onboarding onComplete={() => setShowOnboarding(false)} />
-      )}
-    </div>
+      {
+        showOnboarding && (
+          <Onboarding onComplete={() => setShowOnboarding(false)} />
+        )
+      }
+    </div >
   );
 };
 
