@@ -8,9 +8,11 @@ interface LiveScreenProps {
   isFullscreen?: boolean;
   enableOverlay?: boolean;
   onUpdateTheme?: (theme: Theme) => void;
-  hideText?: boolean; // New prop to hide text content only
-  isLogoMode?: boolean; // New prop for Logo mode
+  hideText?: boolean;
+  isLogoMode?: boolean;
   blackout?: boolean;
+  autoPlay?: boolean; // New prop
+  mute?: boolean;     // New prop
 }
 
 const LiveScreen: React.FC<LiveScreenProps> = ({
@@ -21,7 +23,9 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   onUpdateTheme,
   hideText = false,
   isLogoMode = false,
-  blackout = false
+  blackout = false,
+  autoPlay = true,  // Default to true for backward compatibility
+  mute = false      // Default to false
 }) => {
   const [showTools, setShowTools] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,7 +113,6 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
             style={{
               background: theme.background,
               filter: `brightness(${theme.bgBrightness}) blur(${theme.bgImageBlur}px)`,
-              transform: 'scale(1.05)',
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             }}
@@ -123,9 +126,9 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
         {/* Content Layer with Padding Control */}
         <div
-          className="absolute inset-0 z-10 flex flex-col justify-center items-center"
+          className="absolute inset-0 z-10 flex flex-col justify-center items-center overflow-hidden"
           style={{
-            padding: `${theme.padding || 4}cqh`,
+            padding: slide?.type === 'image' ? '0' : `${theme.padding || 4}cqh`,
             '--font-size-multiplier': theme.fontSize === 'text-2xl' ? '0.3' :
               theme.fontSize === 'text-4xl' ? '0.5' :
                 theme.fontSize === 'text-6xl' ? '0.7' :
@@ -148,11 +151,11 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                 <div key={slide.id} className={`w-full h-full flex flex-col justify-center items-center ${getAnimationClass()}`}>
                   {/* YOUTUBE SLIDE */}
                   {slide.type === 'youtube' && slide.videoId && (
-                    <div className="w-full h-full">
+                    <div className="w-[90%] h-[92%] flex items-center justify-center bg-black rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 relative z-10 transition-all duration-500">
                       <iframe
                         className="w-full h-full"
-                        src={`https://www.youtube.com/embed/${slide.videoId}?enablejsapi=1&autoplay=1&mute=0&controls=1`}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        src={`https://www.youtube-nocookie.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&origin=${window.location.protocol}//${window.location.host}&rel=0`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
                       ></iframe>
                     </div>
@@ -160,23 +163,13 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
                   {/* IMAGE SLIDE */}
                   {slide.type === 'image' && slide.mediaUrl && !hideText && (
-                    <div className="w-full h-full flex justify-center items-center overflow-hidden">
+                    <div className="absolute inset-0 flex justify-center items-center overflow-hidden bg-black">
                       <img
                         src={slide.mediaUrl}
                         alt="Slide Content"
-                        className="transition-all duration-300"
+                        className="w-full h-full transition-all duration-300"
                         style={{
-                          width: theme.imageContentFit === 'fill' ? '100%' : (theme.imageContentFit === 'cover' ? '100%' : 'auto'),
-                          height: theme.imageContentFit === 'fill' ? '100%' : (theme.imageContentFit === 'cover' ? '100%' : 'auto'),
-                          maxWidth: theme.imageContentFit === 'contain' ? '100%' : 'none',
-                          maxHeight: theme.imageContentFit === 'contain' ? '100%' : 'none',
-                          objectFit: theme.imageContentFit || 'contain',
-                          transform: `
-                            scale(${theme.imageContentScale || 1.0}) 
-                            rotate(${theme.imageContentRotation || 0}deg)
-                            scaleX(${theme.imageContentFlipH ? -1 : 1})
-                            scaleY(${theme.imageContentFlipV ? -1 : 1})
-                          `,
+                          objectFit: theme.imageContentFit || 'cover',
                           opacity: theme.imageContentOpacity ?? 1.0,
                           filter: `
                             brightness(${theme.imageContentBrightness ?? 1.0}) 
@@ -188,10 +181,12 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                             invert(${theme.imageContentInvert || 0})
                             blur(${theme.imageContentBlur || 0}px)
                           `,
-                          borderRadius: `${theme.imageContentRadius || 0}px`,
-                          border: theme.imageContentBorderWidth > 0 ? `${theme.imageContentBorderWidth}px solid ${theme.imageContentBorderColor}` : 'none',
-                          boxShadow: theme.imageContentShadowBlur > 0 ? `${theme.imageContentShadowOffsetX}px ${theme.imageContentShadowOffsetY}px ${theme.imageContentShadowBlur}px ${theme.imageContentShadowColor}` : 'none',
-                          mixBlendMode: theme.imageContentBlendMode as any
+                          transform: `
+                            scale(${theme.imageContentScale || 1.0}) 
+                            rotate(${theme.imageContentRotation || 0}deg)
+                            scaleX(${theme.imageContentFlipH ? -1 : 1})
+                            scaleY(${theme.imageContentFlipV ? -1 : 1})
+                          `
                         }}
                       />
                     </div>

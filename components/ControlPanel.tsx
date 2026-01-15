@@ -43,15 +43,31 @@ const BIBLE_VERSIONS = [
 
 const FONTS = [
   { name: 'Montserrat', value: 'Montserrat, sans-serif' },
+  { name: 'Poppins', value: 'Poppins, sans-serif' },
   { name: 'Inter', value: 'Inter, sans-serif' },
+  { name: 'Outfit', value: 'Outfit, sans-serif' },
   { name: 'Roboto', value: 'Roboto, sans-serif' },
-  { name: 'Lato', value: 'Lato, sans-serif' },
-  { name: 'Open Sans', value: '"Open Sans", sans-serif' },
   { name: 'Oswald', value: 'Oswald, sans-serif' },
+  { name: 'Bebas Neue', value: '"Bebas Neue", sans-serif' },
+  { name: 'Archivo Black', value: '"Archivo Black", sans-serif' },
+  { name: 'DM Sans', value: '"DM Sans", sans-serif' },
+  { name: 'Lexend', value: 'Lexend, sans-serif' },
+  { name: 'Quicksand', value: 'Quicksand, sans-serif' },
+  { name: 'Raleway', value: 'Raleway, sans-serif' },
+  { name: 'Space Grotesk', value: '"Space Grotesk", sans-serif' },
+  { name: 'Syne', value: 'Syne, sans-serif' },
+  { name: 'Unbounded', value: 'Unbounded, sans-serif' },
   { name: 'Merriweather', value: 'Merriweather, serif' },
   { name: 'Playfair Display', value: '"Playfair Display", serif' },
+  { name: 'Cormorant', value: '"Cormorant Garamond", serif' },
+  { name: 'Cinzel', value: 'Cinzel, serif' },
+  { name: 'Josefin Sans', value: '"Josefin Sans", sans-serif' },
+  { name: 'Bungee', value: 'Bungee, sans-serif' },
+  { name: 'Lobster', value: 'Lobster, cursive' },
+  { name: 'Pacifico', value: 'Pacifico, cursive' },
+  { name: 'Caveat', value: 'Caveat, cursive' },
+  { name: 'Permanent Marker', value: '"Permanent Marker", cursive' },
   { name: 'Courier New', value: 'Courier New, monospace' },
-  { name: 'Impact', value: 'Impact, sans-serif' },
 ];
 
 const ANIMATIONS: { name: string; value: AnimationType }[] = [
@@ -415,8 +431,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <iframe
                       id="youtube-browser-iframe"
                       className="w-full h-full"
-                      src={inputText.includes('v=') || inputText.includes('youtu.be') ? `https://www.youtube.com/embed/${inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || ''}?autoplay=0&mute=1` : `https://www.youtube.com/embed?listType=search&list=${inputText || 'Musica Cristiana'}`}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      src={inputText.includes('v=') || inputText.includes('youtu.be') ? `https://www.youtube-nocookie.com/embed/${inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || ''}?autoplay=0&mute=1&origin=${window.location.protocol}//${window.location.host}` : `https://www.youtube-nocookie.com/embed?listType=search&list=${inputText || 'Musica Cristiana'}&origin=${window.location.protocol}//${window.location.host}`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     ></iframe>
                     {!inputText && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none group-hover:opacity-0 transition-opacity">
@@ -799,6 +815,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               </button>
                             ))}
                           </div>
+                          <div className="bg-gray-900/40 p-3 rounded-lg border border-gray-700/30">
+                            <div className="flex justify-between text-[10px] text-gray-300 mb-2 font-bold uppercase">
+                              <div className="flex items-center gap-2 text-pink-400"><Plus size={10} /> ZOOM CONTENIDO</div>
+                              <span className="text-pink-400">{Math.round((currentTheme.imageContentScale || 1.0) * 100)}%</span>
+                            </div>
+                            <input
+                              type="range" min="0.5" max="3" step="0.05"
+                              value={currentTheme.imageContentScale || 1.0}
+                              onChange={(e) => updatePendingTheme({ ...currentTheme, imageContentScale: parseFloat(e.target.value) })}
+                              className="w-full h-1.5 bg-gray-700 rounded-full accent-pink-500 cursor-pointer mb-2"
+                            />
+                            <div className="flex justify-between text-[8px] text-gray-500 uppercase font-black">
+                              <span>Zoom Out</span>
+                              <span>Zoom In</span>
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-2">
                             <button onClick={() => updatePendingTheme({ ...currentTheme, imageContentFlipH: !currentTheme.imageContentFlipH })} className={`py-2 rounded-lg text-[9px] font-bold uppercase border transition-all ${currentTheme.imageContentFlipH ? 'bg-pink-600 text-white border-pink-400' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>Espejo H</button>
                             <button onClick={() => updatePendingTheme({ ...currentTheme, imageContentFlipV: !currentTheme.imageContentFlipV })} className={`py-2 rounded-lg text-[9px] font-bold uppercase border transition-all ${currentTheme.imageContentFlipV ? 'bg-pink-600 text-white border-pink-400' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>Espejo V</button>

@@ -43,6 +43,117 @@ const App: React.FC = () => {
 
   // State for External Projector Window
   const [externalWindow, setExternalWindow] = useState<Window | null>(null);
+  const [isProjectorMode, setIsProjectorMode] = useState(false);
+
+  // Staged Theme for previewing changes before applying to projector (Hoisted for Sync)
+  const [stagedTheme, setStagedTheme] = useState<Theme>(DEFAULT_THEME);
+
+  // Sync Channel for Multi-window Projector
+  const syncChannel = useRef<BroadcastChannel | null>(null);
+
+  useEffect(() => {
+    // Check if we are in projector mode
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('projector') === 'true') {
+      setIsProjectorMode(true);
+    }
+
+    // Initialize Sync Channel
+    syncChannel.current = new BroadcastChannel('flujo_projector_sync');
+
+    // If we are the projector, listen for updates and fullscreen commands
+    if (params.get('projector') === 'true') {
+      const handleMessage = (e: MessageEvent) => {
+        if (e.data === 'TOGGLE_FULLSCREEN') {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen auto-block:", err));
+          }
+        }
+      };
+      window.addEventListener('message', handleMessage);
+
+      // Local keyboard shortcuts for the projector window
+      const handleProjectorKeys = (e: KeyboardEvent) => {
+        if (e.key.toLowerCase() === 'f' || e.key === 'F11') {
+          e.preventDefault();
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.error(err));
+          } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+          }
+        }
+      };
+      window.addEventListener('keydown', handleProjectorKeys);
+
+      syncChannel.current.onmessage = (event) => {
+        const { type, data } = event.data;
+        if (type === 'SYNC_STATE') {
+          setLiveItemId(data.liveItemId);
+          setActiveItemId(data.activeItemId);
+          setLiveSlideIndex(data.liveSlideIndex);
+          setActiveSlideIndex(data.activeSlideIndex);
+          setPlaylist(data.playlist);
+          if (data.stagedTheme) setStagedTheme(data.stagedTheme); // Sync staged theme
+          setIsPreviewHidden(data.isPreviewHidden);
+          setIsTextHidden(data.isTextHidden);
+          setIsLogoActive(data.isLogoActive);
+        }
+      };
+
+      // Request initial state from any open main window
+      syncChannel.current.postMessage({ type: 'REQUEST_STATE' });
+
+      return () => {
+        window.removeEventListener('message', handleMessage);
+        window.removeEventListener('keydown', handleProjectorKeys);
+        syncChannel.current?.close();
+      };
+    } else {
+      // If we are the main window, respond to state requests
+      syncChannel.current.onmessage = (event) => {
+        if (event.data.type === 'REQUEST_STATE') {
+          sendSyncState();
+        }
+      };
+    }
+
+    return () => {
+      syncChannel.current?.close();
+    };
+  }, []);
+
+  const sendSyncState = useCallback(() => {
+    if (syncChannel.current) {
+      syncChannel.current.postMessage({
+        type: 'SYNC_STATE',
+        data: {
+          liveItemId,
+          activeItemId,
+          liveSlideIndex,
+          activeSlideIndex,
+          playlist,
+          stagedTheme, // Send the staged theme
+          isPreviewHidden,
+          isTextHidden,
+          isLogoActive
+        }
+      });
+    }
+  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive]);
+
+  // Sync state whenever it changes
+  useEffect(() => {
+    if (!isProjectorMode) {
+      sendSyncState();
+    }
+  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, isProjectorMode, sendSyncState]);
+
+  // Ensure sync when window focus changes (user comes back to tab)
+  useEffect(() => {
+    const handleFocus = () => sendSyncState();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [sendSyncState]);
 
   // Mobile State
   const [mobileTab, setMobileTab] = useState<MobileTab>('playlist');
@@ -263,8 +374,6 @@ const App: React.FC = () => {
   };
 
   // --- CORE UPDATE FUNCTIONS ---
-  // Staged Theme for previewing changes before applying to projector
-  const [stagedTheme, setStagedTheme] = useState<Theme>(DEFAULT_THEME);
 
   // Sync staged theme ONLY when active item changes
   const lastActiveItemId = useRef<string | null>(null);
@@ -468,105 +577,56 @@ const App: React.FC = () => {
       return externalWindow;
     }
 
-    // Try to find a secondary monitor
-    let screenX = window.screen.width; // Default to right of current monitor
-    let screenY = 0;
+    // Use current URL with projector=true to ensure same origin for YouTube
+    const projectorUrl = window.location.origin + window.location.pathname + '?projector=true';
 
-    // Check if Window Management API is available to detect secondary screens
+    // Default Fallback: Assume 2nd screen is to the right
+    let left = window.screen.availWidth;
+    let top = 0;
+
+    // Advanced: Try to use the modern Window Management API for precise placement
+    // This requires a one-time permission grant from the user in Chrome/Edge.
     if ('getScreenDetails' in window) {
       try {
         const screenDetails = await (window as any).getScreenDetails();
-        const secondaryScreen = screenDetails.screens.find((s: any) => s !== screenDetails.currentScreen);
-        if (secondaryScreen) {
-          screenX = secondaryScreen.left;
-          screenY = secondaryScreen.top;
+        // Find a screen that is NOT the current one
+        const currentScreen = screenDetails.currentScreen;
+        const extendedScreen = screenDetails.screens.find((s: any) => s !== currentScreen);
+
+        if (extendedScreen) {
+          left = extendedScreen.left;
+          top = extendedScreen.top;
         }
       } catch (e) {
-        console.log("Secondary screen detection declined or failed", e);
+        console.warn("Projector: Auto-screen detection failed or denied. Using default offset.", e);
       }
     }
 
     const newWindow = window.open(
-      '',
+      projectorUrl,
       'ProjectorWindow',
-      `width=1280,height=720,left=${screenX},top=${screenY},menubar=no,toolbar=no,location=no,status=no`
+      `width=1280,height=720,left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`
     );
 
     if (newWindow) {
-      // 1. Setup Document Structure
-      newWindow.document.title = "FlujoEclesial - Proyector";
-
-      // 2. Clear and set base styles
-      newWindow.document.head.innerHTML = '';
-      newWindow.document.body.innerHTML = '';
-
-      // 3. Copy all stylesheets and style tags from main window
-      document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
-        newWindow.document.head.appendChild(node.cloneNode(true));
-      });
-
-      // 4. Inject Tailwind CDN
-      const tailwindScript = newWindow.document.createElement('script');
-      tailwindScript.src = "https://cdn.tailwindcss.com";
-      newWindow.document.head.appendChild(tailwindScript);
-
-      // 5. Vital CSS for centering and layout
-      const style = newWindow.document.createElement('style');
-      style.textContent = `
-        html, body { 
-          margin: 0 !important; 
-          padding: 0 !important; 
-          width: 100% !important; 
-          height: 100% !important; 
-          overflow: hidden !important; 
-          background-color: black !important;
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        #projector-root {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-        }
-      `;
-      newWindow.document.head.appendChild(style);
-
-      // Custom script for reliable Fullscreen handling in child window
-      const fsScript = newWindow.document.createElement('script');
-      fsScript.textContent = `
-        window.toggleFS = () => {
-          if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => console.error(err));
-          } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-          }
-        };
-        window.addEventListener('message', (e) => {
-          if (e.data === 'TOGGLE_FULLSCREEN') window.toggleFS();
-        });
-      `;
-      newWindow.document.head.appendChild(fsScript);
-
-      // Create a root element for the portal
-      const root = newWindow.document.createElement('div');
-      root.id = 'projector-root';
-      newWindow.document.body.appendChild(root);
-
       newWindow.onbeforeunload = () => setExternalWindow(null);
+      setExternalWindow(newWindow);
 
+      // Send current state immediately to the new window
+      setTimeout(() => sendSyncState(), 500);
+
+      // Give it a moment to load then try to focus and fullscreen
       setTimeout(() => {
-        setExternalWindow(newWindow);
-        // Automatically try to trigger fullscreen once portal is ready
-        setTimeout(() => {
+        if (newWindow && !newWindow.closed) {
           newWindow.focus();
           newWindow.postMessage('TOGGLE_FULLSCREEN', '*');
-        }, 300);
-      }, 50);
+        }
+      }, 1000);
+
       return newWindow;
     }
     return null;
-  }, [externalWindow]);
+  }, [externalWindow, sendSyncState]);
 
   const closeProjectorWindow = useCallback(() => {
     if (externalWindow) {
@@ -577,28 +637,37 @@ const App: React.FC = () => {
 
   const toggleProjectorFullscreen = useCallback(() => {
     if (externalWindow) {
-      externalWindow.focus();
       externalWindow.postMessage('TOGGLE_FULLSCREEN', '*');
+      externalWindow.focus();
+    } else {
+      // If window is closed/null, try to reopen it
+      openProjectorWindow();
     }
-  }, [externalWindow]);
+  }, [externalWindow, openProjectorWindow]);
 
   const [previewSlide, setPreviewSlide] = useState<Slide | null>(null);
 
-  // --- Derived State for Active Item ---
+  // --- Derived State ---
   const activeItem = playlist.find(i => i.id === activeItemId);
   const liveItem = playlist.find(i => i.id === liveItemId);
 
-  // Theme for the editor and internal preview (the item being edited)
-  const currentTheme = activeItem ? activeItem.theme : DEFAULT_THEME;
-  // Theme for the projector (the item that is actually LIVE)
-  const liveTheme = liveItem ? liveItem.theme : DEFAULT_THEME;
-
+  // 1. DASHBOARD VIEW (Private Staging)
   const currentSlide: Slide | null = activeItem && activeSlideIndex >= 0
     ? activeItem.slides[activeSlideIndex]
     : null;
-  const projectorSlide: Slide | null = liveItem && liveSlideIndex >= 0
+  const currentTheme = stagedTheme;
+
+  // 2. PROJECTOR VIEW (Public Live)
+  const projectorSlide: Slide | null = (liveItem && liveSlideIndex >= 0)
     ? liveItem.slides[liveSlideIndex]
     : null;
+
+  // The projector ONLY shows the already saved theme of the live item.
+  // Staging changes will NOT appear here until they are saved/applied.
+  const projectorTheme = liveItem ? liveItem.theme : DEFAULT_THEME;
+
+  // Reference for ControlPanel comparison
+  const liveTheme = activeItem ? activeItem.theme : DEFAULT_THEME;
 
   // CONTENT LOGIC:
   // 1. Internal Preview: Show previewSlide (draft) if exists, else current active slide.
@@ -620,7 +689,10 @@ const App: React.FC = () => {
 
     if (targetItemId) {
       setLiveItemId(targetItemId);
+      // Also make it active so the user can edit it immediately
+      setActiveItemId(targetItemId);
       setLiveSlideIndex(targetSlideIndex);
+      if (slideIndex !== undefined) setActiveSlideIndex(targetSlideIndex);
       setIsPreviewHidden(false);
     }
   }, [activeItemId, activeSlideIndex, liveItemId]);
@@ -738,16 +810,74 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigateNext, navigatePrev, toggleFullscreen, toggleProjectorFullscreen, openProjectorWindow, closeProjectorWindow, externalWindow]);
 
+  if (isProjectorMode) {
+    return (
+      <div
+        className="fixed inset-0 w-screen h-screen bg-black overflow-hidden flex flex-col items-center justify-center cursor-none z-[9999]"
+        onDoubleClick={() => {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(e => console.error(e));
+          } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+          }
+        }}
+      >
+        <style>{`
+          body, html, #root { 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            width: 100% !important; 
+            height: 100% !important; 
+            overflow: hidden !important;
+            background: black !important;
+          }
+        `}</style>
+        {!document.fullscreenElement && (
+          <div
+            className="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center text-white cursor-pointer group"
+            onClick={() => {
+              document.documentElement.requestFullscreen().catch(e => console.error(e));
+            }}
+          >
+            <div className="p-16 border-4 border-white/20 rounded-[4rem] bg-gray-900 flex flex-col items-center gap-6 transition-all hover:bg-gray-800 hover:border-white/40 shadow-3xl">
+              <div className="w-24 h-24 bg-white text-black rounded-full flex items-center justify-center animate-bounce">
+                <Monitor size={48} />
+              </div>
+              <div className="text-center">
+                <p className="text-5xl font-black mb-2 tracking-tight">PANTALLA COMPLETA</p>
+                <p className="text-xl text-gray-400 font-medium">Haz clic aquí para iniciar la proyección</p>
+              </div>
+              <div className="mt-4 px-6 py-2 bg-white/10 rounded-full text-sm text-gray-500 font-mono">
+                Presiona 'F' para alternar
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="w-full h-full relative">
+          <LiveScreen
+            slide={projectorContent}
+            theme={projectorTheme}
+            isFullscreen={true}
+            enableOverlay={false}
+            hideText={isTextHidden}
+            isLogoMode={isLogoActive}
+            blackout={isPreviewHidden}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col lg:flex-row h-[100dvh] bg-black text-white font-sans overflow-hidden select-none">
       {/* LEFT: Control Center (30%) */}
       <div className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[30%] flex-shrink-0 scrollbar-hide overflow-hidden bg-gray-950 border-r border-gray-800 flex-col`}>
         <ControlPanel
           onAddItem={handleAddItem}
-          currentTheme={stagedTheme}
-          liveTheme={activeItem?.theme || DEFAULT_THEME}
           onUpdateTheme={handleUpdateActiveItemTheme}
           onUpdatePendingTheme={handleUpdateStagedTheme}
+          currentTheme={stagedTheme}
+          liveTheme={activeItem ? activeItem.theme : DEFAULT_THEME}
           hasActiveItem={!!activeItemId}
           onAddSlide={handleAddSlideToActiveItem}
           activeSlideType={activeItem?.slides[activeSlideIndex]?.type || 'text'}
@@ -967,16 +1097,18 @@ const App: React.FC = () => {
           )}
 
           <div ref={liveViewRef} className="w-full h-full flex items-center justify-center relative group">
-            {/* Internal Preview renders logic */}
+            {/* Internal Preview renders logic (Always detailed "Staging" view) */}
             <LiveScreen
-              slide={internalPreviewContent}
-              theme={stagedTheme} // Use stagedTheme to see PENDING changes (fonts, colors, etc)
-              isFullscreen={isFullscreen}
-              enableOverlay={isFullscreen}
-              onUpdateTheme={handleUpdateActiveItemTheme}
-              hideText={isTextHidden}
-              isLogoMode={isLogoActive}
-              blackout={isPreviewHidden}
+              slide={currentSlide}
+              theme={currentTheme}
+              isFullscreen={false}
+              enableOverlay={true}
+              onUpdateTheme={handleUpdateStagedTheme}
+              hideText={isTextHidden && liveItemId === activeItem?.id}
+              isLogoMode={isLogoActive && liveItemId === activeItem?.id}
+              blackout={isPreviewHidden && liveItemId === activeItem?.id}
+              autoPlay={false}
+              mute={true}
             />
 
             {/* LIVE MONITOR PIP (Picture-in-Picture) */}
@@ -989,12 +1121,14 @@ const App: React.FC = () => {
                 <div className="w-full h-full pointer-events-none scale-[1.01]">
                   <LiveScreen
                     slide={projectorContent}
-                    theme={liveTheme}
+                    theme={projectorTheme}
                     isFullscreen={false}
                     enableOverlay={false}
                     hideText={isTextHidden}
                     isLogoMode={isLogoActive}
                     blackout={isPreviewHidden}
+                    autoPlay={false} // PIP is static to avoid sync annoyance
+                    mute={true}      // PIP is silent
                   />
                 </div>
               </div>
@@ -1013,25 +1147,6 @@ const App: React.FC = () => {
             )}
           </div>
 
-          {externalWindow && createPortal(
-            <div
-              className="w-full h-full bg-black select-none overflow-hidden"
-              onDoubleClick={() => {
-                if ((externalWindow as any).toggleFS) (externalWindow as any).toggleFS();
-              }}
-            >
-              <LiveScreen
-                slide={projectorContent}
-                theme={liveTheme}
-                isFullscreen={true}
-                enableOverlay={false}
-                hideText={isTextHidden}
-                isLogoMode={isLogoActive}
-                blackout={isPreviewHidden}
-              />
-            </div>,
-            externalWindow.document.getElementById('projector-root') || externalWindow.document.body
-          )}
         </div>
 
         {/* PRESENTER CONTROLS & MINI GRID */}
@@ -1140,8 +1255,8 @@ const App: React.FC = () => {
         <div className="fixed bottom-[-100px] left-[-100px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden">
           <iframe
             ref={audioIframeRef}
-            src={`https://www.youtube.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&loop=1&playlist=${backgroundAudioItem.videoId}`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            src={`https://www.youtube-nocookie.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&loop=1&playlist=${backgroundAudioItem.videoId}&origin=${window.location.protocol}//${window.location.host}`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           ></iframe>
         </div>
       )}
