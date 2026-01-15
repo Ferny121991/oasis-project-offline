@@ -127,3 +127,13 @@ export interface AppState {
   activeSlideIndex: number;
   isLive: boolean;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  playlist: PresentationItem[];
+  customThemes?: Theme[];
+}

@@ -6,7 +6,8 @@ import LiveScreen from './components/LiveScreen';
 import Onboarding from './components/Onboarding';
 import TimerWidget from './components/TimerWidget';
 import SplitScreen from './components/SplitScreen';
-import { PresentationItem, Theme, Slide } from './types';
+import ProjectManager from './components/ProjectManager';
+import { PresentationItem, Theme, Slide, Project } from './types';
 import { DEFAULT_THEME } from './constants';
 import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
@@ -27,6 +28,20 @@ const App: React.FC = () => {
       return [];
     }
   });
+
+  // Projects/Portfolio System
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const saved = localStorage.getItem('flujo_projects_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(() => {
+    return localStorage.getItem('flujo_current_project_id') || null;
+  });
+
 
   const [activeView, setActiveView] = useState<'main' | 'lyrics-search'>('main');
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -248,14 +263,16 @@ const App: React.FC = () => {
           setSyncError("Error al descargar datos de la nube.");
         }
       } else if (data && data.length > 0) {
-        const settings = data[0];
+        const settings = data[0] as any;
         if (settings.playlist) setPlaylist(settings.playlist);
         if (settings.custom_themes) setCustomThemes(settings.custom_themes);
+        if (settings.projects) setProjects(settings.projects);
+        if (settings.current_project_id) setCurrentProjectId(settings.current_project_id);
         dataLoaded.current = true;
       } else {
         // Fallback for empty array result
         const { error: insertError } = await supabase.from('user_settings').insert([
-          { id: session.user.id, playlist: [], custom_themes: [] }
+          { id: session.user.id, playlist: [], custom_themes: [], projects: [], current_project_id: null }
         ]);
         if (insertError) {
           setSyncError("Error al crear perfil en la nube.");
@@ -353,6 +370,8 @@ const App: React.FC = () => {
                 id: session.user.id,
                 playlist,
                 custom_themes: customThemes,
+                projects,
+                current_project_id: currentProjectId,
                 updated_at: new Date().toISOString()
               });
 
@@ -375,7 +394,109 @@ const App: React.FC = () => {
     } catch (e) {
       console.error("Storage quota exceeded likely due to images", e);
     }
-  }, [playlist, customThemes, session]);
+  }, [playlist, customThemes, projects, currentProjectId, session]);
+
+  // Projects Persistence
+  useEffect(() => {
+    try {
+      localStorage.setItem('flujo_projects_v1', JSON.stringify(projects));
+      if (currentProjectId) {
+        localStorage.setItem('flujo_current_project_id', currentProjectId);
+      }
+    } catch (e) {
+      console.error("Failed to save projects", e);
+    }
+  }, [projects, currentProjectId]);
+
+  // Auto-save current project's playlist
+  useEffect(() => {
+    if (currentProjectId && projects.length > 0) {
+      setProjects(prev => prev.map(p =>
+        p.id === currentProjectId
+          ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+          : p
+      ));
+    }
+  }, [playlist, customThemes]);
+
+  // Project Management Functions
+  const handleCreateProject = useCallback((name: string, description?: string) => {
+    const newProject: Project = {
+      id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      description,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      playlist: [],
+      customThemes: []
+    };
+    setProjects(prev => [...prev, newProject]);
+    setCurrentProjectId(newProject.id);
+    setPlaylist([]);
+    setCustomThemes([]);
+    // Reset active states
+    setActiveItemId(null);
+    setActiveSlideIndex(-1);
+    setLiveItemId(null);
+    setLiveSlideIndex(-1);
+  }, []);
+
+  const handleSelectProject = useCallback((projectId: string) => {
+    // Save current project first
+    if (currentProjectId) {
+      setProjects(prev => prev.map(p =>
+        p.id === currentProjectId
+          ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+          : p
+      ));
+    }
+
+    // Load selected project
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setCurrentProjectId(projectId);
+      setPlaylist(project.playlist || []);
+      setCustomThemes(project.customThemes || []);
+      // Reset active states
+      setActiveItemId(null);
+      setActiveSlideIndex(-1);
+      setLiveItemId(null);
+      setLiveSlideIndex(-1);
+    }
+  }, [currentProjectId, projects, playlist, customThemes]);
+
+  const handleDeleteProject = useCallback((projectId: string) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    if (currentProjectId === projectId) {
+      setCurrentProjectId(null);
+      setPlaylist([]);
+      setCustomThemes([]);
+    }
+  }, [currentProjectId]);
+
+  const handleRenameProject = useCallback((projectId: string, newName: string) => {
+    setProjects(prev => prev.map(p =>
+      p.id === projectId
+        ? { ...p, name: newName, updatedAt: new Date().toISOString() }
+        : p
+    ));
+  }, []);
+
+  const handleDuplicateProject = useCallback((projectId: string) => {
+    const original = projects.find(p => p.id === projectId);
+    if (original) {
+      const newProject: Project = {
+        ...original,
+        id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: `${original.name} (copia)`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        playlist: JSON.parse(JSON.stringify(original.playlist)),
+        customThemes: original.customThemes ? JSON.parse(JSON.stringify(original.customThemes)) : []
+      };
+      setProjects(prev => [...prev, newProject]);
+    }
+  }, [projects]);
 
   // Clock Timer
   useEffect(() => {
@@ -1100,6 +1221,16 @@ const App: React.FC = () => {
         </div>
 
         <div id="playlist-panel" className="flex-1 flex flex-col min-h-0">
+          {/* Project Manager */}
+          <ProjectManager
+            projects={projects}
+            currentProjectId={currentProjectId}
+            onSelectProject={handleSelectProject}
+            onCreateProject={handleCreateProject}
+            onDeleteProject={handleDeleteProject}
+            onRenameProject={handleRenameProject}
+            onDuplicateProject={handleDuplicateProject}
+          />
           <Playlist
             items={playlist}
             activeItemId={activeItemId}
