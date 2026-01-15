@@ -64,7 +64,7 @@ interface SortableSlideProps {
   onSetSplitRight?: (slide: Slide) => void;
   isLeftSplit?: boolean;
   isRightSplit?: boolean;
-  onUpdateLabel?: (newLabel: string) => void;
+  onUpdateLabel?: () => void;
 }
 
 const SortableSlide: React.FC<SortableSlideProps> = ({
@@ -187,10 +187,9 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                const newLabel = prompt("Editar nombre:", slide.label || "");
-                if (newLabel !== null) onUpdateLabel(newLabel);
+                onUpdateLabel();
               }}
-              className="p-1.5 rounded text-white bg-blue-600/80 hover:bg-blue-500 transition-all"
+              className="p-1.5 rounded text-white bg-blue-600/80 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
               title="Editar nombre"
             >
               <Edit2 size={12} />
@@ -456,7 +455,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
                     onSetSplitRight={onSetSplitRight}
                     isLeftSplit={splitLeftSlide?.id === slide.id}
                     isRightSplit={splitRightSlide?.id === slide.id}
-                    onUpdateLabel={(newLabel) => onUpdateSlideLabel(item.id, slide.id, newLabel)}
+                    onUpdateLabel={() => onUpdateSlideLabel(item.id, slide.id, slide.label || "")}
                   />
                 ))}
               </div>
@@ -498,6 +497,28 @@ const Playlist: React.FC<PlaylistProps> = ({
     // Start with active item expanded
     return new Set(activeItemId ? [activeItemId] : []);
   });
+
+  // Edit Modal State
+  const [editModal, setEditModal] = useState<{
+    itemId: string;
+    slideId: string;
+    initialValue: string;
+  } | null>(null);
+
+  const [editValue, setEditValue] = useState('');
+
+  // Handle opening the edit modal
+  const handleEditLabel = (itemId: string, slideId: string, currentLabel: string) => {
+    setEditValue(currentLabel);
+    setEditModal({ itemId, slideId, initialValue: currentLabel });
+  };
+
+  const saveEdit = () => {
+    if (editModal) {
+      onUpdateSlideLabel(editModal.itemId, editModal.slideId, editValue);
+      setEditModal(null);
+    }
+  };
 
   // DnD Kit Sensors
   const sensors = useSensors(
@@ -594,7 +615,7 @@ const Playlist: React.FC<PlaylistProps> = ({
               onDeleteSlide={onDeleteSlide}
               onRefreshItem={onRefreshItem}
               onUploadClick={handleUploadClick}
-              onUpdateSlideLabel={onUpdateSlideLabel}
+              onUpdateSlideLabel={handleEditLabel}
               onUpdateItemTitle={onUpdateItemTitle}
               onReorderSlides={onReorderSlides}
               isExpanded={expandedItems.has(item.id)}
@@ -608,6 +629,66 @@ const Playlist: React.FC<PlaylistProps> = ({
           ))}
         </SortableContext>
       </DndContext>
+
+      {/* Modern Edit Modal */}
+      {editModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setEditModal(null)}
+          />
+          <div className="relative bg-gray-900 border border-gray-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-white font-bold flex items-center gap-2">
+                <Edit2 size={18} />
+                Editar Etiqueta
+              </h3>
+              <button
+                onClick={() => setEditModal(null)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Nombre de la diapositiva
+                </label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveEdit();
+                    if (e.key === 'Escape') setEditModal(null);
+                  }}
+                  placeholder="Ej: Verso 1, Coro..."
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border-2 border-transparent focus:border-indigo-500 focus:bg-gray-950 transition-all outline-none text-lg font-medium"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setEditModal(null)}
+                  className="flex-1 px-4 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold transition-all active:scale-95"
+                >
+                  CANCELAR
+                </button>
+                <button
+                  onClick={saveEdit}
+                  className="flex-1 px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Check size={18} />
+                  GUARDAR
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

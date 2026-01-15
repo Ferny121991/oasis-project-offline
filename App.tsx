@@ -197,6 +197,7 @@ const App: React.FC = () => {
 
   const [session, setSession] = useState<Session | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const liveViewRef = useRef<HTMLDivElement>(null);
   const miniGridRef = useRef<HTMLDivElement>(null);
@@ -223,30 +224,52 @@ const App: React.FC = () => {
   const fetchUserData = useCallback(async () => {
     if (!session?.user) return;
     setIsSyncing(true);
+    setSyncError(null);
     isCloudLoading.current = true;
     try {
       const { data, error } = await supabase
         .from('user_settings')
         .select('playlist, custom_themes')
-        .single();
+        .eq('id', session.user.id);
 
-      if (data) {
-        if (data.playlist) setPlaylist(data.playlist);
-        if (data.custom_themes) setCustomThemes(data.custom_themes);
+      if (error) {
+        if (error.code === 'PGRST116' || error.message?.includes('0 rows')) {
+          // No settings found, create initial ones
+          const { error: insertError } = await supabase.from('user_settings').insert([
+            { id: session.user.id, playlist: [], custom_themes: [] }
+          ]);
+          if (insertError) {
+            setSyncError("Error al inicializar datos en la nube.");
+          } else {
+            dataLoaded.current = true;
+          }
+        } else {
+          console.error("Cloud fetch error:", error);
+          setSyncError("Error al descargar datos de la nube.");
+        }
+      } else if (data && data.length > 0) {
+        const settings = data[0];
+        if (settings.playlist) setPlaylist(settings.playlist);
+        if (settings.custom_themes) setCustomThemes(settings.custom_themes);
         dataLoaded.current = true;
-      } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
-        // No settings found, create initial ones
-        await supabase.from('user_settings').insert([
+      } else {
+        // Fallback for empty array result
+        const { error: insertError } = await supabase.from('user_settings').insert([
           { id: session.user.id, playlist: [], custom_themes: [] }
         ]);
-        dataLoaded.current = true;
+        if (insertError) {
+          setSyncError("Error al crear perfil en la nube.");
+        } else {
+          dataLoaded.current = true;
+        }
       }
     } catch (e) {
-      console.error("Error fetching user data", e);
+      console.error("Unexpected error fetching user data", e);
+      setSyncError("Error de conexión con la nube.");
     } finally {
       setIsSyncing(false);
       // Wait a bit before allowing persistence to push back to cloud
-      setTimeout(() => { isCloudLoading.current = false; }, 500);
+      setTimeout(() => { isCloudLoading.current = false; }, 1000);
     }
   }, [session]);
 
@@ -301,7 +324,7 @@ const App: React.FC = () => {
         const updateCloud = async () => {
           setIsSyncing(true);
           try {
-            await supabase
+            const { error } = await supabase
               .from('user_settings')
               .upsert({
                 id: session.user.id,
@@ -309,8 +332,16 @@ const App: React.FC = () => {
                 custom_themes: customThemes,
                 updated_at: new Date().toISOString()
               });
+
+            if (error) {
+              console.error("Supabase upsert failed:", error);
+              setSyncError("Error al guardar en la nube.");
+            } else {
+              setSyncError(null);
+            }
           } catch (e) {
             console.error("Cloud update failed", e);
+            setSyncError("Error de red al sincronizar.");
           } finally {
             setIsSyncing(false);
           }
@@ -1082,8 +1113,9 @@ const App: React.FC = () => {
                 <span className="text-[10px] font-bold text-gray-300 truncate max-w-[120px]">
                   {session.user.user_metadata.full_name || session.user.email}
                 </span>
-                <span className="text-[8px] text-green-500 flex items-center gap-1">
-                  <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse" /> Sincronizado
+                <span className={`text-[8px] flex items-center gap-1 ${syncError ? 'text-red-500' : isSyncing ? 'text-indigo-400' : 'text-green-500'}`}>
+                  <div className={`w-1 h-1 rounded-full animate-pulse ${syncError ? 'bg-red-500' : isSyncing ? 'bg-indigo-400' : 'bg-green-500'}`} />
+                  {syncError ? 'Error de Sincronización' : isSyncing ? 'Sincronizando...' : 'Sincronizado'}
                 </span>
               </div>
               <button
