@@ -3,9 +3,12 @@ import { createPortal } from 'react-dom';
 import ControlPanel from './components/ControlPanel';
 import Playlist from './components/Playlist';
 import LiveScreen from './components/LiveScreen';
+import Onboarding from './components/Onboarding';
+import TimerWidget from './components/TimerWidget';
+import SplitScreen from './components/SplitScreen';
 import { PresentationItem, Theme, Slide } from './types';
 import { DEFAULT_THEME } from './constants';
-import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw } from 'lucide-react';
+import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
@@ -47,6 +50,19 @@ const App: React.FC = () => {
 
   // Staged Theme for previewing changes before applying to projector (Hoisted for Sync)
   const [stagedTheme, setStagedTheme] = useState<Theme>(DEFAULT_THEME);
+
+  // Onboarding & Timer states
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return localStorage.getItem('oasis_onboarding_complete') !== 'true';
+  });
+  const [showTimer, setShowTimer] = useState(false);
+
+  // Split Screen mode
+  const [showSplitScreen, setShowSplitScreen] = useState(false);
+  const [splitLeftSlide, setSplitLeftSlide] = useState<Slide | null>(null);
+  const [splitRightSlide, setSplitRightSlide] = useState<Slide | null>(null);
+  const [splitRatio, setSplitRatio] = useState(50);
+  const [splitFontScale, setSplitFontScale] = useState(0.5);
 
   // Sync Channel for Multi-window Projector
   const syncChannel = useRef<BroadcastChannel | null>(null);
@@ -97,6 +113,12 @@ const App: React.FC = () => {
           setIsPreviewHidden(data.isPreviewHidden);
           setIsTextHidden(data.isTextHidden);
           setIsLogoActive(data.isLogoActive);
+          // Split Screen sync
+          if (data.showSplitScreen !== undefined) setShowSplitScreen(data.showSplitScreen);
+          if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
+          if (data.splitRightSlide !== undefined) setSplitRightSlide(data.splitRightSlide);
+          if (data.splitRatio !== undefined) setSplitRatio(data.splitRatio);
+          if (data.splitFontScale !== undefined) setSplitFontScale(data.splitFontScale);
         }
       };
 
@@ -135,18 +157,23 @@ const App: React.FC = () => {
           stagedTheme, // Send the staged theme
           isPreviewHidden,
           isTextHidden,
-          isLogoActive
+          isLogoActive,
+          showSplitScreen,
+          splitLeftSlide,
+          splitRightSlide,
+          splitRatio,
+          splitFontScale
         }
       });
     }
-  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive]);
+  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale]);
 
   // Sync state whenever it changes
   useEffect(() => {
     if (!isProjectorMode) {
       sendSyncState();
     }
-  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, isProjectorMode, sendSyncState]);
+  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, isProjectorMode, sendSyncState]);
 
   // Ensure sync when window focus changes (user comes back to tab)
   useEffect(() => {
@@ -854,15 +881,27 @@ const App: React.FC = () => {
           </div>
         )}
         <div className="w-full h-full relative">
-          <LiveScreen
-            slide={projectorContent}
-            theme={projectorTheme}
-            isFullscreen={true}
-            enableOverlay={false}
-            hideText={isTextHidden}
-            isLogoMode={isLogoActive}
-            blackout={isPreviewHidden}
-          />
+          {showSplitScreen ? (
+            <SplitScreen
+              leftSlide={splitLeftSlide || projectorContent}
+              rightSlide={splitRightSlide}
+              theme={projectorTheme}
+              isFullscreen={true}
+              showControls={false}
+              splitRatio={splitRatio}
+              fontScale={splitFontScale}
+            />
+          ) : (
+            <LiveScreen
+              slide={projectorContent}
+              theme={projectorTheme}
+              isFullscreen={true}
+              enableOverlay={false}
+              hideText={isTextHidden}
+              isLogoMode={isLogoActive}
+              blackout={isPreviewHidden}
+            />
+          )}
         </div>
       </div>
     );
@@ -999,6 +1038,17 @@ const App: React.FC = () => {
           onUploadImages={handleUploadImages}
           onUpdateSlideLabel={handleUpdateSlideLabel}
           onUpdateItemTitle={handleUpdateItemTitle}
+          onReorderItems={(newItems) => setPlaylist(newItems)}
+          onReorderSlides={(itemId, newSlides) => {
+            setPlaylist(prev => prev.map(item =>
+              item.id === itemId ? { ...item, slides: newSlides } : item
+            ));
+          }}
+          isSplitMode={showSplitScreen}
+          onSetSplitLeft={setSplitLeftSlide}
+          onSetSplitRight={setSplitRightSlide}
+          splitLeftSlide={splitLeftSlide}
+          splitRightSlide={splitRightSlide}
         />
 
         {/* User Auth Bar */}
@@ -1063,6 +1113,14 @@ const App: React.FC = () => {
             <span className="truncate">{activeItem ? activeItem.title : 'Sin Selección'}</span>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
+            {/* Timer Toggle Button */}
+            <button
+              onClick={() => setShowTimer(prev => !prev)}
+              className={`p-2 rounded-lg transition-all ${showTimer ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'}`}
+              title="Temporizador"
+            >
+              <Timer size={16} />
+            </button>
             <div className="text-base lg:text-xl font-mono text-gray-300 font-bold flex items-center gap-1.5 lg:gap-2 bg-black px-2 py-0.5 rounded border border-gray-700">
               <Clock size={12} className="text-indigo-500 hidden sm:block" />
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1095,21 +1153,42 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
+          {showSplitScreen && (
+            <div className="absolute top-4 right-4 z-50">
+              <div className="bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest shadow-lg border border-purple-400">
+                SPLIT
+              </div>
+            </div>
+          )}
 
           <div ref={liveViewRef} className="w-full h-full flex items-center justify-center relative group">
             {/* Internal Preview renders logic (Always detailed "Staging" view) */}
-            <LiveScreen
-              slide={currentSlide}
-              theme={currentTheme}
-              isFullscreen={false}
-              enableOverlay={true}
-              onUpdateTheme={handleUpdateStagedTheme}
-              hideText={isTextHidden && liveItemId === activeItem?.id}
-              isLogoMode={isLogoActive && liveItemId === activeItem?.id}
-              blackout={isPreviewHidden && liveItemId === activeItem?.id}
-              autoPlay={false}
-              mute={true}
-            />
+            {showSplitScreen ? (
+              <SplitScreen
+                leftSlide={splitLeftSlide || currentSlide}
+                rightSlide={splitRightSlide}
+                theme={currentTheme}
+                isFullscreen={false}
+                showControls={true}
+                splitRatio={splitRatio}
+                onSplitRatioChange={setSplitRatio}
+                fontScale={splitFontScale}
+                onFontScaleChange={setSplitFontScale}
+              />
+            ) : (
+              <LiveScreen
+                slide={currentSlide}
+                theme={currentTheme}
+                isFullscreen={false}
+                enableOverlay={true}
+                onUpdateTheme={handleUpdateStagedTheme}
+                hideText={isTextHidden && liveItemId === activeItem?.id}
+                isLogoMode={isLogoActive && liveItemId === activeItem?.id}
+                blackout={isPreviewHidden && liveItemId === activeItem?.id}
+                autoPlay={false}
+                mute={true}
+              />
+            )}
 
             {/* LIVE MONITOR PIP (Picture-in-Picture) */}
             {(liveItemId || isLogoActive) && (
@@ -1177,7 +1256,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Row 1: Quick Actions - Larger on Mobile */}
-          <div className="grid grid-cols-4 gap-1 p-2 border-b border-gray-800">
+          <div className="grid grid-cols-5 gap-1 p-2 border-b border-gray-800">
             <button onClick={() => setIsPreviewHidden(!isPreviewHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isPreviewHidden ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
               {isPreviewHidden ? <EyeOff size={20} className="lg:w-4 lg:h-4" /> : <Eye size={20} className="lg:w-4 lg:h-4" />}
               <span className="text-[8px] lg:text-[9px] font-bold mt-1">BLACK</span>
@@ -1189,6 +1268,10 @@ const App: React.FC = () => {
             <button onClick={() => { setIsLogoActive(!isLogoActive); setIsPreviewHidden(false); }} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isLogoActive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
               <Image size={20} className="lg:w-4 lg:h-4" />
               <span className="text-[8px] lg:text-[9px] font-bold mt-1">LOGO</span>
+            </button>
+            <button onClick={() => setShowSplitScreen(!showSplitScreen)} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${showSplitScreen ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+              <Columns size={20} className="lg:w-4 lg:h-4" />
+              <span className="text-[8px] lg:text-[9px] font-bold mt-1">SPLIT</span>
             </button>
             <div className="flex flex-col gap-1">
               {!externalWindow ? (
@@ -1288,6 +1371,18 @@ const App: React.FC = () => {
           <span className="text-[9px] font-black uppercase tracking-wide">Vivo</span>
         </button>
       </div>
+
+      {/* Timer Widget Overlay */}
+      {showTimer && (
+        <div className="fixed top-20 right-4 z-[9000] animate-fade-in">
+          <TimerWidget onClose={() => setShowTimer(false)} />
+        </div>
+      )}
+
+      {/* Onboarding Tutorial */}
+      {showOnboarding && (
+        <Onboarding onComplete={() => setShowOnboarding(false)} />
+      )}
     </div>
   );
 };

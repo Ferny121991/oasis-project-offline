@@ -1,6 +1,24 @@
 import React, { useState } from 'react';
 import { PresentationItem, Slide } from '../types';
-import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload } from 'lucide-react';
+import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface PlaylistProps {
   items: PresentationItem[];
@@ -17,8 +35,403 @@ interface PlaylistProps {
   onUploadImages: (files: FileList | null, itemId?: string) => void;
   onUpdateSlideLabel: (itemId: string, slideId: string, newLabel: string) => void;
   onUpdateItemTitle: (itemId: string, newTitle: string) => void;
+  onReorderItems: (newItems: PresentationItem[]) => void;
+  onReorderSlides: (itemId: string, newSlides: Slide[]) => void;
+  // Split Screen
+  isSplitMode?: boolean;
+  onSetSplitLeft?: (slide: Slide) => void;
+  onSetSplitRight?: (slide: Slide) => void;
+  splitLeftSlide?: Slide | null;
+  splitRightSlide?: Slide | null;
 }
 
+// Sortable Slide Component
+interface SortableSlideProps {
+  slide: Slide;
+  index: number;
+  itemId: string;
+  isActive: boolean;
+  isLive: boolean;
+  onSlideClick: () => void;
+  onSlideDoubleClick: () => void;
+  onDeleteSlide: () => void;
+  onToggleBackgroundAudio?: () => void;
+  itemTitle: string;
+  // Split Screen
+  isSplitMode?: boolean;
+  onSetSplitLeft?: (slide: Slide) => void;
+  onSetSplitRight?: (slide: Slide) => void;
+  isLeftSplit?: boolean;
+  isRightSplit?: boolean;
+}
+
+const SortableSlide: React.FC<SortableSlideProps> = ({
+  slide,
+  index,
+  isActive,
+  isLive,
+  onSlideClick,
+  onSlideDoubleClick,
+  onDeleteSlide,
+  isSplitMode,
+  onSetSplitLeft,
+  onSetSplitRight,
+  isLeftSplit,
+  isRightSplit,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: slide.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 'auto',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={onSlideClick}
+      onDoubleClick={onSlideDoubleClick}
+      className={`relative group text-left rounded-xl p-2.5 h-24 flex flex-col justify-between transition-all duration-200 border-2 cursor-pointer shrink-0 w-32 ${isActive
+        ? 'bg-indigo-900/40 border-indigo-500 ring-2 ring-indigo-500/30'
+        : isLive
+          ? 'bg-red-900/30 border-red-500/60'
+          : isLeftSplit || isRightSplit
+            ? 'bg-purple-900/30 border-purple-500/50'
+            : 'bg-gray-900 border-gray-700 hover:border-gray-500'
+        }`}
+    >
+      {/* Drag Handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-1 left-1 z-20 cursor-grab active:cursor-grabbing text-gray-500 hover:text-indigo-400 transition-colors"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical size={12} />
+      </div>
+
+      {/* Label */}
+      <div className="absolute top-1 right-1 flex items-center gap-1">
+        {isLive && (
+          <span className="bg-red-600 text-white text-[7px] px-1 rounded-sm font-black animate-pulse">LIVE</span>
+        )}
+        {isLeftSplit && (
+          <span className="bg-purple-600 text-white text-[7px] px-1 rounded-sm font-black">L</span>
+        )}
+        {isRightSplit && (
+          <span className="bg-pink-600 text-white text-[7px] px-1 rounded-sm font-black">R</span>
+        )}
+        <span className="text-[8px] font-bold text-gray-400 uppercase truncate max-w-[40px]">
+          {slide.label || `#${index + 1}`}
+        </span>
+      </div>
+
+      {/* Split Mode Buttons */}
+      {isSplitMode && (
+        <div className="absolute bottom-1 left-1 z-30 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSetSplitLeft?.(slide);
+            }}
+            className={`p-1 rounded text-[8px] font-bold transition-all ${isLeftSplit ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-purple-600 hover:text-white'}`}
+            title="Panel Izquierdo"
+          >
+            ⬅️
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSetSplitRight?.(slide);
+            }}
+            className={`p-1 rounded text-[8px] font-bold transition-all ${isRightSplit ? 'bg-pink-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-pink-600 hover:text-white'}`}
+            title="Panel Derecho"
+          >
+            ➡️
+          </button>
+        </div>
+      )}
+
+      {/* Delete Button */}
+      {!isSplitMode && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteSlide();
+          }}
+          className="absolute bottom-1 right-1 z-30 p-1 rounded text-white bg-red-600/80 hover:bg-red-500 opacity-0 group-hover:opacity-100 transition-all"
+        >
+          <Trash2 size={10} />
+        </button>
+      )}
+
+      {/* Content Preview */}
+      <div className={`text-[9px] leading-tight line-clamp-2 mt-4 ${isActive ? 'text-white' : 'text-gray-400'}`}>
+        {slide.type === 'youtube' ? (
+          <div className="flex items-center gap-1 text-red-400 font-bold">
+            <Monitor size={10} /> VIDEO
+          </div>
+        ) : slide.type === 'image' && slide.mediaUrl ? (
+          <div className="absolute inset-0 top-4 rounded-b overflow-hidden">
+            <img src={slide.mediaUrl} alt="" className="w-full h-full object-cover opacity-60" />
+          </div>
+        ) : (
+          <span className="line-clamp-2">{slide.content?.substring(0, 40)}</span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Sortable Item Component (Collapsible)
+interface SortableItemProps {
+  item: PresentationItem;
+  activeItemId: string | null;
+  activeSlideIndex: number;
+  liveItemId: string | null;
+  liveSlideIndex: number;
+  onSlideClick: (itemId: string, index: number) => void;
+  onSlideDoubleClick: (itemId: string, index: number) => void;
+  onToggleBackgroundAudio?: (videoId: string, title: string) => void;
+  onDeleteItem: (id: string) => void;
+  onDeleteSlide: (itemId: string, slideId: string) => void;
+  onRefreshItem: (item: PresentationItem) => void;
+  onUploadClick: (itemId: string) => void;
+  onUpdateSlideLabel: (itemId: string, slideId: string, newLabel: string) => void;
+  onUpdateItemTitle: (itemId: string, newTitle: string) => void;
+  onReorderSlides: (itemId: string, newSlides: Slide[]) => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  // Split Screen
+  isSplitMode?: boolean;
+  onSetSplitLeft?: (slide: Slide) => void;
+  onSetSplitRight?: (slide: Slide) => void;
+  splitLeftSlide?: Slide | null;
+  splitRightSlide?: Slide | null;
+}
+
+const SortablePlaylistItem: React.FC<SortableItemProps> = ({
+  item,
+  activeItemId,
+  activeSlideIndex,
+  liveItemId,
+  liveSlideIndex,
+  onSlideClick,
+  onSlideDoubleClick,
+  onToggleBackgroundAudio,
+  onDeleteItem,
+  onDeleteSlide,
+  onRefreshItem,
+  onUploadClick,
+  onUpdateItemTitle,
+  onReorderSlides,
+  isExpanded,
+  onToggleExpand,
+  isSplitMode,
+  onSetSplitLeft,
+  onSetSplitRight,
+  splitLeftSlide,
+  splitRightSlide
+}) => {
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [tempTitle, setTempTitle] = useState('');
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 'auto',
+  };
+
+  // Sensors for slide reordering
+  const slideSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleSlideDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = item.slides.findIndex(s => s.id === active.id);
+      const newIndex = item.slides.findIndex(s => s.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorderSlides(item.id, arrayMove(item.slides, oldIndex, newIndex));
+      }
+    }
+  };
+
+  const startEditingItem = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingItemId(item.id);
+    setTempTitle(item.title);
+  };
+
+  const saveTitle = () => {
+    onUpdateItemTitle(item.id, tempTitle);
+    setEditingItemId(null);
+  };
+
+  const isItemLive = liveItemId === item.id;
+  const isItemActive = activeItemId === item.id;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`rounded-xl border-2 overflow-hidden transition-all duration-300 ${isDragging ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' :
+        isItemLive ? 'border-red-500/60 bg-red-950/30' :
+          isItemActive ? 'border-indigo-500/60 bg-indigo-950/30' :
+            'border-gray-700/60 bg-gray-800/50 hover:border-gray-500'
+        }`}
+    >
+      {/* Collapsible Header */}
+      <div
+        className={`px-4 py-3.5 flex items-center gap-3 cursor-pointer transition-colors ${isItemLive ? 'bg-red-900/40' : isItemActive ? 'bg-indigo-900/40' : 'bg-gray-800/90 hover:bg-gray-700/80'
+          }`}
+        onClick={onToggleExpand}
+      >
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-indigo-400"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={18} />
+        </div>
+
+        {/* Expand/Collapse Icon */}
+        {isExpanded ? <ChevronDown size={18} className="text-gray-300" /> : <ChevronRight size={18} className="text-gray-300" />}
+
+        {/* Icon & Title */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {item.type === 'song' ? <Music size={18} className="text-pink-400 shrink-0" /> : <BookOpen size={18} className="text-blue-400 shrink-0" />}
+
+          {editingItemId === item.id ? (
+            <div className="flex items-center gap-2 flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="text"
+                value={tempTitle}
+                onChange={(e) => setTempTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveTitle();
+                  if (e.key === 'Escape') setEditingItemId(null);
+                }}
+                className="flex-1 bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg border border-indigo-500 outline-none"
+                autoFocus
+              />
+              <button onClick={saveTitle} className="text-green-500 hover:text-green-400"><Check size={16} /></button>
+              <button onClick={() => setEditingItemId(null)} className="text-red-500 hover:text-red-400"><X size={16} /></button>
+            </div>
+          ) : (
+            <span
+              className="font-bold text-white text-sm truncate flex-1 hover:text-indigo-300 transition-colors"
+              onClick={(e) => { e.stopPropagation(); startEditingItem(e); }}
+            >
+              {item.title}
+            </span>
+          )}
+        </div>
+
+        {/* Slide Count Badge */}
+        <span className="text-xs bg-gray-700 text-gray-200 px-2 py-1 rounded-lg font-bold">
+          {item.slides.length}
+        </span>
+
+        {/* Live Badge */}
+        {isItemLive && (
+          <span className="flex items-center gap-1.5 text-xs bg-red-600 text-white px-2.5 py-1 rounded-lg font-bold animate-pulse">
+            <div className="w-2 h-2 bg-white rounded-full" /> LIVE
+          </span>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => onSlideDoubleClick(item.id, 0)}
+            className={`p-1.5 rounded-lg transition-colors ${isItemLive ? 'text-red-400 bg-red-900/30' : 'text-gray-400 hover:text-green-400 hover:bg-green-900/20'}`}
+            title="En Vivo"
+          >
+            <Monitor size={16} />
+          </button>
+          <button
+            onClick={() => onUploadClick(item.id)}
+            className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-900/20 rounded-lg transition-colors"
+            title="Subir imágenes"
+          >
+            <Upload size={16} />
+          </button>
+          <button
+            onClick={() => onRefreshItem(item)}
+            className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
+            title="Actualizar"
+          >
+            <RefreshCw size={16} />
+          </button>
+          <button
+            onClick={() => onDeleteItem(item.id)}
+            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+            title="Eliminar"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible Slides (Horizontal Scroll with Drag & Drop) */}
+      {isExpanded && (
+        <div className="p-4 bg-gray-900/60">
+          <DndContext sensors={slideSensors} collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
+            <SortableContext items={item.slides.map(s => s.id)} strategy={horizontalListSortingStrategy}>
+              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                {item.slides.map((slide, index) => (
+                  <SortableSlide
+                    key={slide.id}
+                    slide={slide}
+                    index={index}
+                    itemId={item.id}
+                    isActive={activeItemId === item.id && activeSlideIndex === index}
+                    isLive={liveItemId === item.id && liveSlideIndex === index}
+                    onSlideClick={() => onSlideClick(item.id, index)}
+                    onSlideDoubleClick={() => onSlideDoubleClick(item.id, index)}
+                    onDeleteSlide={() => onDeleteSlide(item.id, slide.id)}
+                    onToggleBackgroundAudio={slide.videoId ? () => onToggleBackgroundAudio?.(slide.videoId!, item.title) : undefined}
+                    itemTitle={item.title}
+                    isSplitMode={isSplitMode}
+                    onSetSplitLeft={onSetSplitLeft}
+                    onSetSplitRight={onSetSplitRight}
+                    isLeftSplit={splitLeftSlide?.id === slide.id}
+                    isRightSplit={splitRightSlide?.id === slide.id}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Main Playlist Component
 const Playlist: React.FC<PlaylistProps> = ({
   items,
   activeItemId,
@@ -33,44 +446,62 @@ const Playlist: React.FC<PlaylistProps> = ({
   onRefreshItem,
   onUploadImages,
   onUpdateSlideLabel,
-  onUpdateItemTitle
+  onUpdateItemTitle,
+  onReorderItems,
+  onReorderSlides,
+  isSplitMode,
+  onSetSplitLeft,
+  onSetSplitRight,
+  splitLeftSlide,
+  splitRightSlide
 }) => {
-  const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [tempLabel, setTempLabel] = useState('');
-  const [tempTitle, setTempTitle] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-
   const [activeUploadItemId, setActiveUploadItemId] = useState<string | undefined>();
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(() => {
+    // Start with active item expanded
+    return new Set(activeItemId ? [activeItemId] : []);
+  });
 
-  const startEditingSlide = (e: React.MouseEvent, slide: Slide) => {
-    e.stopPropagation();
-    setEditingSlideId(slide.id);
-    setTempLabel(slide.label || '');
+  // DnD Kit Sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex(item => item.id === active.id);
+      const newIndex = items.findIndex(item => item.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorderItems(arrayMove(items, oldIndex, newIndex));
+      }
+    }
   };
 
-  const startEditingItem = (e: React.MouseEvent, item: PresentationItem) => {
-    e.stopPropagation();
-    setEditingItemId(item.id);
-    setTempTitle(item.title);
+  const handleUploadClick = (itemId: string) => {
+    setActiveUploadItemId(itemId);
+    fileInputRef.current?.click();
   };
 
-  const saveLabel = (itemId: string, slideId: string) => {
-    onUpdateSlideLabel(itemId, slideId, tempLabel);
-    setEditingSlideId(null);
+  const toggleExpand = (itemId: string) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
   };
 
-  const saveTitle = (itemId: string) => {
-    onUpdateItemTitle(itemId, tempTitle);
-    setEditingItemId(null);
-  };
-
-  const cancelEditing = () => {
-    setEditingSlideId(null);
-    setEditingItemId(null);
-    setTempLabel('');
-    setTempTitle('');
-  };
+  // Auto-expand active item
+  React.useEffect(() => {
+    if (activeItemId && !expandedItems.has(activeItemId)) {
+      setExpandedItems(prev => new Set([...prev, activeItemId]));
+    }
+  }, [activeItemId]);
 
   if (items.length === 0) {
     return (
@@ -95,7 +526,7 @@ const Playlist: React.FC<PlaylistProps> = ({
   }
 
   return (
-    <div className="flex-1 h-full overflow-y-auto p-6 space-y-10 pb-40 bg-gray-950/20 scroll-smooth">
+    <div className="flex-1 h-full overflow-y-auto p-4 space-y-2 pb-40 bg-gray-950/20 scroll-smooth">
       <input
         type="file"
         ref={fileInputRef}
@@ -108,178 +539,38 @@ const Playlist: React.FC<PlaylistProps> = ({
           if (e.target) e.target.value = '';
         }}
       />
-      {items.map((item) => (
-        <div key={item.id} className="bg-gray-800/40 rounded-2xl border border-gray-700/50 overflow-hidden shadow-2xl hover:border-indigo-500/30 transition-all duration-300">
-          {/* Item Header */}
-          <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center z-10">
-            <div className="flex items-center gap-2 text-indigo-400 flex-1 min-w-0">
-              {item.type === 'song' ? <Music size={16} className="shrink-0" /> : <BookOpen size={16} className="shrink-0" />}
-              {editingItemId === item.id ? (
-                <div className="flex items-center gap-2 flex-1 min-w-0 bg-gray-900 rounded px-2 py-1 border border-indigo-500">
-                  <input
-                    type="text"
-                    value={tempTitle}
-                    onChange={(e) => setTempTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') saveTitle(item.id);
-                      if (e.key === 'Escape') cancelEditing();
-                    }}
-                    className="flex-1 bg-transparent text-white text-sm outline-none"
-                    autoFocus
-                  />
-                  <div className="flex gap-1">
-                    <button onClick={() => saveTitle(item.id)} className="text-green-500 hover:text-green-400"><Check size={14} /></button>
-                    <button onClick={cancelEditing} className="text-red-500 hover:text-red-400"><X size={14} /></button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 truncate group/header cursor-pointer" onClick={(e) => startEditingItem(e, item)}>
-                  <h3 className="font-bold text-white truncate">{item.title}</h3>
-                  <Edit2 size={12} className="text-gray-500 opacity-0 group-hover/header:opacity-100 transition-opacity" />
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-1 ml-2">
-              <button
-                onClick={() => {
-                  setActiveUploadItemId(item.id);
-                  fileInputRef.current?.click();
-                }}
-                className="text-gray-500 hover:text-indigo-400 transition-colors p-1"
-                title="Subir imágenes a este elemento"
-              >
-                <Upload size={14} />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onRefreshItem(item); }}
-                className="text-gray-500 hover:text-indigo-400 transition-colors p-1"
-                title="Actualizar / Regenerar contenido"
-              >
-                <RefreshCw size={14} />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onSlideDoubleClick(item.id, 0); }}
-                className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded transition-all ${liveItemId === item.id ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-700 text-gray-300 hover:bg-indigo-600 hover:text-white'}`}
-                title="Poner esta sección en vivo"
-              >
-                <Monitor size={12} /> {liveItemId === item.id ? 'LIVE' : 'EN VIVO'}
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
-                className="text-gray-500 hover:text-red-400 transition-colors p-1"
-                title="Eliminar elemento"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          </div>
 
-          {/* Slides Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4">
-            {item.slides.map((slide, index) => {
-              const isActive = activeItemId === item.id && activeSlideIndex === index;
-              const isEditing = editingSlideId === slide.id;
-
-              return (
-                <div
-                  key={slide.id}
-                  onClick={() => !isEditing && onSlideClick(item.id, index)}
-                  onDoubleClick={() => !isEditing && onSlideDoubleClick(item.id, index)}
-                  className={`relative group text-left rounded-lg p-3 h-24 flex flex-col justify-between transition-all duration-200 border-2 cursor-pointer ${activeItemId === item.id && activeSlideIndex === index
-                    ? 'bg-indigo-900/30 border-indigo-500 ring-2 ring-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
-                    : liveItemId === item.id && liveSlideIndex === index
-                      ? 'bg-red-900/20 border-red-500/50'
-                      : 'bg-gray-900 border-gray-700 hover:border-gray-500'
-                    }`}
-                >
-                  {/* Label or Edit Input */}
-                  <div className="absolute top-1 right-1 z-20 w-full flex justify-end">
-                    {isEditing ? (
-                      <div className="flex items-center gap-1 bg-gray-950 p-1 rounded border border-indigo-500 shadow-lg" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="text"
-                          value={tempLabel}
-                          onChange={(e) => setTempLabel(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveLabel(item.id, slide.id);
-                            if (e.key === 'Escape') cancelEditing();
-                          }}
-                          className="w-20 bg-transparent text-[10px] text-white outline-none"
-                          autoFocus
-                        />
-                        <button onClick={() => saveLabel(item.id, slide.id)} className="text-green-500 hover:text-green-400"><Check size={10} /></button>
-                        <button onClick={cancelEditing} className="text-red-500 hover:text-red-400"><X size={10} /></button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        {liveItemId === item.id && liveSlideIndex === index && (
-                          <span className="bg-red-600 text-white text-[8px] px-1 rounded-sm font-black mr-1 animate-pulse">LIVE</span>
-                        )}
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                          {slide.label || `#${index + 1}`}
-                        </div>
-                        <button
-                          onClick={(e) => startEditingSlide(e, slide)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-indigo-400"
-                          title="Editar etiqueta"
-                        >
-                          <Edit2 size={10} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Delete Slide Button - Absolute Bottom Right Overlay */}
-                  {!isEditing && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteSlide(item.id, slide.id);
-                      }}
-                      className="absolute bottom-1 right-1 z-30 p-1.5 rounded-lg text-white bg-red-600/80 hover:bg-red-500 shadow-lg opacity-0 group-hover:opacity-100 transition-all active:scale-95"
-                      title="Eliminar diapositiva"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  )}
-
-                  {/* Slide Content Preview */}
-                  <div className={`text-[11px] leading-tight line-clamp-3 mt-4 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}`}>
-                    {slide.type === 'youtube' ? (
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-red-400 font-bold italic">
-                          <Monitor size={12} /> VIDEO YOUTUBE
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (slide.videoId) onToggleBackgroundAudio?.(slide.videoId, item.title);
-                          }}
-                          className="bg-gray-800 hover:bg-red-900/40 text-[9px] py-1 px-2 rounded border border-gray-700 hover:border-red-500/50 transition-all flex items-center gap-1 w-fit"
-                        >
-                          <Music size={10} /> FONDO PERSISTENTE
-                        </button>
-                      </div>
-                    ) : slide.type === 'image' && slide.mediaUrl ? (
-                      <div className="absolute inset-0 top-6 flex items-center justify-center bg-black/40 rounded-b-lg overflow-hidden border-t border-white/5 group-hover:bg-black/20 transition-all">
-                        <img src={slide.mediaUrl} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-all duration-300" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent opacity-60"></div>
-                        <div className="absolute inset-0 flex items-end p-2 pointer-events-none">
-                          <span className="text-[8px] font-black text-white uppercase tracking-widest drop-shadow-md truncate w-full">{slide.label || 'Imagen'}</span>
-                        </div>
-                      </div>
-                    ) : slide.content}
-                  </div>
-
-                  {isActive && (
-                    <div className="absolute inset-0 rounded-lg border-2 border-indigo-500 pointer-events-none animate-pulse"></div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+          {items.map((item) => (
+            <SortablePlaylistItem
+              key={item.id}
+              item={item}
+              activeItemId={activeItemId}
+              activeSlideIndex={activeSlideIndex}
+              liveItemId={liveItemId}
+              liveSlideIndex={liveSlideIndex}
+              onSlideClick={onSlideClick}
+              onSlideDoubleClick={onSlideDoubleClick}
+              onToggleBackgroundAudio={onToggleBackgroundAudio}
+              onDeleteItem={onDeleteItem}
+              onDeleteSlide={onDeleteSlide}
+              onRefreshItem={onRefreshItem}
+              onUploadClick={handleUploadClick}
+              onUpdateSlideLabel={onUpdateSlideLabel}
+              onUpdateItemTitle={onUpdateItemTitle}
+              onReorderSlides={onReorderSlides}
+              isExpanded={expandedItems.has(item.id)}
+              onToggleExpand={() => toggleExpand(item.id)}
+              isSplitMode={isSplitMode}
+              onSetSplitLeft={onSetSplitLeft}
+              onSetSplitRight={onSetSplitRight}
+              splitLeftSlide={splitLeftSlide}
+              splitRightSlide={splitRightSlide}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
     </div>
   );
 };

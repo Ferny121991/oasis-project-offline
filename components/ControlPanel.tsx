@@ -161,6 +161,39 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
+  // Custom Themes (user-created)
+  const [customThemes, setCustomThemes] = useState<Theme[]>(() => {
+    try {
+      const saved = localStorage.getItem('oasis_custom_themes');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showSaveThemeModal, setShowSaveThemeModal] = useState(false);
+  const [newThemeName, setNewThemeName] = useState('');
+
+  // Save custom themes to localStorage
+  useEffect(() => {
+    localStorage.setItem('oasis_custom_themes', JSON.stringify(customThemes));
+  }, [customThemes]);
+
+  const saveCurrentAsCustomTheme = () => {
+    if (!newThemeName.trim()) return;
+    const newTheme: Theme = {
+      ...currentTheme,
+      id: `custom-${Date.now()}`,
+      name: `⭐ ${newThemeName.trim()}`
+    };
+    setCustomThemes(prev => [...prev, newTheme]);
+    setNewThemeName('');
+    setShowSaveThemeModal(false);
+  };
+
+  const deleteCustomTheme = (themeId: string) => {
+    setCustomThemes(prev => prev.filter(t => t.id !== themeId));
+  };
+
   // --- STAGED THEME SYSTEM ---
   // We use currentTheme (pending) and liveTheme (on projector) from props
   const hasPendingChanges = JSON.stringify(currentTheme) !== JSON.stringify(liveTheme);
@@ -691,6 +724,177 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <Eraser size={12} /> Original
                   </button>
                 </div>
+
+                {/* THEME PRESETS GALLERY */}
+                <div className="mb-5">
+                  <button
+                    onClick={() => toggleSection('presets')}
+                    className="w-full flex items-center justify-between py-3 px-4 bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-xl border border-purple-500/30 text-white font-bold text-xs uppercase tracking-wider hover:from-purple-900/50 hover:to-indigo-900/50 transition-all"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Palette size={14} className="text-purple-400" />
+                      Temas Predefinidos
+                    </span>
+                    <ChevronDown size={16} className={`transition-transform ${expandedSections['presets'] ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {expandedSections['presets'] && (
+                    <div className="mt-3 grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
+                      {THEME_PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          onClick={() => updatePendingTheme({ ...currentTheme, ...preset, id: currentTheme.id })}
+                          className={`relative p-3 rounded-lg text-left transition-all border-2 hover:scale-[1.02] ${currentTheme.background === preset.background
+                            ? 'border-indigo-500 ring-2 ring-indigo-500/30'
+                            : 'border-gray-700 hover:border-gray-500'
+                            }`}
+                          style={{ background: preset.background }}
+                        >
+                          <div
+                            className="text-[10px] font-bold truncate pr-4"
+                            style={{
+                              color: preset.textColor,
+                              textShadow: preset.shadow ? '1px 1px 2px rgba(0,0,0,0.5)' : 'none'
+                            }}
+                          >
+                            {preset.name}
+                          </div>
+                          {currentTheme.background === preset.background && (
+                            <div className="absolute top-1 right-1 w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center">
+                              <Check size={10} className="text-white" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* CUSTOM THEMES (User Created) */}
+                <div className="mb-5">
+                  <button
+                    onClick={() => toggleSection('customThemes')}
+                    className="w-full flex items-center justify-between py-3 px-4 bg-gradient-to-r from-amber-900/30 to-orange-900/30 rounded-xl border border-amber-500/30 text-white font-bold text-xs uppercase tracking-wider hover:from-amber-900/50 hover:to-orange-900/50 transition-all"
+                  >
+                    <span className="flex items-center gap-2">
+                      <PenTool size={14} className="text-amber-400" />
+                      Mis Temas ({customThemes.length})
+                    </span>
+                    <ChevronDown size={16} className={`transition-transform ${expandedSections['customThemes'] ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {expandedSections['customThemes'] && (
+                    <div className="mt-3 space-y-2">
+                      {/* Save Current Theme Button */}
+                      <button
+                        onClick={() => setShowSaveThemeModal(true)}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-lg text-white font-bold text-xs uppercase tracking-wider transition-all shadow-lg"
+                      >
+                        <Plus size={14} /> Guardar Tema Actual
+                      </button>
+
+                      {/* Custom Themes List */}
+                      {customThemes.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1">
+                          {customThemes.map((theme) => (
+                            <div
+                              key={theme.id}
+                              className="relative group"
+                            >
+                              <button
+                                onClick={() => updatePendingTheme({ ...currentTheme, ...theme, id: currentTheme.id })}
+                                className={`w-full p-3 rounded-lg text-left transition-all border-2 hover:scale-[1.02] ${currentTheme.background === theme.background
+                                  ? 'border-amber-500 ring-2 ring-amber-500/30'
+                                  : 'border-gray-700 hover:border-gray-500'
+                                  }`}
+                                style={{ background: theme.background }}
+                              >
+                                <div
+                                  className="text-[10px] font-bold truncate pr-6"
+                                  style={{
+                                    color: theme.textColor,
+                                    textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+                                  }}
+                                >
+                                  {theme.name}
+                                </div>
+                              </button>
+                              {/* Delete Button */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteCustomTheme(theme.id);
+                                }}
+                                className="absolute top-1 right-1 w-5 h-5 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                                title="Eliminar tema"
+                              >
+                                <X size={10} className="text-white" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center text-gray-500 text-xs py-4 bg-gray-900/50 rounded-lg">
+                          No tienes temas guardados
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* SAVE THEME MODAL */}
+                {showSaveThemeModal && (
+                  <div className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-gray-900 rounded-2xl border border-gray-700 p-6 w-full max-w-md shadow-2xl">
+                      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <PenTool size={20} className="text-amber-400" />
+                        Guardar Tema Personalizado
+                      </h3>
+
+                      {/* Preview */}
+                      <div
+                        className="h-24 rounded-lg mb-4 flex items-center justify-center border border-gray-600"
+                        style={{ background: currentTheme.background }}
+                      >
+                        <span
+                          className="text-sm font-bold"
+                          style={{
+                            color: currentTheme.textColor,
+                            fontFamily: currentTheme.fontFamily,
+                            textShadow: currentTheme.shadow ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none'
+                          }}
+                        >
+                          Vista Previa del Tema
+                        </span>
+                      </div>
+
+                      <input
+                        type="text"
+                        value={newThemeName}
+                        onChange={(e) => setNewThemeName(e.target.value)}
+                        placeholder="Nombre del tema (ej: Mi Tema Adoración)"
+                        className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-600 outline-none focus:border-amber-500 mb-4"
+                        autoFocus
+                      />
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setShowSaveThemeModal(false)}
+                          className="flex-1 py-2.5 rounded-lg border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-all font-bold text-sm"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={saveCurrentAsCustomTheme}
+                          disabled={!newThemeName.trim()}
+                          className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          Guardar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* SUB-TABS: Word vs Image - Modern Design */}
                 <div className="flex bg-gradient-to-r from-gray-800/80 to-gray-900/80 p-1 rounded-2xl mb-5 border border-gray-700/30 shadow-inner">
