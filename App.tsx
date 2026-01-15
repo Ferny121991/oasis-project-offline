@@ -408,9 +408,13 @@ const App: React.FC = () => {
 
 
 
-  // Auto-save current project's playlist (with guard to prevent infinite loop)
+  // Auto-save current project's playlist (with guard to prevent infinite loop AND ensure data is loaded)
   const isUpdatingProjectRef = useRef(false);
   useEffect(() => {
+    // SECURITY CHECK: Only update project state if we have successfully loaded data from cloud.
+    // This prevents overwriting cloud data with empty local state on load failures.
+    if (!dataLoaded.current) return;
+
     if (currentProjectId && projects.length > 0 && !isUpdatingProjectRef.current) {
       isUpdatingProjectRef.current = true;
       setProjects(prev => {
