@@ -235,7 +235,7 @@ const App: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('user_settings')
-        .select('playlist, custom_themes')
+        .select('playlist, custom_themes, projects, current_project_id')
         .eq('id', session.user.id);
 
       if (error) {
