@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PresentationItem, Slide } from '../types';
-import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
+import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -38,6 +38,8 @@ interface PlaylistProps {
   onUpdateItemTitle: (itemId: string, newTitle: string) => void;
   onReorderItems: (newItems: PresentationItem[]) => void;
   onReorderSlides: (itemId: string, newSlides: Slide[]) => void;
+  onAddDivider: (title: string, color?: string, icon?: string) => void;
+  onUpdateDivider?: (itemId: string, title: string, color?: string, icon?: string) => void;
   // Split Screen
   isSplitMode?: boolean;
   onSetSplitLeft?: (slide: Slide) => void;
@@ -467,7 +469,99 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
   );
 };
 
+// Sortable Divider Item Component
+interface SortableDividerItemProps {
+  item: PresentationItem;
+  onDelete: () => void;
+  onEdit: () => void;
+}
+
+const SortableDividerItem: React.FC<SortableDividerItemProps> = ({
+  item,
+  onDelete,
+  onEdit,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 'auto',
+  };
+
+  const color = item.dividerColor || '#6366f1';
+  const icon = item.dividerIcon || '📋';
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group relative"
+    >
+      <div
+        className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+        style={{
+          backgroundColor: `${color}15`,
+          borderLeft: `4px solid ${color}`,
+        }}
+      >
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 text-gray-500 hover:text-white transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={16} />
+        </div>
+
+        {/* Icon & Title */}
+        <span className="text-xl">{icon}</span>
+        <span
+          className="font-bold text-sm tracking-wide flex-1"
+          style={{ color: color }}
+        >
+          {item.title}
+        </span>
+
+        {/* Divider Line */}
+        <div
+          className="flex-1 h-[2px] rounded-full opacity-30"
+          style={{ backgroundColor: color }}
+        />
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={onEdit}
+            className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-900/20 rounded-lg transition-all"
+            title="Editar sección"
+          >
+            <Edit2 size={14} />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-all"
+            title="Eliminar sección"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Main Playlist Component
+
 const Playlist: React.FC<PlaylistProps> = ({
   items,
   activeItemId,
@@ -485,12 +579,15 @@ const Playlist: React.FC<PlaylistProps> = ({
   onUpdateItemTitle,
   onReorderItems,
   onReorderSlides,
+  onAddDivider,
+  onUpdateDivider,
   isSplitMode,
   onSetSplitLeft,
   onSetSplitRight,
   splitLeftSlide,
   splitRightSlide
 }) => {
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [activeUploadItemId, setActiveUploadItemId] = useState<string | undefined>();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(() => {
@@ -507,6 +604,26 @@ const Playlist: React.FC<PlaylistProps> = ({
 
   const [editValue, setEditValue] = useState('');
 
+  // Divider Modal State
+  const [showDividerModal, setShowDividerModal] = useState(false);
+  const [dividerTitle, setDividerTitle] = useState('');
+  const [dividerColor, setDividerColor] = useState('#6366f1');
+  const [dividerIcon, setDividerIcon] = useState('📋');
+  const [editingDividerId, setEditingDividerId] = useState<string | null>(null);
+
+  const DIVIDER_COLORS = [
+    { name: 'Índigo', value: '#6366f1' },
+    { name: 'Rosa', value: '#ec4899' },
+    { name: 'Verde', value: '#22c55e' },
+    { name: 'Naranja', value: '#f97316' },
+    { name: 'Cian', value: '#06b6d4' },
+    { name: 'Púrpura', value: '#a855f7' },
+    { name: 'Rojo', value: '#ef4444' },
+    { name: 'Amarillo', value: '#eab308' },
+  ];
+
+  const DIVIDER_ICONS = ['📋', '🎵', '📖', '🙏', '✝️', '🎤', '💬', '🎹', '⭐', '🔔', '❤️', '🕊️'];
+
   // Handle opening the edit modal
   const handleEditLabel = (itemId: string, slideId: string, currentLabel: string) => {
     setEditValue(currentLabel);
@@ -519,6 +636,30 @@ const Playlist: React.FC<PlaylistProps> = ({
       setEditModal(null);
     }
   };
+
+  const handleAddDivider = () => {
+    if (dividerTitle.trim()) {
+      if (editingDividerId && onUpdateDivider) {
+        onUpdateDivider(editingDividerId, dividerTitle.trim(), dividerColor, dividerIcon);
+      } else {
+        onAddDivider(dividerTitle.trim(), dividerColor, dividerIcon);
+      }
+      setShowDividerModal(false);
+      setDividerTitle('');
+      setDividerColor('#6366f1');
+      setDividerIcon('📋');
+      setEditingDividerId(null);
+    }
+  };
+
+  const openEditDivider = (item: PresentationItem) => {
+    setEditingDividerId(item.id);
+    setDividerTitle(item.title);
+    setDividerColor(item.dividerColor || '#6366f1');
+    setDividerIcon(item.dividerIcon || '📋');
+    setShowDividerModal(true);
+  };
+
 
   // DnD Kit Sensors
   const sensors = useSensors(
@@ -598,34 +739,59 @@ const Playlist: React.FC<PlaylistProps> = ({
         }}
       />
 
+      {/* Add Section Button */}
+      <button
+        onClick={() => {
+          setEditingDividerId(null);
+          setDividerTitle('');
+          setDividerColor('#6366f1');
+          setDividerIcon('📋');
+          setShowDividerModal(true);
+        }}
+        className="w-full py-3 px-4 rounded-xl border-2 border-dashed border-gray-600 hover:border-indigo-500 bg-gray-800/50 hover:bg-indigo-900/20 text-gray-400 hover:text-indigo-300 font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+      >
+        <SeparatorHorizontal size={18} />
+        Agregar Sección / Divisor
+      </button>
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map((item) => (
-            <SortablePlaylistItem
-              key={item.id}
-              item={item}
-              activeItemId={activeItemId}
-              activeSlideIndex={activeSlideIndex}
-              liveItemId={liveItemId}
-              liveSlideIndex={liveSlideIndex}
-              onSlideClick={onSlideClick}
-              onSlideDoubleClick={onSlideDoubleClick}
-              onToggleBackgroundAudio={onToggleBackgroundAudio}
-              onDeleteItem={onDeleteItem}
-              onDeleteSlide={onDeleteSlide}
-              onRefreshItem={onRefreshItem}
-              onUploadClick={handleUploadClick}
-              onUpdateSlideLabel={handleEditLabel}
-              onUpdateItemTitle={onUpdateItemTitle}
-              onReorderSlides={onReorderSlides}
-              isExpanded={expandedItems.has(item.id)}
-              onToggleExpand={() => toggleExpand(item.id)}
-              isSplitMode={isSplitMode}
-              onSetSplitLeft={onSetSplitLeft}
-              onSetSplitRight={onSetSplitRight}
-              splitLeftSlide={splitLeftSlide}
-              splitRightSlide={splitRightSlide}
-            />
+            item.type === 'divider' ? (
+              // Divider Item Rendering
+              <SortableDividerItem
+                key={item.id}
+                item={item}
+                onDelete={() => onDeleteItem(item.id)}
+                onEdit={() => openEditDivider(item)}
+              />
+            ) : (
+              <SortablePlaylistItem
+                key={item.id}
+                item={item}
+                activeItemId={activeItemId}
+                activeSlideIndex={activeSlideIndex}
+                liveItemId={liveItemId}
+                liveSlideIndex={liveSlideIndex}
+                onSlideClick={onSlideClick}
+                onSlideDoubleClick={onSlideDoubleClick}
+                onToggleBackgroundAudio={onToggleBackgroundAudio}
+                onDeleteItem={onDeleteItem}
+                onDeleteSlide={onDeleteSlide}
+                onRefreshItem={onRefreshItem}
+                onUploadClick={handleUploadClick}
+                onUpdateSlideLabel={handleEditLabel}
+                onUpdateItemTitle={onUpdateItemTitle}
+                onReorderSlides={onReorderSlides}
+                isExpanded={expandedItems.has(item.id)}
+                onToggleExpand={() => toggleExpand(item.id)}
+                isSplitMode={isSplitMode}
+                onSetSplitLeft={onSetSplitLeft}
+                onSetSplitRight={onSetSplitRight}
+                splitLeftSlide={splitLeftSlide}
+                splitRightSlide={splitRightSlide}
+              />
+            )
           ))}
         </SortableContext>
       </DndContext>
@@ -689,8 +855,128 @@ const Playlist: React.FC<PlaylistProps> = ({
           </div>
         </div>
       )}
+
+      {/* Divider Modal */}
+      {showDividerModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowDividerModal(false)}
+          />
+          <div className="relative bg-gray-900 border border-gray-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${dividerColor} 0%, ${dividerColor}88 100%)` }}>
+              <h3 className="text-white font-bold flex items-center gap-2">
+                <SeparatorHorizontal size={18} />
+                {editingDividerId ? 'Editar Sección' : 'Nueva Sección'}
+              </h3>
+              <button
+                onClick={() => setShowDividerModal(false)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Title Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Nombre de la Sección
+                </label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={dividerTitle}
+                  onChange={(e) => setDividerTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddDivider();
+                    if (e.key === 'Escape') setShowDividerModal(false);
+                  }}
+                  placeholder="Ej: Devocional, Alabanza, Predicación..."
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border-2 border-transparent focus:border-indigo-500 focus:bg-gray-950 transition-all outline-none text-lg font-medium"
+                />
+              </div>
+
+              {/* Icon Selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Ícono
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {DIVIDER_ICONS.map((icon) => (
+                    <button
+                      key={icon}
+                      onClick={() => setDividerIcon(icon)}
+                      className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${dividerIcon === icon
+                        ? 'bg-indigo-600 ring-2 ring-indigo-400 scale-110'
+                        : 'bg-gray-800 hover:bg-gray-700'
+                        }`}
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Color Selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                  <Palette size={14} /> Color
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {DIVIDER_COLORS.map((color) => (
+                    <button
+                      key={color.value}
+                      onClick={() => setDividerColor(color.value)}
+                      className={`w-8 h-8 rounded-full transition-all ${dividerColor === color.value
+                        ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-900 scale-110'
+                        : 'hover:scale-105'
+                        }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Vista Previa
+                </label>
+                <div
+                  className="p-4 rounded-xl flex items-center gap-3"
+                  style={{ backgroundColor: `${dividerColor}20`, borderLeft: `4px solid ${dividerColor}` }}
+                >
+                  <span className="text-2xl">{dividerIcon}</span>
+                  <span className="font-bold text-white text-lg">{dividerTitle || 'Nombre de la sección'}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowDividerModal(false)}
+                  className="flex-1 px-4 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold transition-all active:scale-95"
+                >
+                  CANCELAR
+                </button>
+                <button
+                  onClick={handleAddDivider}
+                  disabled={!dividerTitle.trim()}
+                  className="flex-1 px-4 py-3 rounded-xl text-white font-bold transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: dividerColor }}
+                >
+                  <Check size={18} />
+                  {editingDividerId ? 'GUARDAR' : 'CREAR'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+
 };
 
 export default Playlist;

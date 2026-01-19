@@ -528,11 +528,34 @@ const App: React.FC = () => {
     }
   }, [projects]);
 
+  // Divider Management Functions
+  const handleAddDivider = useCallback((title: string, color?: string, icon?: string) => {
+    const dividerItem: PresentationItem = {
+      id: `divider_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title,
+      type: 'divider',
+      slides: [], // Dividers have no slides
+      theme: DEFAULT_THEME,
+      dividerColor: color || '#6366f1',
+      dividerIcon: icon || '📋'
+    };
+    setPlaylist(prev => [...prev, dividerItem]);
+  }, []);
+
+  const handleUpdateDivider = useCallback((itemId: string, title: string, color?: string, icon?: string) => {
+    setPlaylist(prev => prev.map(item =>
+      item.id === itemId
+        ? { ...item, title, dividerColor: color, dividerIcon: icon }
+        : item
+    ));
+  }, []);
+
   // Clock Timer
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
 
   // Sync internal fullscreen state
   useEffect(() => {
@@ -1288,12 +1311,15 @@ const App: React.FC = () => {
                 item.id === itemId ? { ...item, slides: newSlides } : item
               ));
             }}
+            onAddDivider={handleAddDivider}
+            onUpdateDivider={handleUpdateDivider}
             isSplitMode={showSplitScreen}
             onSetSplitLeft={setSplitLeftSlide}
             onSetSplitRight={setSplitRightSlide}
             splitLeftSlide={splitLeftSlide}
             splitRightSlide={splitRightSlide}
           />
+
         </div>
 
         {/* User Auth Bar */}

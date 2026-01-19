@@ -113,12 +113,15 @@ export interface Slide {
 export interface PresentationItem {
   id: string;
   title: string;
-  type: 'song' | 'scripture' | 'custom' | 'image-deck';
+  type: 'song' | 'scripture' | 'custom' | 'image-deck' | 'divider';
   slides: Slide[];
   theme: Theme; // Theme is now specific to the item
   query?: string; // Original search query for refreshing
   density?: 'impact' | 'classic' | 'strophe' | 'reading';
   bibleVersion?: string;
+  // Divider specific
+  dividerColor?: string; // Color for the divider line/section
+  dividerIcon?: string; // Emoji or icon name for the section
 }
 
 export interface AppState {
