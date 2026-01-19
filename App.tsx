@@ -391,13 +391,24 @@ const App: React.FC = () => {
 
           setIsSyncing(true);
           try {
+            // CRITICAL: Ensure we send the absolute latest projects array
+            // If we are in a project, update that project's playlist in the array before sending
+            let finalProjects = projects;
+            if (currentProjectId) {
+              finalProjects = projects.map(p =>
+                p.id === currentProjectId
+                  ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+                  : p
+              );
+            }
+
             const { error } = await supabase
               .from('user_settings')
               .upsert({
                 id: session.user.id,
                 playlist,
                 custom_themes: customThemes,
-                projects,
+                projects: finalProjects,
                 current_project_id: currentProjectId,
                 updated_at: new Date().toISOString()
               });
@@ -415,6 +426,7 @@ const App: React.FC = () => {
             setIsSyncing(false);
           }
         };
+
         const timeoutId = setTimeout(updateCloud, 2000); // 2 second debounce for saves
         return () => clearTimeout(timeoutId);
       }
@@ -427,25 +439,25 @@ const App: React.FC = () => {
 
   // Auto-save current project's playlist (with guard to prevent infinite loop AND ensure data is loaded)
   const isUpdatingProjectRef = useRef(false);
+  // Auto-save current project's playlist (with security check)
   useEffect(() => {
-    // SECURITY CHECK: Only update project state if we have successfully loaded data from cloud.
-    // This prevents overwriting cloud data with empty local state on load failures.
-    if (!dataLoaded.current) return;
+    if (!dataLoaded.current || !currentProjectId || projects.length === 0) return;
 
-    if (currentProjectId && projects.length > 0 && !isUpdatingProjectRef.current) {
-      isUpdatingProjectRef.current = true;
-      setProjects(prev => {
-        const updated = prev.map(p =>
+    // Use a functional update to avoid stale state and race conditions
+    // We removed the isUpdatingProjectRef guard because it was skipping valid updates
+    setProjects(prev => {
+      // Find for changes to avoid unnecessary updates if possible
+      const target = prev.find(p => p.id === currentProjectId);
+      if (target && (target.playlist !== playlist || target.customThemes !== customThemes)) {
+        return prev.map(p =>
           p.id === currentProjectId
             ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
             : p
         );
-        return updated;
-      });
-      // Reset the guard after a short delay
-      setTimeout(() => { isUpdatingProjectRef.current = false; }, 100);
-    }
-  }, [playlist, customThemes]);
+      }
+      return prev;
+    });
+  }, [playlist, customThemes, currentProjectId]);
 
   // Keep frozenLiveItem in sync with changes in the active playlist
   useEffect(() => {
