@@ -960,6 +960,8 @@ const App: React.FC = () => {
 
     if (targetItemId) {
       const item = playlist.find(i => i.id === targetItemId);
+      if (item && item.type === 'divider') return; // Cannot make a divider live
+
       if (item) setFrozenLiveItem(item);
       setLiveItemId(targetItemId);
       // Also make it active so the user can edit it immediately
@@ -968,6 +970,7 @@ const App: React.FC = () => {
       if (slideIndex !== undefined) setActiveSlideIndex(targetSlideIndex);
       setIsPreviewHidden(false);
     }
+
   }, [activeItemId, activeSlideIndex, liveItemId]);
 
   const stopLive = useCallback(() => {
