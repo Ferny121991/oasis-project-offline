@@ -130,7 +130,7 @@ const App: React.FC = () => {
           setIsPreviewHidden(data.isPreviewHidden);
           setIsTextHidden(data.isTextHidden);
           setIsLogoActive(data.isLogoActive);
-          if (data.frozenLiveItem) setFrozenLiveItem(data.frozenLiveItem);
+          setFrozenLiveItem(data.frozenLiveItem);
           // Split Screen sync
           if (data.showSplitScreen !== undefined) setShowSplitScreen(data.showSplitScreen);
           if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
@@ -432,6 +432,16 @@ const App: React.FC = () => {
       setTimeout(() => { isUpdatingProjectRef.current = false; }, 100);
     }
   }, [playlist, customThemes]);
+
+  // Keep frozenLiveItem updated with newest version from playlist if it exists
+  useEffect(() => {
+    if (liveItemId) {
+      const item = playlist.find(i => i.id === liveItemId);
+      if (item) {
+        setFrozenLiveItem(item);
+      }
+    }
+  }, [playlist, liveItemId]);
 
   // Project Management Functions
   const handleCreateProject = useCallback((name: string, description?: string) => {
@@ -973,28 +983,29 @@ const App: React.FC = () => {
 
   const navigateLiveNext = useCallback(() => {
     if (!liveItemId) return;
-    const item = playlist.find(p => p.id === liveItemId);
+    const item = liveItem; // Use derived liveItem (playlist find or frozen)
     if (item && liveSlideIndex < item.slides.length - 1) {
       const nextIndex = liveSlideIndex + 1;
       setLiveSlideIndex(nextIndex);
-      // If we are currently viewing the live item, move the preview selector too
-      if (activeItemId === liveItemId) {
+      // If we are currently viewing the live item (and it's in current playlist), move the preview selector too
+      if (activeItemId === liveItemId && playlist.some(i => i.id === liveItemId)) {
         setActiveSlideIndex(nextIndex);
       }
     }
-  }, [liveItemId, liveSlideIndex, activeItemId, playlist]);
+  }, [liveItemId, liveSlideIndex, activeItemId, liveItem, playlist]);
 
   const navigateLivePrev = useCallback(() => {
     if (!liveItemId) return;
-    if (liveSlideIndex > 0) {
+    const item = liveItem; // Use derived liveItem
+    if (item && liveSlideIndex > 0) {
       const prevIndex = liveSlideIndex - 1;
       setLiveSlideIndex(prevIndex);
-      // If we are currently viewing the live item, move the preview selector too
-      if (activeItemId === liveItemId) {
+      // If we are currently viewing the live item (and it's in current playlist), move the preview selector too
+      if (activeItemId === liveItemId && playlist.some(i => i.id === liveItemId)) {
         setActiveSlideIndex(prevIndex);
       }
     }
-  }, [liveItemId, liveSlideIndex, activeItemId]);
+  }, [liveItemId, liveSlideIndex, activeItemId, liveItem, playlist]);
 
 
 
