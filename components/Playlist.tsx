@@ -704,12 +704,29 @@ const Playlist: React.FC<PlaylistProps> = ({
 
   if (items.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center relative">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative overflow-y-auto">
+        {/* Add Section Button even when empty */}
+        <div className="w-full max-w-sm mb-8">
+          <button
+            onClick={() => {
+              setEditingDividerId(null);
+              setDividerTitle('');
+              setDividerColor('#6366f1');
+              setDividerIcon('📋');
+              setShowDividerModal(true);
+            }}
+            className="w-full py-3 px-4 rounded-xl border-2 border-dashed border-gray-600 hover:border-indigo-500 bg-gray-800/50 hover:bg-indigo-900/20 text-gray-400 hover:text-indigo-300 font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          >
+            <SeparatorHorizontal size={18} />
+            Agregar Sección / Divisor
+          </button>
+        </div>
+
         <div className="bg-gray-800 p-4 rounded-full mb-4">
           <Music className="opacity-20" size={32} />
         </div>
-        <p className="text-sm">Tu lista está vacía.</p>
-        <p className="text-xs mt-1 mb-6">Usa el panel izquierdo o sube imágenes directamente.</p>
+        <p className="text-sm text-gray-500">Tu lista está vacía.</p>
+        <p className="text-xs text-gray-600 mt-1 mb-6">Usa el panel izquierdo o sube imágenes directamente.</p>
 
         <button
           onClick={() => {
@@ -723,6 +740,7 @@ const Playlist: React.FC<PlaylistProps> = ({
       </div>
     );
   }
+
 
   return (
     <div className="flex-1 h-full overflow-y-auto p-4 space-y-2 pb-40 bg-gray-950/20 scroll-smooth">

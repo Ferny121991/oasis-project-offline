@@ -277,29 +277,41 @@ const App: React.FC = () => {
       } else if (data && data.length > 0) {
         const settings = data[0] as any;
 
-        // 1. Force state updates
-        if (settings.projects) setProjects(settings.projects);
+        // Migration Helper: Ensure items have correct types (Fix for 'transforming' dividers)
+        const migratePlaylist = (items: any[]) => (items || []).map(item => ({
+          ...item,
+          type: item.type || (item.dividerColor || item.dividerIcon ? 'divider' : 'custom')
+        }));
 
-        if (settings.current_project_id && settings.projects) {
-          const currentProject = settings.projects.find((p: any) => p.id === settings.current_project_id);
+        // 1. Load and migrate projects
+        const migratedProjects = (settings.projects || []).map((p: any) => ({
+          ...p,
+          playlist: migratePlaylist(p.playlist)
+        }));
+        setProjects(migratedProjects);
+
+        // 2. Load and migrate active playlist/project
+        if (settings.current_project_id && migratedProjects.length > 0) {
+          const currentProject = migratedProjects.find((p: any) => p.id === settings.current_project_id);
           if (currentProject) {
             setCurrentProjectId(settings.current_project_id);
-            setPlaylist(currentProject.playlist || []);
+            setPlaylist(currentProject.playlist);
             setCustomThemes(currentProject.customThemes || []);
           } else {
             setCurrentProjectId(null);
-            setPlaylist(settings.playlist || []);
+            setPlaylist(migratePlaylist(settings.playlist));
             setCustomThemes(settings.custom_themes || []);
           }
         } else {
           setCurrentProjectId(null);
-          setPlaylist(settings.playlist || []);
+          setPlaylist(migratePlaylist(settings.playlist));
           setCustomThemes(settings.custom_themes || []);
         }
 
-        // 2. Mark as loaded
+        // 3. Mark as loaded
         dataLoaded.current = true;
       }
+
     } catch (e) {
       console.error("Unexpected error fetching user data", e);
       setSyncError("Error de conexión con la nube.");
