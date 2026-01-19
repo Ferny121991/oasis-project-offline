@@ -246,9 +246,14 @@ const App: React.FC = () => {
 
   const fetchUserData = useCallback(async () => {
     if (!session?.user) return;
+
+    // BLOCK persistence during cloud load
+    isCloudLoading.current = true;
+    isSwitchingProject.current = true;
+
     setIsSyncing(true);
     setSyncError(null);
-    isCloudLoading.current = true;
+
     try {
       const { data, error } = await supabase
         .from('user_settings')
@@ -257,9 +262,8 @@ const App: React.FC = () => {
 
       if (error) {
         if (error.code === 'PGRST116' || error.message?.includes('0 rows')) {
-          // No settings found, create initial ones
           const { error: insertError } = await supabase.from('user_settings').insert([
-            { id: session.user.id, playlist: [], custom_themes: [] }
+            { id: session.user.id, playlist: [], custom_themes: [], projects: [], current_project_id: null }
           ]);
           if (insertError) {
             setSyncError("Error al inicializar datos en la nube.");
@@ -273,10 +277,9 @@ const App: React.FC = () => {
       } else if (data && data.length > 0) {
         const settings = data[0] as any;
 
-        // Load projects first
+        // 1. Force state updates
         if (settings.projects) setProjects(settings.projects);
 
-        // Check if there's a current project and load its data
         if (settings.current_project_id && settings.projects) {
           const currentProject = settings.projects.find((p: any) => p.id === settings.current_project_id);
           if (currentProject) {
@@ -284,38 +287,32 @@ const App: React.FC = () => {
             setPlaylist(currentProject.playlist || []);
             setCustomThemes(currentProject.customThemes || []);
           } else {
-            // Project not found, load main playlist
             setCurrentProjectId(null);
-            if (settings.playlist) setPlaylist(settings.playlist);
-            if (settings.custom_themes) setCustomThemes(settings.custom_themes);
+            setPlaylist(settings.playlist || []);
+            setCustomThemes(settings.custom_themes || []);
           }
         } else {
-          // No project selected, load main playlist
-          if (settings.playlist) setPlaylist(settings.playlist);
-          if (settings.custom_themes) setCustomThemes(settings.custom_themes);
+          setCurrentProjectId(null);
+          setPlaylist(settings.playlist || []);
+          setCustomThemes(settings.custom_themes || []);
         }
 
+        // 2. Mark as loaded
         dataLoaded.current = true;
-      } else {
-        // Fallback for empty array result
-        const { error: insertError } = await supabase.from('user_settings').insert([
-          { id: session.user.id, playlist: [], custom_themes: [], projects: [], current_project_id: null }
-        ]);
-        if (insertError) {
-          setSyncError("Error al crear perfil en la nube.");
-        } else {
-          dataLoaded.current = true;
-        }
       }
     } catch (e) {
       console.error("Unexpected error fetching user data", e);
       setSyncError("Error de conexión con la nube.");
     } finally {
       setIsSyncing(false);
-      // Wait a bit before allowing persistence to push back to cloud
-      setTimeout(() => { isCloudLoading.current = false; }, 1000);
+      // Wait longer to ensure all state setters finished and React re-rendered
+      setTimeout(() => {
+        isCloudLoading.current = false;
+        isSwitchingProject.current = false;
+      }, 1000);
     }
   }, [session]);
+
 
   useEffect(() => {
     if (session?.user) {
@@ -360,22 +357,27 @@ const App: React.FC = () => {
       setSession(null);
       setPlaylist([]);
       setCustomThemes([]);
+      setCurrentProjectId(null);
+      setProjects([]);
 
-      // 3. Wipe persistent storage
-      localStorage.removeItem('flujo_playlist_v2');
-      localStorage.removeItem('oasis_custom_themes');
+      // 3. Inform Supabase and wait for it
+      // We use scope: 'global' to sign out from all tabs
+      await supabase.auth.signOut({ scope: 'global' });
 
-      // 4. Inform Supabase (don't let errors here block the local cleanup)
-      await supabase.auth.signOut().catch(err => console.warn("Supabase SignOut error:", err));
+      // 4. Wipe ALL persistent storage to be absolutely sure
+      localStorage.clear();
+      sessionStorage.clear();
 
       // 5. Hard reload to ensure all listeners and refs are destroyed
+      // Using window.location.href to clear hash/query params if any
       window.location.href = window.location.origin + window.location.pathname;
     } catch (e) {
       console.error("Critical logout error", e);
-      // Fail-safe: force a clean start
+      localStorage.clear();
       window.location.reload();
     }
   };
+
 
   // Persistence Effect
   useEffect(() => {
@@ -479,6 +481,9 @@ const App: React.FC = () => {
 
   // Project Management Functions
   const handleCreateProject = useCallback((name: string, description?: string) => {
+    // BLOCK auto-saves to prevent race conditions
+    isSwitchingProject.current = true;
+
     const newProject: Project = {
       id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name,
@@ -488,12 +493,20 @@ const App: React.FC = () => {
       playlist: [],
       customThemes: []
     };
+
+    // Update all relevant states
     setProjects(prev => [...prev, newProject]);
     setCurrentProjectId(newProject.id);
     setPlaylist([]);
     setCustomThemes([]);
     setActiveSlideIndex(-1);
+
+    // Unblock after state settles
+    setTimeout(() => {
+      isSwitchingProject.current = false;
+    }, 250);
   }, []);
+
 
   const handleSelectProject = useCallback((projectId: string) => {
     // 1. BLOCK auto-saves
