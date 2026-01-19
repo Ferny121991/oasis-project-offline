@@ -126,11 +126,22 @@ const App: React.FC = () => {
           setLiveSlideIndex(data.liveSlideIndex);
           setActiveSlideIndex(data.activeSlideIndex);
           setPlaylist(data.playlist);
-          if (data.stagedTheme) setStagedTheme(data.stagedTheme); // Sync staged theme
+          if (data.stagedTheme) setStagedTheme(data.stagedTheme);
           setIsPreviewHidden(data.isPreviewHidden);
           setIsTextHidden(data.isTextHidden);
           setIsLogoActive(data.isLogoActive);
-          if (data.frozenLiveItem) setFrozenLiveItem(data.frozenLiveItem);
+
+          if (data.frozenLiveItem) {
+            if (data.frozenLiveItem.slides) {
+              setFrozenLiveItem(data.frozenLiveItem);
+            } else {
+              // It's a stub, find it in the new playlist that was just set
+              const found = data.playlist.find((i: any) => i.id === data.frozenLiveItem.id);
+              if (found) setFrozenLiveItem(found);
+            }
+          } else {
+            setFrozenLiveItem(null);
+          }
           // Split Screen sync
           if (data.showSplitScreen !== undefined) setShowSplitScreen(data.showSplitScreen);
           if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
@@ -181,7 +192,10 @@ const App: React.FC = () => {
           splitRightSlide,
           splitRatio,
           splitFontScale,
-          frozenLiveItem
+          // Optimization: If frozen item is in playlist, only send its ID to save bandwidth
+          frozenLiveItem: (frozenLiveItem && playlist.some(i => i.id === frozenLiveItem.id))
+            ? { id: frozenLiveItem.id }
+            : frozenLiveItem
         }
       });
     }
@@ -432,6 +446,16 @@ const App: React.FC = () => {
       setTimeout(() => { isUpdatingProjectRef.current = false; }, 100);
     }
   }, [playlist, customThemes]);
+
+  // Keep frozenLiveItem in sync with changes in the active playlist
+  useEffect(() => {
+    if (liveItemId) {
+      const itemInPlaylist = playlist.find(i => i.id === liveItemId);
+      if (itemInPlaylist) {
+        setFrozenLiveItem(itemInPlaylist);
+      }
+    }
+  }, [playlist, liveItemId]);
 
   // Project Management Functions
   const handleCreateProject = useCallback((name: string, description?: string) => {
@@ -870,7 +894,10 @@ const App: React.FC = () => {
 
   // --- Derived State ---
   const activeItem = playlist.find(i => i.id === activeItemId);
-  const liveItem = playlist.find(i => i.id === liveItemId) || frozenLiveItem;
+  // Priority for live item: 
+  // 1. Find in current playlist (live updates)
+  // 2. Fallback to frozenLiveItem (persists across project switches)
+  const liveItem = (liveItemId ? playlist.find(i => i.id === liveItemId) : null) || frozenLiveItem;
 
   // 1. DASHBOARD VIEW (Private Staging)
   const currentSlide: Slide | null = activeItem && activeSlideIndex >= 0
