@@ -440,7 +440,11 @@ const App: React.FC = () => {
   // Auto-save current project's playlist (with guard to prevent infinite loop AND ensure data is loaded)
   const isUpdatingProjectRef = useRef(false);
   // Auto-save current project's playlist (with security check)
+  const isSwitchingProject = useRef(false);
   useEffect(() => {
+    // GUARD: Do not auto-save if we are currently switching projects
+    if (isSwitchingProject.current) return;
+
     if (!dataLoaded.current || !currentProjectId || projects.length === 0) return;
 
     // Use a functional update to avoid stale state and race conditions
@@ -448,6 +452,10 @@ const App: React.FC = () => {
     setProjects(prev => {
       // Find for changes to avoid unnecessary updates if possible
       const target = prev.find(p => p.id === currentProjectId);
+
+      // DEEP COMPARISON CHEAP TRICK: Compare JSON strings to avoid referenced object equality issues
+      // or simply rely on strict equality if immutable updates are guaranteed.
+      // For now, strict equality is safer than deep compare for performance, but we must ensure we don't spam.
       if (target && (target.playlist !== playlist || target.customThemes !== customThemes)) {
         return prev.map(p =>
           p.id === currentProjectId
@@ -488,7 +496,10 @@ const App: React.FC = () => {
   }, []);
 
   const handleSelectProject = useCallback((projectId: string) => {
-    // Save current project first
+    // 1. BLOCK auto-saves
+    isSwitchingProject.current = true;
+
+    // 2. FORCE SAVE current project state synchronously to the projects array before switching
     if (currentProjectId) {
       setProjects(prev => prev.map(p =>
         p.id === currentProjectId
@@ -497,7 +508,7 @@ const App: React.FC = () => {
       ));
     }
 
-    // Load selected project
+    // 3. LOAD new project data
     const project = projects.find(p => p.id === projectId);
     if (project) {
       setCurrentProjectId(projectId);
@@ -505,6 +516,12 @@ const App: React.FC = () => {
       setCustomThemes(project.customThemes || []);
       setActiveSlideIndex(-1);
     }
+
+    // 4. UNBLOCK auto-saves after a safe delay (allowing React state to settle)
+    setTimeout(() => {
+      isSwitchingProject.current = false;
+    }, 200);
+
   }, [currentProjectId, projects, playlist, customThemes]);
 
   const handleDeleteProject = useCallback((projectId: string) => {
