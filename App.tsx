@@ -39,6 +39,7 @@ const App: React.FC = () => {
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(-1);
   const [liveItemId, setLiveItemId] = useState<string | null>(null);
   const [liveSlideIndex, setLiveSlideIndex] = useState<number>(-1);
+  const [frozenLiveItem, setFrozenLiveItem] = useState<PresentationItem | null>(null);
   const [backgroundAudioItem, setBackgroundAudioItem] = useState<{ videoId: string; title: string } | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [audioStartTime, setAudioStartTime] = useState<number>(0);
@@ -129,6 +130,7 @@ const App: React.FC = () => {
           setIsPreviewHidden(data.isPreviewHidden);
           setIsTextHidden(data.isTextHidden);
           setIsLogoActive(data.isLogoActive);
+          if (data.frozenLiveItem) setFrozenLiveItem(data.frozenLiveItem);
           // Split Screen sync
           if (data.showSplitScreen !== undefined) setShowSplitScreen(data.showSplitScreen);
           if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
@@ -178,18 +180,19 @@ const App: React.FC = () => {
           splitLeftSlide,
           splitRightSlide,
           splitRatio,
-          splitFontScale
+          splitFontScale,
+          frozenLiveItem
         }
       });
     }
-  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale]);
+  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, frozenLiveItem]);
 
   // Sync state whenever it changes
   useEffect(() => {
     if (!isProjectorMode) {
       sendSyncState();
     }
-  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, isProjectorMode, sendSyncState]);
+  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, isProjectorMode, sendSyncState, frozenLiveItem]);
 
   // Ensure sync when window focus changes (user comes back to tab)
   useEffect(() => {
@@ -428,7 +431,7 @@ const App: React.FC = () => {
       // Reset the guard after a short delay
       setTimeout(() => { isUpdatingProjectRef.current = false; }, 100);
     }
-  }, [playlist, customThemes, currentProjectId]);
+  }, [playlist, customThemes]);
 
   // Project Management Functions
   const handleCreateProject = useCallback((name: string, description?: string) => {
@@ -445,11 +448,7 @@ const App: React.FC = () => {
     setCurrentProjectId(newProject.id);
     setPlaylist([]);
     setCustomThemes([]);
-    // Reset active states
-    setActiveItemId(null);
     setActiveSlideIndex(-1);
-    setLiveItemId(null);
-    setLiveSlideIndex(-1);
   }, []);
 
   const handleSelectProject = useCallback((projectId: string) => {
@@ -468,11 +467,7 @@ const App: React.FC = () => {
       setCurrentProjectId(projectId);
       setPlaylist(project.playlist || []);
       setCustomThemes(project.customThemes || []);
-      // Reset active states
-      setActiveItemId(null);
       setActiveSlideIndex(-1);
-      setLiveItemId(null);
-      setLiveSlideIndex(-1);
     }
   }, [currentProjectId, projects, playlist, customThemes]);
 
@@ -875,7 +870,7 @@ const App: React.FC = () => {
 
   // --- Derived State ---
   const activeItem = playlist.find(i => i.id === activeItemId);
-  const liveItem = playlist.find(i => i.id === liveItemId);
+  const liveItem = playlist.find(i => i.id === liveItemId) || frozenLiveItem;
 
   // 1. DASHBOARD VIEW (Private Staging)
   const currentSlide: Slide | null = activeItem && activeSlideIndex >= 0
@@ -914,6 +909,8 @@ const App: React.FC = () => {
     }
 
     if (targetItemId) {
+      const item = playlist.find(i => i.id === targetItemId);
+      if (item) setFrozenLiveItem(item);
       setLiveItemId(targetItemId);
       // Also make it active so the user can edit it immediately
       setActiveItemId(targetItemId);
@@ -926,6 +923,7 @@ const App: React.FC = () => {
   const stopLive = useCallback(() => {
     setLiveItemId(null);
     setLiveSlideIndex(-1);
+    setFrozenLiveItem(null);
   }, []);
 
   useEffect(() => {
