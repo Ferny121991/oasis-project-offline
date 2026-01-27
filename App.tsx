@@ -9,7 +9,7 @@ import SplitScreen from './components/SplitScreen';
 import ProjectManager from './components/ProjectManager';
 import { PresentationItem, Theme, Slide, Project } from './types';
 import { DEFAULT_THEME } from './constants';
-import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle } from 'lucide-react';
+import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle, Lock } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
@@ -18,6 +18,22 @@ import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/gemi
 type MobileTab = 'control' | 'playlist' | 'preview';
 
 const App: React.FC = () => {
+  // Security State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [authError, setAuthError] = useState(false);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passcodeInput === '1291') {
+      setIsAuthenticated(true);
+      setAuthError(false);
+    } else {
+      setAuthError(true);
+      setPasscodeInput('');
+    }
+  };
+
   // Initialize state from LocalStorage if available
   const [playlist, setPlaylist] = useState<PresentationItem[]>(() => {
     try {
@@ -1206,6 +1222,56 @@ const App: React.FC = () => {
               blackout={isPreviewHidden}
             />
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated && !isProjectorMode) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-gray-950 text-white p-4">
+        <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-6">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-20 h-20 bg-indigo-600/20 rounded-full flex items-center justify-center text-indigo-500 mb-2 ring-4 ring-indigo-500/10">
+              <Lock size={40} />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight text-center">Acceso Restringido</h2>
+            <p className="text-gray-400 text-center text-sm">Esta es un área protegida. Por favor ingresa el código de seguridad para continuar.</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
+            <div className="relative">
+              <input
+                type="password"
+                value={passcodeInput}
+                onChange={(e) => {
+                  setPasscodeInput(e.target.value);
+                  setAuthError(false);
+                }}
+                className={`w-full bg-gray-950 border ${authError ? 'border-red-500 text-red-500 focus:ring-red-500/50' : 'border-gray-800 focus:border-indigo-500 focus:ring-indigo-500/50'} rounded-xl px-4 py-4 text-center text-2xl font-mono tracking-[0.5em] outline-none focus:ring-4 transition-all placeholder:tracking-normal`}
+                placeholder="••••"
+                maxLength={4}
+                autoFocus
+              />
+              {authError && (
+                <div className="absolute -bottom-6 left-0 w-full text-center text-xs font-bold text-red-500 animate-pulse">
+                  Código Incorrecto
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-indigo-600/20 mt-4 flex items-center justify-center gap-2"
+            >
+              <Lock size={18} />
+              Desbloquear Acceso
+            </button>
+          </form>
+
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <p className="text-[10px] text-gray-600 uppercase font-bold tracking-widest">FlujoEclesial Security</p>
+          </div>
         </div>
       </div>
     );
