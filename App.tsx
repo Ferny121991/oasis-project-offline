@@ -399,24 +399,17 @@ const App: React.FC = () => {
         setProjects(migratedProjects);
 
         // 2. Load and migrate active playlist/project
-        // NOTE: No establecemos currentProjectId automáticamente para que el usuario pueda elegir manualmente
-        if (settings.current_project_id && migratedProjects.length > 0) {
-          const currentProject = migratedProjects.find((p: any) => p.id === settings.current_project_id);
-          if (currentProject) {
-            // Dejamos currentProjectId en null para que el usuario elija manualmente
-            // setCurrentProjectId(settings.current_project_id);
-            setCurrentProjectId(null);
-            setPlaylist(currentProject.playlist);
-            setCustomThemes(currentProject.customThemes || []);
-          } else {
-            setCurrentProjectId(null);
-            setPlaylist(migratePlaylist(settings.playlist));
-            setCustomThemes(settings.custom_themes || []);
-          }
-        } else {
-          setCurrentProjectId(null);
+        // NOTE: No cargamos automáticamente NADA del último proyecto para que el usuario elija manualmente
+        setCurrentProjectId(null);
+
+        // Si no hay projects, cargamos playlist base
+        if (migratedProjects.length === 0) {
           setPlaylist(migratePlaylist(settings.playlist));
           setCustomThemes(settings.custom_themes || []);
+        } else {
+          // Si hay proyectos, dejamos todo vacío para que el usuario elija
+          setPlaylist([]);
+          setCustomThemes([]);
         }
 
         // 3. Mark as loaded
