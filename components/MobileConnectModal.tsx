@@ -153,16 +153,14 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
                                 </button>
                             </div>
 
-                            {/* Test Mobile Control Button */}
-                            {userId && (
-                                <button
-                                    onClick={() => setShowMobileControl(true)}
-                                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors"
-                                >
-                                    <Monitor size={18} />
-                                    Probar Control Remoto Aquí
-                                </button>
-                            )}
+                            {/* Test Mobile Control Button - Always show */}
+                            <button
+                                onClick={() => setShowMobileControl(true)}
+                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors"
+                            >
+                                <Monitor size={18} />
+                                Probar Control Remoto Aquí
+                            </button>
 
                             <div className="text-center">
                                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-[10px] font-bold border border-green-500/20">
