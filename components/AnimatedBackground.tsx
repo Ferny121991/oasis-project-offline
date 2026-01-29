@@ -29,11 +29,20 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
         let width = canvas.width = canvas.offsetWidth;
         let height = canvas.height = canvas.offsetHeight;
 
-        window.addEventListener('resize', () => {
-            width = canvas.width = canvas.offsetWidth;
-            height = canvas.height = canvas.offsetHeight;
+        const updateDimensions = () => {
+            const dpr = window.devicePixelRatio || 1;
+            width = canvas.width = canvas.offsetWidth * dpr;
+            height = canvas.height = canvas.offsetHeight * dpr;
+            // Scale context to match
+            const ctx = canvas.getContext('2d');
+            if (ctx) ctx.scale(dpr, dpr);
+
+            // Re-init particles if needed or update their bounds
             initParticles();
-        });
+        };
+
+        window.addEventListener('resize', updateDimensions);
+        updateDimensions(); // Initial call
 
         class Particle {
             x: number;

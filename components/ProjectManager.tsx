@@ -74,7 +74,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
                         </div>
                         <div className="text-[10px] text-gray-500 flex items-center gap-2">
                             <Calendar size={10} />
-                            {currentProject ? formatDate(currentProject.updatedAt) : 'Selecciona un proyecto'}
+                            {currentProject ? (currentProject.scheduledDate ? formatDate(currentProject.scheduledDate + 'T12:00:00') : formatDate(currentProject.updatedAt)) : 'Selecciona un proyecto'}
                             <span className="text-indigo-400">• {currentProject?.playlist.length || 0} elementos</span>
                         </div>
                     </div>
@@ -152,8 +152,8 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
                             <div
                                 key={project.id}
                                 className={`border-b border-gray-800 transition-all ${project.id === currentProjectId
-                                        ? 'bg-indigo-600/10 border-l-4 border-l-indigo-500'
-                                        : 'hover:bg-gray-800/30'
+                                    ? 'bg-indigo-600/10 border-l-4 border-l-indigo-500'
+                                    : 'hover:bg-gray-800/30'
                                     }`}
                             >
                                 {editingId === project.id ? (
@@ -210,8 +210,8 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${project.id === currentProjectId
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-800 text-gray-400'
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'bg-gray-800 text-gray-400'
                                                 }`}>
                                                 <FolderOpen size={16} />
                                             </div>
@@ -220,7 +220,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
                                                 <div className="text-[10px] text-gray-500 flex items-center gap-2">
                                                     <span>{project.playlist.length} elementos</span>
                                                     <span>•</span>
-                                                    <span>{formatDate(project.updatedAt)}</span>
+                                                    <span>{project.scheduledDate ? formatDate(project.scheduledDate + 'T12:00:00') : formatDate(project.updatedAt)}</span>
                                                 </div>
                                             </div>
                                         </div>

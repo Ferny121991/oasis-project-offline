@@ -148,6 +148,26 @@ const GRADIENT_PRESETS = [
   { name: 'Ocean', value: 'linear-gradient(to top, #209cff 0%, #68e0cf 100%)' },
 ];
 
+// Complete list of Bible books in Spanish
+const BIBLE_BOOKS = [
+  // Antiguo Testamento
+  'Génesis', 'Éxodo', 'Levítico', 'Números', 'Deuteronomio',
+  'Josué', 'Jueces', 'Rut', '1 Samuel', '2 Samuel',
+  '1 Reyes', '2 Reyes', '1 Crónicas', '2 Crónicas', 'Esdras',
+  'Nehemías', 'Ester', 'Job', 'Salmos', 'Proverbios',
+  'Eclesiastés', 'Cantares', 'Isaías', 'Jeremías', 'Lamentaciones',
+  'Ezequiel', 'Daniel', 'Oseas', 'Joel', 'Amós',
+  'Abdías', 'Jonás', 'Miqueas', 'Nahúm', 'Habacuc',
+  'Sofonías', 'Hageo', 'Zacarías', 'Malaquías',
+  // Nuevo Testamento
+  'Mateo', 'Marcos', 'Lucas', 'Juan', 'Hechos',
+  'Romanos', '1 Corintios', '2 Corintios', 'Gálatas', 'Efesios',
+  'Filipenses', 'Colosenses', '1 Tesalonicenses', '2 Tesalonicenses',
+  '1 Timoteo', '2 Timoteo', 'Tito', 'Filemón', 'Hebreos',
+  'Santiago', '1 Pedro', '2 Pedro', '1 Juan', '2 Juan', '3 Juan',
+  'Judas', 'Apocalipsis'
+];
+
 const ControlPanel: React.FC<ControlPanelProps> = ({
   onAddItem,
   onUpdateTheme,
@@ -190,6 +210,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [songResults, setSongResults] = useState<SongSearchResult[]>([]);
   const [isSearchingSongs, setIsSearchingSongs] = useState(false);
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text'));
+
+  // Bible book autocomplete suggestions
+  const [bibleSuggestions, setBibleSuggestions] = useState<string[]>([]);
+  const [showBibleSuggestions, setShowBibleSuggestions] = useState(false);
 
   // Accordion state for theme sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -285,6 +309,44 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       onPreviewSlideUpdate?.(null);
     }
   }, [inputText, inputType, activeSlide?.id]);
+
+  // Bible book autocomplete effect
+  useEffect(() => {
+    if (inputType === 'scripture' && inputText.trim().length > 0) {
+      // Get the book name part (before any numbers like "3:16")
+      const bookPart = inputText.split(/\s+\d/)[0].trim().toLowerCase();
+
+      if (bookPart.length > 0) {
+        // Filter books that start with or contain the input
+        const matches = BIBLE_BOOKS.filter(book => {
+          const bookLower = book.toLowerCase();
+          // Remove accents for comparison
+          const normalizedBook = bookLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const normalizedInput = bookPart.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          return bookLower.startsWith(bookPart) ||
+            normalizedBook.startsWith(normalizedInput) ||
+            bookLower.includes(bookPart);
+        });
+
+        setBibleSuggestions(matches.slice(0, 6)); // Limit to 6 suggestions
+        setShowBibleSuggestions(matches.length > 0);
+      } else {
+        setBibleSuggestions([]);
+        setShowBibleSuggestions(false);
+      }
+    } else {
+      setBibleSuggestions([]);
+      setShowBibleSuggestions(false);
+    }
+  }, [inputText, inputType]);
+
+  // Handle selecting a Bible book suggestion
+  const handleSelectBibleBook = (book: string) => {
+    // If the input has a verse reference, keep it
+    const verseMatch = inputText.match(/\s+(\d+[:\-,\d\s]*)/);
+    setInputText(book + (verseMatch ? verseMatch[0] : ' '));
+    setShowBibleSuggestions(false);
+  };
 
   // Apply pending changes to projector
   const applyChanges = () => {
@@ -639,14 +701,56 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder={inputType === 'scripture' ? "Ej: Juan 3:16" : inputType === 'youtube' ? "Pega link o busca..." : "Ej: Hillsong, Way Maker..."}
-                    className="w-full bg-gray-800 rounded-xl px-4 py-3 text-white border border-gray-600/50 focus:border-indigo-500/50 outline-none transition-colors"
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      placeholder={inputType === 'scripture' ? "Ej: Juan 3:16" : inputType === 'youtube' ? "Pega link o busca..." : "Ej: Hillsong, Way Maker..."}
+                      className="w-full bg-gray-800 rounded-xl px-4 py-3 text-white border border-gray-600/50 focus:border-indigo-500/50 outline-none transition-colors"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          if (showBibleSuggestions && bibleSuggestions.length > 0) {
+                            handleSelectBibleBook(bibleSuggestions[0]);
+                          } else {
+                            handleSearch();
+                          }
+                        } else if (e.key === 'Escape') {
+                          setShowBibleSuggestions(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (inputType === 'scripture' && bibleSuggestions.length > 0) {
+                          setShowBibleSuggestions(true);
+                        }
+                      }}
+                    />
+
+                    {/* Bible Book Suggestions Dropdown */}
+                    {showBibleSuggestions && bibleSuggestions.length > 0 && inputType === 'scripture' && (
+                      <div className="absolute z-50 w-full mt-1 bg-gray-900 border border-indigo-500/50 rounded-xl shadow-2xl overflow-hidden animate-fade-in">
+                        <div className="px-3 py-2 bg-indigo-900/30 border-b border-gray-700">
+                          <span className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">📖 Libros sugeridos</span>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {bibleSuggestions.map((book, idx) => (
+                            <button
+                              key={book}
+                              type="button"
+                              onClick={() => handleSelectBibleBook(book)}
+                              className={`w-full text-left px-4 py-2.5 hover:bg-indigo-600/30 transition-colors flex items-center gap-3 ${idx === 0 ? 'bg-indigo-600/20' : ''}`}
+                            >
+                              <Book size={14} className="text-amber-400" />
+                              <span className="text-white font-medium">{book}</span>
+                              {idx === 0 && (
+                                <span className="ml-auto text-[9px] text-gray-500 bg-gray-700 px-1.5 py-0.5 rounded">Enter</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {songResults.length === 0 ? (

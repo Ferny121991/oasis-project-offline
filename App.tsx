@@ -10,12 +10,14 @@ import SplitScreen from './components/SplitScreen';
 import ProjectManager from './components/ProjectManager';
 import ExportImportModal from './components/ExportImportModal';
 import CalendarView from './components/CalendarView';
+import ActionHistoryPanel from './components/ActionHistoryPanel';
 import { PresentationItem, Theme, Slide, Project } from './types';
 import { DEFAULT_THEME } from './constants';
-import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle, Lock, Download, Upload, Calendar, LayoutGrid, Smartphone } from 'lucide-react';
+import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle, Lock, Download, Upload, Calendar, LayoutGrid, Smartphone, History } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
+import { realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
 
 // Mobile Tab Type
 type MobileTab = 'control' | 'playlist' | 'preview';
@@ -95,6 +97,7 @@ const App: React.FC = () => {
   const [showExportImport, setShowExportImport] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showMobileConnect, setShowMobileConnect] = useState(false);
+  const [showActionHistory, setShowActionHistory] = useState(false);
 
   // Karaoke Mode
   const [isKaraokeActive, setIsKaraokeActive] = useState(false);
@@ -275,6 +278,74 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Realtime Sync for Mobile Control
+  useEffect(() => {
+    if (!session?.user) return;
+
+    // Subscribe to realtime changes
+    realtimeSyncService.subscribe(session.user.id, (state: LiveState) => {
+      // Process commands from mobile
+      if (state.command) {
+        switch (state.command) {
+          case 'next':
+            if (liveItemId) {
+              const item = playlist.find(i => i.id === liveItemId);
+              if (item && liveSlideIndex < item.slides.length - 1) {
+                setLiveSlideIndex(prev => prev + 1);
+                setActiveSlideIndex(liveSlideIndex + 1);
+              }
+            }
+            break;
+          case 'prev':
+            if (liveItemId && liveSlideIndex > 0) {
+              setLiveSlideIndex(prev => prev - 1);
+              setActiveSlideIndex(liveSlideIndex - 1);
+            }
+            break;
+          case 'blackout':
+            setIsPreviewHidden(prev => !prev);
+            break;
+          case 'clear':
+            setIsTextHidden(prev => !prev);
+            break;
+          case 'logo':
+            setIsLogoActive(prev => !prev);
+            break;
+        }
+        // Clear the command after processing
+        realtimeSyncService.updateState(session.user.id, { command: null });
+      }
+    });
+
+    return () => {
+      realtimeSyncService.unsubscribe();
+    };
+  }, [session, liveItemId, liveSlideIndex, playlist]);
+
+  // Broadcast live state to mobile devices
+  useEffect(() => {
+    if (!session?.user || isProjectorMode) return;
+
+    const broadcastState = async () => {
+      await realtimeSyncService.updateState(session.user.id, {
+        liveItemId,
+        liveSlideIndex,
+        activeItemId,
+        activeSlideIndex,
+        isPreviewHidden,
+        isTextHidden,
+        isLogoActive,
+        showSplitScreen,
+        isKaraokeActive,
+        karaokeIndex
+      });
+    };
+
+    // Debounce broadcasts
+    const timer = setTimeout(broadcastState, 300);
+    return () => clearTimeout(timer);
+  }, [session, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode]);
+
   // Sync from Supabase on Login
   const isCloudLoading = useRef(false);
 
@@ -426,61 +497,60 @@ const App: React.FC = () => {
 
 
   // Persistence Effect
+  // Persistence Effect: Local Storage (Immediate)
   useEffect(() => {
     try {
       localStorage.setItem('flujo_playlist_v2', JSON.stringify(playlist));
       localStorage.setItem('oasis_custom_themes', JSON.stringify(customThemes));
-
-      // Update Supabase if logged in AND data has been loaded AND NOT currently loading from cloud
-      if (session?.user && dataLoaded.current && !isCloudLoading.current) {
-        const updateCloud = async () => {
-          // Double check dataLoaded flag still true when task actually runs
-          if (!dataLoaded.current || !session?.user) return;
-
-          setIsSyncing(true);
-          try {
-            // CRITICAL: Ensure we send the absolute latest projects array
-            // If we are in a project, update that project's playlist in the array before sending
-            let finalProjects = projects;
-            if (currentProjectId) {
-              finalProjects = projects.map(p =>
-                p.id === currentProjectId
-                  ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
-                  : p
-              );
-            }
-
-            const { error } = await supabase
-              .from('user_settings')
-              .upsert({
-                id: session.user.id,
-                playlist,
-                custom_themes: customThemes,
-                projects: finalProjects,
-                current_project_id: currentProjectId,
-                updated_at: new Date().toISOString()
-              });
-
-            if (error) {
-              console.error("Supabase upsert failed:", error);
-              setSyncError("Error al guardar en la nube.");
-            } else {
-              setSyncError(null);
-            }
-          } catch (e) {
-            console.error("Cloud update failed", e);
-            setSyncError("Error de red al sincronizar.");
-          } finally {
-            setIsSyncing(false);
-          }
-        };
-
-        const timeoutId = setTimeout(updateCloud, 2000); // 2 second debounce for saves
-        return () => clearTimeout(timeoutId);
-      }
     } catch (e) {
-      console.error("Storage quota exceeded likely due to images", e);
+      console.warn("Local storage update failed", e);
     }
+  }, [playlist, customThemes]);
+
+  // Persistence Effect: Cloud SYNC (Debounced)
+  useEffect(() => {
+    // Only sync if logged in, data loaded, and not currently loading cloud data
+    if (!session?.user || !dataLoaded.current || isCloudLoading.current) return;
+
+    const timer = setTimeout(async () => {
+      setIsSyncing(true);
+      try {
+        let finalProjects = projects;
+
+        // If we have an active project, ensure the project list reflects the current state of that project
+        if (currentProjectId) {
+          finalProjects = projects.map(p =>
+            p.id === currentProjectId
+              ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+              : p
+          );
+        }
+
+        const { error } = await supabase
+          .from('user_settings')
+          .upsert({
+            id: session.user.id,
+            playlist: playlist, // Current active playlist
+            custom_themes: customThemes,
+            projects: finalProjects, // Synced projects list
+            current_project_id: currentProjectId,
+            updated_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error("Cloud sync error:", error);
+          setSyncError("Error al sincronizar con la nube");
+        } else {
+          setSyncError(null);
+        }
+      } catch (e) {
+        console.error("Critical sync error", e);
+      } finally {
+        setIsSyncing(false);
+      }
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timer);
   }, [playlist, customThemes, projects, currentProjectId, session]);
 
 
@@ -655,9 +725,22 @@ const App: React.FC = () => {
         ? { ...p, scheduledDate: date, updatedAt: new Date().toISOString() }
         : p
     ));
+    // Save logic is handled by useEffect auto-save
   };
 
   const handleCreateProjectAtDate = (date: string) => {
+    // BLOCK auto-saves to prevent race conditions
+    isSwitchingProject.current = true;
+
+    // FORCE SAVE current project state synchronously to the projects array before creating new one
+    if (currentProjectId) {
+      setProjects(prev => prev.map(p =>
+        p.id === currentProjectId
+          ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+          : p
+      ));
+    }
+
     const newProject: Project = {
       id: Date.now().toString(),
       name: 'Nuevo Evento',
@@ -669,8 +752,13 @@ const App: React.FC = () => {
 
     setProjects(prev => [newProject, ...prev]);
     setCurrentProjectId(newProject.id);
-    setPlaylist([]); // Start empty
+    setPlaylist([]); // Start empty for the new project
     setShowCalendar(false); // Switch to editor
+
+    // Unblock after state settles
+    setTimeout(() => {
+      isSwitchingProject.current = false;
+    }, 500);
   };
 
   // Divider Management Functions
@@ -1490,12 +1578,7 @@ const App: React.FC = () => {
             setActiveItemId(null);
             setActiveSlideIndex(-1);
           }}
-          onRestoreOriginal={handleRestoreOriginal}
-          canUndo={history.length > 0}
-          onDeselect={() => {
-            setActiveItemId(null);
-            setActiveSlideIndex(-1);
-          }}
+
           // Karaoke
           isKaraokeActive={isKaraokeActive}
           onToggleKaraoke={() => setIsKaraokeActive(prev => !prev)}
@@ -1642,14 +1725,30 @@ const App: React.FC = () => {
                 onDuplicateProject={handleDuplicateProject}
               />
               {/* Export/Import Button */}
-              <div className="px-3 py-2 border-b border-gray-800">
+              <div className="px-3 py-2 border-b border-gray-800 flex gap-2">
                 <button
                   onClick={() => setShowExportImport(true)}
-                  className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
                 >
                   <Download size={14} />
                   <Upload size={14} />
-                  <span>Importar / Exportar Playlist</span>
+                  <span className="hidden xl:inline">Exportar</span>
+                </button>
+                <button
+                  onClick={() => setShowActionHistory(true)}
+                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
+                  title="Historial de Acciones"
+                >
+                  <History size={14} />
+                  <span className="hidden xl:inline">Historial</span>
+                </button>
+                <button
+                  onClick={() => setShowMobileConnect(true)}
+                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
+                  title="Control Móvil"
+                >
+                  <Smartphone size={14} />
+                  <span className="hidden xl:inline">Móvil</span>
                 </button>
               </div>
               <Playlist
@@ -2061,6 +2160,12 @@ const App: React.FC = () => {
       <MobileConnectModal
         isOpen={showMobileConnect}
         onClose={() => setShowMobileConnect(false)}
+      />
+
+      {/* Action History Panel */}
+      <ActionHistoryPanel
+        isOpen={showActionHistory}
+        onClose={() => setShowActionHistory(false)}
       />
     </div>
   );
