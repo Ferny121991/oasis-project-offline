@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PresentationItem, Slide } from '../types';
-import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette } from 'lucide-react';
+import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette, Copy } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -32,6 +32,7 @@ interface PlaylistProps {
   onToggleBackgroundAudio?: (videoId: string, title: string) => void;
   onDeleteItem: (id: string) => void;
   onDeleteSlide: (itemId: string, slideId: string) => void;
+  onDuplicateSlide?: (itemId: string, slideId: string) => void;
   onRefreshItem: (item: PresentationItem) => void;
   onUploadImages: (files: FileList | null, itemId?: string) => void;
   onUpdateSlideLabel: (itemId: string, slideId: string, newLabel: string) => void;
@@ -40,6 +41,7 @@ interface PlaylistProps {
   onReorderSlides: (itemId: string, newSlides: Slide[]) => void;
   onAddDivider: (title: string, color?: string, icon?: string) => void;
   onUpdateDivider?: (itemId: string, title: string, color?: string, icon?: string) => void;
+  onUpdateSlideNotes?: (itemId: string, slideId: string, notes: string) => void;
   // Split Screen
   isSplitMode?: boolean;
   onSetSplitLeft?: (slide: Slide) => void;
@@ -58,6 +60,7 @@ interface SortableSlideProps {
   onSlideClick: () => void;
   onSlideDoubleClick: () => void;
   onDeleteSlide: () => void;
+  onDuplicateSlide?: () => void;
   onToggleBackgroundAudio?: () => void;
   itemTitle: string;
   // Split Screen
@@ -67,6 +70,7 @@ interface SortableSlideProps {
   isLeftSplit?: boolean;
   isRightSplit?: boolean;
   onUpdateLabel?: () => void;
+  onOpenNotes?: () => void;
 }
 
 const SortableSlide: React.FC<SortableSlideProps> = ({
@@ -77,13 +81,15 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
   onSlideClick,
   onSlideDoubleClick,
   onDeleteSlide,
+  onDuplicateSlide,
   onToggleBackgroundAudio,
   isSplitMode,
   onSetSplitLeft,
   onSetSplitRight,
   isLeftSplit,
   isRightSplit,
-  onUpdateLabel
+  onUpdateLabel,
+  onOpenNotes
 }) => {
   const {
     attributes,
@@ -197,6 +203,32 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
               <Edit2 size={12} />
             </button>
           )}
+          {/* Duplicate Button */}
+          {onDuplicateSlide && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicateSlide();
+              }}
+              className="p-1.5 rounded text-white bg-purple-600/80 hover:bg-purple-500 transition-all"
+              title="Duplicar slide"
+            >
+              <Copy size={12} />
+            </button>
+          )}
+          {/* Notes Button */}
+          {onOpenNotes && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenNotes();
+              }}
+              className={`p-1.5 rounded text-white transition-all ${slide.operatorNotes ? 'bg-amber-600/90 hover:bg-amber-500' : 'bg-gray-600/80 hover:bg-amber-500'}`}
+              title={slide.operatorNotes ? 'Ver/Editar nota' : 'Agregar nota'}
+            >
+              <span className="text-[10px]">📝</span>
+            </button>
+          )}
           {/* Delete Button */}
           <button
             onClick={(e) => {
@@ -241,6 +273,7 @@ interface SortableItemProps {
   onToggleBackgroundAudio?: (videoId: string, title: string) => void;
   onDeleteItem: (id: string) => void;
   onDeleteSlide: (itemId: string, slideId: string) => void;
+  onDuplicateSlide?: (itemId: string, slideId: string) => void;
   onRefreshItem: (item: PresentationItem) => void;
   onUploadClick: (itemId: string) => void;
   onUpdateSlideLabel: (itemId: string, slideId: string, newLabel: string) => void;
@@ -254,6 +287,7 @@ interface SortableItemProps {
   onSetSplitRight?: (slide: Slide) => void;
   splitLeftSlide?: Slide | null;
   splitRightSlide?: Slide | null;
+  onOpenNotes: (itemId: string, slideId: string, notes: string) => void;
 }
 
 const SortablePlaylistItem: React.FC<SortableItemProps> = ({
@@ -267,6 +301,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
   onToggleBackgroundAudio,
   onDeleteItem,
   onDeleteSlide,
+  onDuplicateSlide,
   onRefreshItem,
   onUploadClick,
   onUpdateSlideLabel,
@@ -278,7 +313,8 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
   onSetSplitLeft,
   onSetSplitRight,
   splitLeftSlide,
-  splitRightSlide
+  splitRightSlide,
+  onOpenNotes
 }) => {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState('');
@@ -450,6 +486,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
                     onSlideClick={() => onSlideClick(item.id, index)}
                     onSlideDoubleClick={() => onSlideDoubleClick(item.id, index)}
                     onDeleteSlide={() => onDeleteSlide(item.id, slide.id)}
+                    onDuplicateSlide={onDuplicateSlide ? () => onDuplicateSlide(item.id, slide.id) : undefined}
                     onToggleBackgroundAudio={slide.videoId ? () => onToggleBackgroundAudio?.(slide.videoId!, item.title) : undefined}
                     itemTitle={item.title}
                     isSplitMode={isSplitMode}
@@ -458,6 +495,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
                     isLeftSplit={splitLeftSlide?.id === slide.id}
                     isRightSplit={splitRightSlide?.id === slide.id}
                     onUpdateLabel={() => onUpdateSlideLabel(item.id, slide.id, slide.label || "")}
+                    onOpenNotes={() => onOpenNotes(item.id, slide.id, slide.operatorNotes || '')}
                   />
                 ))}
               </div>
@@ -581,11 +619,13 @@ const Playlist: React.FC<PlaylistProps> = ({
   onReorderSlides,
   onAddDivider,
   onUpdateDivider,
+  onDuplicateSlide,
   isSplitMode,
   onSetSplitLeft,
   onSetSplitRight,
   splitLeftSlide,
-  splitRightSlide
+  splitRightSlide,
+  onUpdateSlideNotes
 }) => {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -610,6 +650,14 @@ const Playlist: React.FC<PlaylistProps> = ({
   const [dividerColor, setDividerColor] = useState('#6366f1');
   const [dividerIcon, setDividerIcon] = useState('📋');
   const [editingDividerId, setEditingDividerId] = useState<string | null>(null);
+
+  // Notes Modal State
+  const [notesModal, setNotesModal] = useState<{
+    itemId: string;
+    slideId: string;
+    notes: string;
+  } | null>(null);
+  const [notesValue, setNotesValue] = useState('');
 
   const DIVIDER_COLORS = [
     { name: 'Índigo', value: '#6366f1' },
@@ -796,6 +844,7 @@ const Playlist: React.FC<PlaylistProps> = ({
                 onToggleBackgroundAudio={onToggleBackgroundAudio}
                 onDeleteItem={onDeleteItem}
                 onDeleteSlide={onDeleteSlide}
+                onDuplicateSlide={onDuplicateSlide}
                 onRefreshItem={onRefreshItem}
                 onUploadClick={handleUploadClick}
                 onUpdateSlideLabel={handleEditLabel}
@@ -808,6 +857,10 @@ const Playlist: React.FC<PlaylistProps> = ({
                 onSetSplitRight={onSetSplitRight}
                 splitLeftSlide={splitLeftSlide}
                 splitRightSlide={splitRightSlide}
+                onOpenNotes={(itemId, slideId, notes) => {
+                  setNotesModal({ itemId, slideId, notes });
+                  setNotesValue(notes);
+                }}
               />
             )
           ))}
@@ -986,6 +1039,52 @@ const Playlist: React.FC<PlaylistProps> = ({
                 >
                   <Check size={18} />
                   {editingDividerId ? 'GUARDAR' : 'CREAR'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notes Modal */}
+      {notesModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-xl shadow-2xl border border-gray-700 w-full max-w-md">
+            <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-3 rounded-t-xl flex items-center justify-between">
+              <h3 className="text-white font-bold flex items-center gap-2">
+                📝 Notas del Operador
+              </h3>
+              <button onClick={() => setNotesModal(null)} className="text-white/80 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4">
+              <p className="text-xs text-gray-400 mb-2">Estas notas solo las ves tú, no aparecen en el proyector.</p>
+              <textarea
+                value={notesValue}
+                onChange={(e) => setNotesValue(e.target.value)}
+                placeholder="Ej: Recordar subir volumen aquí..."
+                className="w-full bg-gray-800 rounded-lg px-4 py-3 text-white border border-gray-600 focus:border-amber-500 outline-none h-32 resize-none"
+                autoFocus
+              />
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => setNotesModal(null)}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg font-medium transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    if (notesModal && onUpdateSlideNotes) {
+                      onUpdateSlideNotes(notesModal.itemId, notesModal.slideId, notesValue);
+                    }
+                    setNotesModal(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-all"
+                >
+                  <Check size={16} />
+                  Guardar
                 </button>
               </div>
             </div>

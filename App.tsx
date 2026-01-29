@@ -4,12 +4,15 @@ import ControlPanel from './components/ControlPanel';
 import Playlist from './components/Playlist';
 import LiveScreen from './components/LiveScreen';
 import Onboarding from './components/Onboarding';
+import MobileConnectModal from './components/MobileConnectModal';
 import TimerWidget from './components/TimerWidget';
 import SplitScreen from './components/SplitScreen';
 import ProjectManager from './components/ProjectManager';
+import ExportImportModal from './components/ExportImportModal';
+import CalendarView from './components/CalendarView';
 import { PresentationItem, Theme, Slide, Project } from './types';
 import { DEFAULT_THEME } from './constants';
-import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle, Lock } from 'lucide-react';
+import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle, Lock, Download, Upload, Calendar, LayoutGrid, Smartphone } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
@@ -89,6 +92,13 @@ const App: React.FC = () => {
     return localStorage.getItem('oasis_onboarding_complete') !== 'true';
   });
   const [showTimer, setShowTimer] = useState(false);
+  const [showExportImport, setShowExportImport] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showMobileConnect, setShowMobileConnect] = useState(false);
+
+  // Karaoke Mode
+  const [isKaraokeActive, setIsKaraokeActive] = useState(false);
+  const [karaokeIndex, setKaraokeIndex] = useState(-1); // -1 means no highlight, 0 first word
 
   // Split Screen mode
   const [showSplitScreen, setShowSplitScreen] = useState(false);
@@ -163,7 +173,12 @@ const App: React.FC = () => {
           if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
           if (data.splitRightSlide !== undefined) setSplitRightSlide(data.splitRightSlide);
           if (data.splitRatio !== undefined) setSplitRatio(data.splitRatio);
+          if (data.splitRatio !== undefined) setSplitRatio(data.splitRatio);
           if (data.splitFontScale !== undefined) setSplitFontScale(data.splitFontScale);
+
+          // Karaoke Sync
+          if (data.isKaraokeActive !== undefined) setIsKaraokeActive(data.isKaraokeActive);
+          if (data.karaokeIndex !== undefined) setKaraokeIndex(data.karaokeIndex);
         }
       };
 
@@ -208,6 +223,9 @@ const App: React.FC = () => {
           splitRightSlide,
           splitRatio,
           splitFontScale,
+          isKaraokeActive,
+          karaokeIndex,
+          // Optimization: If frozen item is in playlist, only send its ID to save bandwidth
           // Optimization: If frozen item is in playlist, only send its ID to save bandwidth
           frozenLiveItem: (frozenLiveItem && playlist.some(i => i.id === frozenLiveItem.id))
             ? { id: frozenLiveItem.id }
@@ -480,13 +498,19 @@ const App: React.FC = () => {
     // Use a functional update to avoid stale state and race conditions
     // We removed the isUpdatingProjectRef guard because it was skipping valid updates
     setProjects(prev => {
+      // VALIDATION: Skip if switching projects or if data isn't fully loaded
+      if (isSwitchingProject.current) return prev;
+
       // Find for changes to avoid unnecessary updates if possible
       const target = prev.find(p => p.id === currentProjectId);
+
+      // Skip if project doesn't exist (edge case during deletion)
+      if (!target) return prev;
 
       // DEEP COMPARISON CHEAP TRICK: Compare JSON strings to avoid referenced object equality issues
       // or simply rely on strict equality if immutable updates are guaranteed.
       // For now, strict equality is safer than deep compare for performance, but we must ensure we don't spam.
-      if (target && (target.playlist !== playlist || target.customThemes !== customThemes)) {
+      if (target.playlist !== playlist || target.customThemes !== customThemes) {
         return prev.map(p =>
           p.id === currentProjectId
             ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
@@ -540,7 +564,35 @@ const App: React.FC = () => {
     // 1. BLOCK auto-saves
     isSwitchingProject.current = true;
 
-    // 2. FORCE SAVE current project state synchronously to the projects array before switching
+    // 2. SNAPSHOT BACKUP: Save current project state to localStorage as a failsafe
+    if (currentProjectId) {
+      try {
+        const snapshot = {
+          playlist,
+          customThemes,
+          timestamp: Date.now(),
+          version: Date.now() // Simple version tracking
+        };
+        localStorage.setItem(`project_snapshot_${currentProjectId}`, JSON.stringify(snapshot));
+
+        // Clean up old snapshots (keep only last 7 days)
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('project_snapshot_')) {
+            try {
+              const snap = JSON.parse(localStorage.getItem(key) || '{}');
+              if (snap.timestamp && snap.timestamp < sevenDaysAgo) {
+                localStorage.removeItem(key);
+              }
+            } catch { }
+          }
+        });
+      } catch (e) {
+        console.warn('Failed to save project snapshot:', e);
+      }
+    }
+
+    // 3. FORCE SAVE current project state synchronously to the projects array before switching
     if (currentProjectId) {
       setProjects(prev => prev.map(p =>
         p.id === currentProjectId
@@ -549,7 +601,7 @@ const App: React.FC = () => {
       ));
     }
 
-    // 3. LOAD new project data
+    // 4. LOAD new project data
     const project = projects.find(p => p.id === projectId);
     if (project) {
       setCurrentProjectId(projectId);
@@ -558,10 +610,10 @@ const App: React.FC = () => {
       setActiveSlideIndex(-1);
     }
 
-    // 4. UNBLOCK auto-saves after a safe delay (allowing React state to settle)
+    // 5. UNBLOCK auto-saves after a longer delay (500ms instead of 200ms for safer sync)
     setTimeout(() => {
       isSwitchingProject.current = false;
-    }, 200);
+    }, 500);
 
   }, [currentProjectId, projects, playlist, customThemes]);
 
@@ -582,21 +634,44 @@ const App: React.FC = () => {
     ));
   }, []);
 
-  const handleDuplicateProject = useCallback((projectId: string) => {
-    const original = projects.find(p => p.id === projectId);
-    if (original) {
-      const newProject: Project = {
-        ...original,
-        id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: `${original.name} (copia)`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        playlist: JSON.parse(JSON.stringify(original.playlist)),
-        customThemes: original.customThemes ? JSON.parse(JSON.stringify(original.customThemes)) : []
-      };
-      setProjects(prev => [...prev, newProject]);
-    }
-  }, [projects]);
+  const handleDuplicateProject = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const newProject: Project = {
+      ...project,
+      id: Date.now().toString(),
+      name: `${project.name} (Copia)`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    setProjects(prev => [...prev, newProject]);
+  };
+
+  const handleUpdateProjectDate = (projectId: string, date: string | undefined) => {
+    setProjects(prev => prev.map(p =>
+      p.id === projectId
+        ? { ...p, scheduledDate: date, updatedAt: new Date().toISOString() }
+        : p
+    ));
+  };
+
+  const handleCreateProjectAtDate = (date: string) => {
+    const newProject: Project = {
+      id: Date.now().toString(),
+      name: 'Nuevo Evento',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      scheduledDate: date,
+      playlist: []
+    };
+
+    setProjects(prev => [newProject, ...prev]);
+    setCurrentProjectId(newProject.id);
+    setPlaylist([]); // Start empty
+    setShowCalendar(false); // Switch to editor
+  };
 
   // Divider Management Functions
   const handleAddDivider = useCallback((title: string, color?: string, icon?: string) => {
@@ -732,7 +807,7 @@ const App: React.FC = () => {
   };
 
   // History System for Undo/Redo
-  const [history, setHistory] = useState<Theme[]>([]);
+  const [history, setHistory] = useState<import('./types').HistoryEntry[]>([]);
   const [originalThemes, setOriginalThemes] = useState<Record<string, Theme>>({});
 
   // Update the Theme of the ACTIVE item only (This is the "Apply" logic)
@@ -742,7 +817,13 @@ const App: React.FC = () => {
     const activeItem = playlist.find(i => i.id === activeItemId);
     if (activeItem) {
       // Save current theme to history before updating (limited to 50 steps)
-      setHistory(prev => [activeItem.theme, ...prev].slice(0, 50));
+      const entry: import('./types').HistoryEntry = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+        timestamp: Date.now(),
+        description: `Cambio de tema: ${new Date().toLocaleTimeString()}`,
+        data: activeItem.theme
+      };
+      setHistory(prev => [entry, ...prev].slice(0, 50));
 
       // Save as original if not already saved
       if (!originalThemes[activeItemId]) {
@@ -759,13 +840,25 @@ const App: React.FC = () => {
 
   const handleUndo = () => {
     if (history.length === 0 || !activeItemId) return;
-    const lastTheme = history[0];
+    const lastEntry = history[0];
     setHistory(prev => prev.slice(1));
 
     setPlaylist(prev => prev.map(item =>
-      item.id === activeItemId ? { ...item, theme: lastTheme } : item
+      item.id === activeItemId ? { ...item, theme: lastEntry.data } : item
     ));
-    setStagedTheme(lastTheme);
+    setStagedTheme(lastEntry.data);
+  };
+
+  const handleRestoreHistory = (entry: import('./types').HistoryEntry) => {
+    if (!activeItemId) return;
+
+    // When restoring, we might want to save the CURRENT state to history too, or just revert.
+    // For now, let's just revert to that state and keep history intact (or maybe move that entry to top?)
+    // Simple restore: apply the theme
+    setPlaylist(prev => prev.map(item =>
+      item.id === activeItemId ? { ...item, theme: entry.data } : item
+    ));
+    setStagedTheme(entry.data);
   };
 
   const handleRestoreOriginal = () => {
@@ -800,6 +893,31 @@ const App: React.FC = () => {
       };
     }).filter(item => item.slides.length > 0)); // Remove item if it has no slides left
   };
+
+  // Duplicar un slide dentro de un item
+  const handleDuplicateSlide = useCallback((itemId: string, slideId: string) => {
+    setPlaylist(prev => prev.map(item => {
+      if (item.id !== itemId) return item;
+      const slideIndex = item.slides.findIndex(s => s.id === slideId);
+      if (slideIndex === -1) return item;
+
+      const originalSlide = item.slides[slideIndex];
+      const duplicatedSlide = {
+        ...originalSlide,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        label: originalSlide.label ? `${originalSlide.label} (copia)` : undefined,
+        segments: originalSlide.segments ? [...originalSlide.segments.map(s => ({
+          ...s,
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
+        }))] : undefined
+      };
+
+      const newSlides = [...item.slides];
+      newSlides.splice(slideIndex + 1, 0, duplicatedSlide);
+
+      return { ...item, slides: newSlides };
+    }));
+  }, []);
 
   const handleRefreshItem = async (item: PresentationItem) => {
     if (!item.query) {
@@ -860,6 +978,26 @@ const App: React.FC = () => {
       setPlaylist(prev => [...prev, newItem]);
     }
   };
+
+  // Handler for importing playlists from file
+  const handleImportPlaylist = useCallback((items: PresentationItem[], themes: Theme[], mode: 'replace' | 'merge') => {
+    if (mode === 'replace') {
+      setPlaylist(items);
+      setCustomThemes(themes);
+    } else {
+      // Merge mode: add new items and themes (avoiding duplicates by ID)
+      setPlaylist(prev => {
+        const existingIds = new Set(prev.map(i => i.id));
+        const newItems = items.filter(i => !existingIds.has(i.id));
+        return [...prev, ...newItems];
+      });
+      setCustomThemes(prev => {
+        const existingNames = new Set(prev.map(t => t.name));
+        const newThemes = themes.filter(t => !existingNames.has(t.name));
+        return [...prev, ...newThemes];
+      });
+    }
+  }, []);
 
   // Logic to add a manual slide (Image or Text) to the current item
   const handleAddSlideToActiveItem = (newSlide: Slide) => {
@@ -1063,6 +1201,25 @@ const App: React.FC = () => {
     })));
   }, []);
 
+  // Update slide segments for rich text editing
+  const handleUpdateSlideSegments = useCallback((slideId: string, segments: import('./types').TextSegment[]) => {
+    setPlaylist(prev => prev.map(item => ({
+      ...item,
+      slides: item.slides.map(s => s.id === slideId
+        ? { ...s, segments, content: segments.map(seg => seg.text).join('') }
+        : s)
+    })));
+  }, []);
+
+  // Update operator notes for a slide (internal notes not shown on projector)
+  const handleUpdateSlideNotes = useCallback((itemId: string, slideId: string, notes: string) => {
+    setPlaylist(prev => prev.map(item =>
+      item.id === itemId
+        ? { ...item, slides: item.slides.map(s => s.id === slideId ? { ...s, operatorNotes: notes } : s) }
+        : item
+    ));
+  }, []);
+
   // --- HELPER FOR QUICK THEME EDIT (PRESENTER MODE) ---
   const cycleFontSize = (direction: 'up' | 'down') => {
     const sizes = ['text-6xl', 'text-7xl', 'text-8xl', 'text-9xl', 'text-[10rem]', 'text-[12rem]', 'text-[14rem]'];
@@ -1126,8 +1283,35 @@ const App: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
       switch (e.key) {
-        case 'ArrowRight': e.preventDefault(); navigateLiveNext(); break;
-        case 'ArrowLeft': e.preventDefault(); navigateLivePrev(); break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (isKaraokeActive && liveItemId) {
+            const item = playlist.find(p => p.id === liveItemId);
+            if (item) {
+              const slide = item.slides[liveSlideIndex];
+              const wordCount = slide.content.split(/\s+/).length;
+              if (karaokeIndex < wordCount - 1) {
+                setKaraokeIndex(prev => prev + 1);
+              } else {
+                navigateLiveNext();
+                setKaraokeIndex(-1);
+              }
+            } else {
+              navigateLiveNext();
+            }
+          } else {
+            navigateLiveNext();
+          }
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (isKaraokeActive && karaokeIndex > -1) {
+            setKaraokeIndex(prev => prev - 1);
+          } else {
+            navigateLivePrev();
+            setKaraokeIndex(-1); // Reset when going back slide
+          }
+          break;
         case 'Enter': case ' ': e.preventDefault(); makeLive(); break;
         case 'Escape': e.preventDefault(); stopLive(); break;
         case 'b': case 'B': case '.': setIsPreviewHidden(prev => !prev); break;
@@ -1292,10 +1476,13 @@ const App: React.FC = () => {
           activeSlideType={activeItem?.slides[activeSlideIndex]?.type || 'text'}
           activeSlide={currentSlide}
           onUpdateSlideContent={handleUpdateSlideContent}
+          onUpdateSlideSegments={handleUpdateSlideSegments}
           onPreviewSlideUpdate={setPreviewSlide}
-          onSetBackgroundAudio={(vid, title) => setBackgroundAudioItem(vid ? { videoId: vid, title } : null)}
+
+          onSetBackgroundAudio={(vid, title) => setBackgroundAudioItem(vid ? { videoId: vid, title: title || '' } : null)}
           onStopLive={stopLive}
           isLiveActive={!!liveItemId}
+
           onUndo={handleUndo}
           onRestoreOriginal={handleRestoreOriginal}
           canUndo={history.length > 0}
@@ -1303,6 +1490,16 @@ const App: React.FC = () => {
             setActiveItemId(null);
             setActiveSlideIndex(-1);
           }}
+          onRestoreOriginal={handleRestoreOriginal}
+          canUndo={history.length > 0}
+          onDeselect={() => {
+            setActiveItemId(null);
+            setActiveSlideIndex(-1);
+          }}
+          // Karaoke
+          isKaraokeActive={isKaraokeActive}
+          onToggleKaraoke={() => setIsKaraokeActive(prev => !prev)}
+
           // Passing audio controls
           isAudioPlaying={isAudioPlaying}
           backgroundAudioItem={backgroundAudioItem}
@@ -1311,6 +1508,9 @@ const App: React.FC = () => {
           // Custom Themes
           customThemes={customThemes}
           onUpdateCustomThemes={setCustomThemes}
+          // History
+          history={history}
+          onRestore={handleRestoreHistory}
         />
       </div>
 
@@ -1402,109 +1602,159 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div id="playlist-panel" className="flex-1 flex flex-col min-h-0">
-          {/* Project Manager */}
-          <ProjectManager
-            projects={projects}
-            currentProjectId={currentProjectId}
-            onSelectProject={handleSelectProject}
-            onCreateProject={handleCreateProject}
-            onDeleteProject={handleDeleteProject}
-            onRenameProject={handleRenameProject}
-            onDuplicateProject={handleDuplicateProject}
-          />
-          <Playlist
-            items={playlist}
-            activeItemId={activeItemId}
-            activeSlideIndex={activeSlideIndex}
-            liveItemId={liveItemId}
-            liveSlideIndex={liveSlideIndex}
-            onSlideClick={handleSlideClick}
-            onSlideDoubleClick={(itemId, index) => makeLive(itemId, index)}
-            onToggleBackgroundAudio={(vid, title) => setBackgroundAudioItem({ videoId: vid, title })}
-            onDeleteItem={handleDeleteItem}
-            onDeleteSlide={handleDeleteSlide}
-            onRefreshItem={handleRefreshItem}
-            onUploadImages={handleUploadImages}
-            onUpdateSlideLabel={handleUpdateSlideLabel}
-            onUpdateItemTitle={handleUpdateItemTitle}
-            onReorderItems={(newItems) => setPlaylist(newItems)}
-            onReorderSlides={(itemId, newSlides) => {
-              setPlaylist(prev => prev.map(item =>
-                item.id === itemId ? { ...item, slides: newSlides } : item
-              ));
-            }}
-            onAddDivider={handleAddDivider}
-            onUpdateDivider={handleUpdateDivider}
-            isSplitMode={showSplitScreen}
-            onSetSplitLeft={setSplitLeftSlide}
-            onSetSplitRight={setSplitRightSlide}
-            splitLeftSlide={splitLeftSlide}
-            splitRightSlide={splitRightSlide}
-          />
-
-        </div>
-
-        {/* User Auth Bar */}
-        <div className="bg-gray-900 px-4 py-2 border-t border-gray-800 flex justify-between items-center shrink-0">
-          {session ? (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white overflow-hidden border border-indigo-400">
-                {session.user.user_metadata.avatar_url ? (
-                  <img src={session.user.user_metadata.avatar_url} alt="Profile" />
-                ) : (
-                  <UserIcon size={16} />
-                )}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-gray-300 truncate max-w-[120px]">
-                  {session.user.user_metadata.full_name || session.user.email}
-                </span>
-                <span className={`text-[8px] flex items-center gap-1 ${syncError ? 'text-red-500' : isSyncing ? 'text-indigo-400' : 'text-green-500'}`}>
-                  <div className={`w-1 h-1 rounded-full animate-pulse ${syncError ? 'bg-red-500' : isSyncing ? 'bg-indigo-400' : 'bg-green-500'}`} />
-                  {syncError ? 'Error de Sincronización' : isSyncing ? 'Sincronizando...' : 'Sincronizado'}
-                </span>
-              </div>
-              <button
-                onClick={handleSignOut}
-                className="ml-2 p-1.5 text-gray-500 hover:text-red-400 transition-colors"
-                title="Cerrar Sesión"
-              >
-                <LogOut size={14} />
-              </button>
-            </div>
-          ) : (
+        <div id="playlist-panel" className="flex-1 flex flex-col min-h-0 relative">
+          {/* Header Switcher */}
+          <div className="flex bg-gray-900 border-b border-gray-800 p-1 gap-1 shrink-0">
             <button
-              onClick={signInWithGoogle}
-              className="flex items-center gap-2 bg-white text-black px-3 py-1.5 rounded-md text-xs font-bold hover:bg-gray-200 transition-all shadow-md group"
+              onClick={() => setShowCalendar(false)}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${!showCalendar ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
             >
-              <LogIn size={14} className="group-hover:translate-x-0.5 transition-transform" />
-              Ingresar con Google
+              <LayoutGrid size={14} /> Editor
             </button>
-          )}
-          <div className="flex items-center gap-4">
             <button
-              onClick={() => {
-                localStorage.removeItem('oasis_onboarding_complete');
-                setShowOnboarding(true);
+              onClick={() => setShowCalendar(true)}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${showCalendar ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+            >
+              <Calendar size={14} /> Calendario
+            </button>
+          </div>
+
+          {showCalendar ? (
+            <CalendarView
+              projects={projects}
+              onOpenProject={(id) => {
+                handleSelectProject(id);
+                setShowCalendar(false);
               }}
-              className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 text-[10px] font-bold transition-all border border-indigo-500/20"
-            >
-              <HelpCircle size={12} /> Ver Tutorial
-            </button>
-            <div className="text-[10px] text-gray-500 italic">
-              {isSyncing ? 'Sincronizando...' : 'Nube Activa'}
+              onUpdateProjectDate={handleUpdateProjectDate}
+              onCreateProjectAtDate={handleCreateProjectAtDate}
+            />
+          ) : (
+            <>
+              {/* Project Manager */}
+              <ProjectManager
+                projects={projects}
+                currentProjectId={currentProjectId}
+                onSelectProject={handleSelectProject}
+                onCreateProject={handleCreateProject}
+                onDeleteProject={handleDeleteProject}
+                onRenameProject={handleRenameProject}
+                onDuplicateProject={handleDuplicateProject}
+              />
+              {/* Export/Import Button */}
+              <div className="px-3 py-2 border-b border-gray-800">
+                <button
+                  onClick={() => setShowExportImport(true)}
+                  className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
+                >
+                  <Download size={14} />
+                  <Upload size={14} />
+                  <span>Importar / Exportar Playlist</span>
+                </button>
+              </div>
+              <Playlist
+                items={playlist}
+                activeItemId={activeItemId}
+                activeSlideIndex={activeSlideIndex}
+                liveItemId={liveItemId}
+                liveSlideIndex={liveSlideIndex}
+                onSlideClick={handleSlideClick}
+                onSlideDoubleClick={(itemId, index) => makeLive(itemId, index)}
+                onToggleBackgroundAudio={(vid, title) => setBackgroundAudioItem({ videoId: vid, title })}
+                onDeleteItem={handleDeleteItem}
+                onDeleteSlide={handleDeleteSlide}
+                onDuplicateSlide={handleDuplicateSlide}
+                onRefreshItem={handleRefreshItem}
+
+                onUploadImages={handleUploadImages}
+                onUpdateSlideLabel={handleUpdateSlideLabel}
+                onUpdateItemTitle={handleUpdateItemTitle}
+                onReorderItems={(newItems) => setPlaylist(newItems)}
+                onReorderSlides={(itemId, newSlides) => {
+                  setPlaylist(prev => prev.map(item =>
+                    item.id === itemId ? { ...item, slides: newSlides } : item
+                  ));
+                }}
+                onAddDivider={handleAddDivider}
+                onUpdateDivider={handleUpdateDivider}
+                onUpdateSlideNotes={handleUpdateSlideNotes}
+                isSplitMode={showSplitScreen}
+                onSetSplitLeft={setSplitLeftSlide}
+                onSetSplitRight={setSplitRightSlide}
+                splitLeftSlide={splitLeftSlide}
+                splitRightSlide={splitRightSlide}
+              />
+            </>
+          )}
+
+
+          {/* User Auth Bar */}
+          <div className="bg-gray-900 px-4 py-2 border-t border-gray-800 flex justify-between items-center shrink-0">
+            {session ? (
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white overflow-hidden border border-indigo-400">
+                  {session.user.user_metadata.avatar_url ? (
+                    <img src={session.user.user_metadata.avatar_url} alt="Profile" />
+                  ) : (
+                    <UserIcon size={16} />
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-300 truncate max-w-[120px]">
+                    {session.user.user_metadata.full_name || session.user.email}
+                  </span>
+                  <span className={`text-[8px] flex items-center gap-1 ${syncError ? 'text-red-500' : isSyncing ? 'text-indigo-400' : 'text-green-500'}`}>
+                    <div className={`w-1 h-1 rounded-full animate-pulse ${syncError ? 'bg-red-500' : isSyncing ? 'bg-indigo-400' : 'bg-green-500'}`} />
+                    {syncError ? 'Error de Sincronización' : isSyncing ? 'Sincronizando...' : 'Sincronizado'}
+                  </span>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="ml-2 p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                  title="Cerrar Sesión"
+                >
+                  <LogOut size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={signInWithGoogle}
+                className="flex items-center gap-2 bg-white text-black px-3 py-1.5 rounded-md text-xs font-bold hover:bg-gray-200 transition-all shadow-md group"
+              >
+                <LogIn size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                Ingresar con Google
+              </button>
+            )}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  localStorage.removeItem('oasis_onboarding_complete');
+                  setShowOnboarding(true);
+                }}
+                className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 text-[10px] font-bold transition-all border border-indigo-500/20"
+              >
+                <HelpCircle size={12} /> Ver Tutorial
+              </button>
+              <button
+                onClick={() => setShowMobileConnect(true)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-600/10 hover:bg-green-600/20 text-green-400 text-[10px] font-bold transition-all border border-green-500/20"
+              >
+                <Smartphone size={12} /> App Móvil
+              </button>
+              <div className="text-[10px] text-gray-500 italic">
+                {isSyncing ? 'Sincronizando...' : 'Nube Activa'}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Desktop Only Footer */}
-        <div className="hidden lg:flex bg-gray-900 p-4 border-t border-gray-800 flex-col gap-2 shrink-0">
-          <div className="text-[10px] text-gray-600 text-center mt-1">
-            Atajos: Espacio (Sig), Flechas (Nav), B (Black), C (Clear), L (Logo), F (Pantalla), P (Proyector)
-          </div>
-          <div className="text-[10px] text-orange-400 text-center font-bold animate-pulse">
-            NOTA: Para pantalla completa dale a cualquier letra y después a proy-full.
+          {/* Desktop Only Footer */}
+          <div className="hidden lg:flex bg-gray-900 p-4 border-t border-gray-800 flex-col gap-2 shrink-0">
+            <div className="text-[10px] text-gray-600 text-center mt-1">
+              Atajos: Espacio (Sig), Flechas (Nav), B (Black), C (Clear), L (Logo), F (Pantalla), P (Proyector)
+            </div>
+            <div className="text-[10px] text-orange-400 text-center font-bold animate-pulse">
+              NOTA: Para pantalla completa dale a cualquier letra y después a proy-full.
+            </div>
           </div>
         </div>
       </div>
@@ -1588,6 +1838,8 @@ const App: React.FC = () => {
                 isFullscreen={false}
                 enableOverlay={true}
                 onUpdateTheme={handleUpdateStagedTheme}
+                karaokeActive={isKaraokeActive && liveItemId === activeItem?.id}
+                karaokeIndex={karaokeIndex}
                 hideText={isTextHidden && liveItemId === activeItem?.id}
                 isLogoMode={isLogoActive && liveItemId === activeItem?.id}
                 blackout={isPreviewHidden && liveItemId === activeItem?.id}
@@ -1795,7 +2047,22 @@ const App: React.FC = () => {
           <Onboarding onComplete={() => setShowOnboarding(false)} />
         )
       }
-    </div >
+
+      {/* Export/Import Modal */}
+      <ExportImportModal
+        isOpen={showExportImport}
+        onClose={() => setShowExportImport(false)}
+        playlist={playlist}
+        customThemes={customThemes}
+        onImport={handleImportPlaylist}
+      />
+
+      {/* Mobile Connect Modal */}
+      <MobileConnectModal
+        isOpen={showMobileConnect}
+        onClose={() => setShowMobileConnect(false)}
+      />
+    </div>
   );
 };
 

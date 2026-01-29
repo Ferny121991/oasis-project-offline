@@ -610,7 +610,7 @@ export const searchSongs = async (query: string): Promise<SongSearchResult[]> =>
 
   try {
     const response = await model.generateContent({
-      model: 'gemini-3-flash',
+      model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -653,7 +653,7 @@ export const fetchSongLyrics = async (songQuery: string, density: DensityMode = 
 
   try {
     const response = await model.generateContent({
-      model: 'gemini-3-flash',
+      model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -741,7 +741,7 @@ export const processManualText = async (text: string, density: DensityMode = 'cl
 
   try {
     const response = await model.generateContent({
-      model: 'gemini-3-flash',
+      model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",

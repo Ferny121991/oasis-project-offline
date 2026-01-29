@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, DensityMode, SongSearchResult } from '../services/geminiService';
-import { PresentationItem, Theme, AnimationType, Slide } from '../types';
+import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
-import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack } from 'lucide-react';
+import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw } from 'lucide-react';
+import RichTextEditor, { textToSegments, segmentsToText } from './RichTextEditor';
+import HistoryPanel from './HistoryPanel';
 
 interface ControlPanelProps {
   onAddItem: (item: PresentationItem) => void;
@@ -15,8 +17,9 @@ interface ControlPanelProps {
   activeSlideType?: 'text' | 'image' | 'youtube';
   activeSlide?: Slide | null;
   onUpdateSlideContent?: (slideId: string, newContent: string) => void;
+  onUpdateSlideSegments?: (slideId: string, segments: TextSegment[]) => void;
   onPreviewSlideUpdate?: (slide: Slide | null) => void;
-  onSetBackgroundAudio?: (videoId: string, title: string) => void;
+  onSetBackgroundAudio?: (videoId: string | null, title?: string) => void;
   onStopLive?: () => void;
   isLiveActive?: boolean;
   onUndo: () => void;
@@ -28,6 +31,11 @@ interface ControlPanelProps {
   backgroundAudioItem?: { videoId: string; title: string } | null;
   onToggleAudioPlayback?: () => void;
   onSeekAudio?: (seconds: number) => void;
+  bgAudioItem?: { videoId: string; title: string } | null;
+  history: HistoryEntry[];
+  onRestore: (entry: HistoryEntry) => void;
+  isKaraokeActive?: boolean;
+  onToggleKaraoke?: () => void;
   // Custom Themes (cloud synced)
   customThemes?: Theme[];
   onUpdateCustomThemes?: (themes: Theme[]) => void;
@@ -151,6 +159,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   activeSlideType,
   activeSlide,
   onUpdateSlideContent,
+  onUpdateSlideSegments,
   onPreviewSlideUpdate,
   onSetBackgroundAudio,
   onStopLive,
@@ -163,8 +172,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   backgroundAudioItem,
   onToggleAudioPlayback,
   onSeekAudio,
+  bgAudioItem,
+  history,
+  onRestore,
+  isKaraokeActive = false,
+  onToggleKaraoke,
   customThemes: propCustomThemes,
-  onUpdateCustomThemes
+  onUpdateCustomThemes,
 }) => {
   const [activeTab, setActiveTab] = useState<'content' | 'theme'>('content');
   const [bgMode, setBgMode] = useState<'image' | 'solid' | 'gradient'>('image');
@@ -180,6 +194,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Accordion state for theme sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     typography: true,
+    shadows: false,
     transformation: false,
     filters: false,
     background: false,
@@ -202,6 +217,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     }
   });
   const [showSaveThemeModal, setShowSaveThemeModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+
+  // No local state for karaoke needed, use prop
   const [newThemeName, setNewThemeName] = useState('');
 
   // Use cloud themes if available, otherwise local
@@ -589,48 +608,35 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
               <div className="flex flex-col gap-3">
                 {inputType === 'manual' ? (
-                  <div className="relative group/manual">
-                    <textarea
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Escribe aquí tu texto..."
-                      className="w-full h-40 bg-gray-800 rounded-xl px-4 py-3 text-white text-sm border border-gray-600/50 focus:border-indigo-500/50 outline-none resize-none transition-all scrollbar-hide"
+                  <div className="relative group/manual flex flex-col gap-2">
+                    {/* Rich Text Editor for per-word styling */}
+                    <RichTextEditor
+                      segments={activeSlide?.segments || textToSegments(activeSlide?.content || '')}
+                      onUpdateSegments={(segments) => {
+                        if (activeSlide) {
+                          // Update segments directly
+                          onUpdateSlideSegments?.(activeSlide.id, segments);
+                          // Also sync with inputText for the fallback content
+                          setInputText(segmentsToText(segments));
+                        }
+                      }}
+                      onTextChange={setInputText}
+                      globalColor={currentTheme.textColor}
+                      globalFontSize={currentTheme.fontSize}
+                      globalFontFamily={currentTheme.fontFamily}
                     />
 
-                    {/* Quick Image Upload Button in Manual Area */}
-                    <div className="absolute bottom-3 left-3 flex gap-2">
+                    {/* Quick Image Upload Button */}
+                    <div className="flex gap-2 items-center">
                       <button
                         onClick={() => slideFileInputRef.current?.click()}
-                        className="p-2 rounded-lg bg-gray-700/80 hover:bg-pink-600 text-white transition-all border border-gray-600/50 shadow-lg group/imgbtn"
+                        className="p-2 rounded-lg bg-gray-700/80 hover:bg-pink-600 text-white transition-all border border-gray-600/50 shadow-lg group/imgbtn flex items-center gap-2"
                         title="Insertar diapositiva de imagen"
                       >
                         <ImageIcon size={16} className="group-hover/imgbtn:scale-110 transition-transform" />
+                        <span className="text-[10px] font-bold">IMAGEN</span>
                       </button>
                     </div>
-
-                    {activeSlide && inputText !== activeSlide.content && (
-                      <div className="absolute top-2 right-2 flex gap-1">
-                        <button
-                          onClick={() => {
-                            onUpdateSlideContent?.(activeSlide.id, inputText);
-                            onPreviewSlideUpdate?.(null);
-                          }}
-                          className="bg-green-600 hover:bg-green-500 text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-lg animate-pulse flex items-center gap-1"
-                        >
-                          <Check size={12} /> APLICAR
-                        </button>
-                        <button
-                          onClick={() => {
-                            setInputText(activeSlide.content);
-                            onPreviewSlideUpdate?.(null);
-                          }}
-                          className="bg-gray-700 hover:bg-gray-600 text-white text-[10px] font-black px-2 py-1.5 rounded-lg shadow-lg"
-                          title="Descartar cambios"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <input
@@ -649,6 +655,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       onClick={() => {
                         if (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) {
                           onUpdateSlideContent?.(activeSlide.id, inputText);
+                          // We MUST also update segments from plain text, otherwise the rich view won't update
+                          onUpdateSlideSegments?.(activeSlide.id, textToSegments(inputText));
                           onPreviewSlideUpdate?.(null);
                         } else {
                           handleSearch();
@@ -813,12 +821,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
               <div className={!hasActiveItem ? 'opacity-40 pointer-events-none' : ''}>
 
-                {/* HEADER ACTIONS: Undo & Restore Original */}
+                {/* HEADER ACTIONS: Undo & Restore Original & History */}
                 <div className="flex gap-2 mb-5">
+                  <button
+                    onClick={() => setShowHistoryPanel(true)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-indigo-500/30 text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 text-[10px] font-bold uppercase tracking-wider transition-all"
+                  >
+                    <Clock size={12} /> Historial
+                  </button>
                   <button
                     onClick={onUndo}
                     disabled={!canUndo}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider transition-all ${canUndo ? 'bg-gray-800/80 border-gray-600/50 text-white hover:bg-gray-700 hover:border-gray-500' : 'bg-gray-900/50 border-gray-800 text-gray-600 cursor-not-allowed'}`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-xl ${canUndo ? 'bg-gray-800/80 border border-gray-600/50 text-white hover:bg-gray-700' : 'bg-gray-900/50 border border-gray-800 text-gray-600 cursor-not-allowed'}`}
                   >
                     <RotateCcw size={12} /> Deshacer
                   </button>
@@ -1060,6 +1074,58 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <button onClick={resetTextStyle} className="w-full py-2 rounded-lg border border-gray-700 text-[9px] font-bold uppercase text-gray-400 hover:text-white hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
                               <Eraser size={12} /> Limpiar Estilo de Texto
                             </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* SECTION: Shadows & Glow */}
+                    <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 border border-gray-700/50 rounded-xl overflow-hidden shadow-xl transition-all duration-300">
+                      <button onClick={() => toggleSection('shadows')} className="w-full text-[10px] uppercase text-indigo-400 font-bold tracking-widest p-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors">
+                        <div className="flex items-center gap-2"><BoxSelect size={14} /> Sombras & Brillo</div>
+                        <div className="flex items-center gap-3">
+                          <div onClick={(e) => { e.stopPropagation(); updatePendingTheme({ ...currentTheme, shadow: !currentTheme.shadow }); }} className={`w-8 h-4 rounded-full p-0.5 transition-colors cursor-pointer ${currentTheme.shadow ? 'bg-indigo-600' : 'bg-gray-700'}`}>
+                            <div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${currentTheme.shadow ? 'translate-x-4' : 'translate-x-0'}`} />
+                          </div>
+                          <ChevronDown size={14} className={`transition-transform duration-300 ${expandedSections.shadows ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+                      {expandedSections.shadows && (
+                        <div className="p-4 pt-0 space-y-4 animate-fade-in border-t border-gray-700/30">
+                          <div className={`mt-4 space-y-4 transition-opacity duration-300 ${!currentTheme.shadow ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                            {/* Shadow Color */}
+                            <div className="flex items-center justify-between bg-gray-900/40 p-2 rounded-lg border border-gray-700/30">
+                              <span className="text-[9px] text-gray-400 font-bold uppercase">Color Sombra</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-mono text-gray-500 uppercase">{currentTheme.shadowColor}</span>
+                                <input
+                                  type="color"
+                                  value={currentTheme.shadowColor || '#000000'}
+                                  onChange={(e) => updatePendingTheme({ ...currentTheme, shadowColor: e.target.value })}
+                                  className="w-8 h-8 rounded cursor-pointer bg-transparent border-0"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Blur & Opacity */}
+                            <div className="bg-gray-900/40 p-3 rounded-lg border border-gray-700/30 space-y-3">
+                              <div>
+                                <div className="flex justify-between text-[9px] text-gray-400 mb-1 font-bold uppercase"><span>Difuminado (Blur)</span><span>{currentTheme.shadowBlur}px</span></div>
+                                <input type="range" min="0" max="50" value={currentTheme.shadowBlur || 0} onChange={(e) => updatePendingTheme({ ...currentTheme, shadowBlur: parseInt(e.target.value) })} className="w-full h-1.5 bg-gray-700 rounded-full accent-indigo-500 cursor-pointer" />
+                              </div>
+                            </div>
+
+                            {/* Offset X & Y */}
+                            <div className="bg-gray-900/40 p-3 rounded-lg border border-gray-700/30 space-y-3">
+                              <div>
+                                <div className="flex justify-between text-[9px] text-gray-400 mb-1 font-bold uppercase"><span>Desplazamiento X</span><span>{currentTheme.shadowOffsetX}px</span></div>
+                                <input type="range" min="-50" max="50" value={currentTheme.shadowOffsetX || 0} onChange={(e) => updatePendingTheme({ ...currentTheme, shadowOffsetX: parseInt(e.target.value) })} className="w-full h-1.5 bg-gray-700 rounded-full accent-indigo-500 cursor-pointer" />
+                              </div>
+                              <div>
+                                <div className="flex justify-between text-[9px] text-gray-400 mb-1 font-bold uppercase"><span>Desplazamiento Y</span><span>{currentTheme.shadowOffsetY}px</span></div>
+                                <input type="range" min="-50" max="50" value={currentTheme.shadowOffsetY || 0} onChange={(e) => updatePendingTheme({ ...currentTheme, shadowOffsetY: parseInt(e.target.value) })} className="w-full h-1.5 bg-gray-700 rounded-full accent-indigo-500 cursor-pointer" />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1323,6 +1389,67 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           </div>
                         )}
 
+                        {/* ANIMATION CONTROLS */}
+                        <div className="bg-gray-900/40 p-3 rounded-lg border border-gray-700/30 space-y-3 mt-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-gray-400 font-bold uppercase">Animación</span>
+                            <select
+                              value={currentTheme.bgAnimation?.type || 'none'}
+                              onChange={(e) => updatePendingTheme({
+                                ...currentTheme,
+                                bgAnimation: {
+                                  type: e.target.value as any,
+                                  speed: currentTheme.bgAnimation?.speed || 1,
+                                  color: currentTheme.bgAnimation?.color || '#ffffff',
+                                  intensity: currentTheme.bgAnimation?.intensity || 50
+                                }
+                              })}
+                              className="bg-gray-800 border-none text-[10px] text-white rounded px-2 py-1 outline-none"
+                            >
+                              <option value="none">Ninguna</option>
+                              <option value="particles">Partículas</option>
+                              <option value="stars">Estrellas</option>
+                              <option value="waves">Ondas</option>
+                              <option value="gradient-pulse">Pulso Glow</option>
+                            </select>
+                          </div>
+
+                          {currentTheme.bgAnimation && currentTheme.bgAnimation.type !== 'none' && (
+                            <div className="space-y-2 pt-2 border-t border-gray-700/30">
+                              {/* Speed */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-[8px] text-gray-500 font-bold w-12 uppercase">Velocidad</span>
+                                <input
+                                  type="range" min="0.1" max="5" step="0.1"
+                                  value={currentTheme.bgAnimation.speed}
+                                  onChange={(e) => updatePendingTheme({ ...currentTheme, bgAnimation: { ...currentTheme.bgAnimation!, speed: parseFloat(e.target.value) } })}
+                                  className="flex-1 h-1 bg-gray-700 rounded accent-indigo-500"
+                                />
+                              </div>
+                              {/* Intensity */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-[8px] text-gray-500 font-bold w-12 uppercase">Cantidad</span>
+                                <input
+                                  type="range" min="10" max="200" step="10"
+                                  value={currentTheme.bgAnimation.intensity}
+                                  onChange={(e) => updatePendingTheme({ ...currentTheme, bgAnimation: { ...currentTheme.bgAnimation!, intensity: parseInt(e.target.value) } })}
+                                  className="flex-1 h-1 bg-gray-700 rounded accent-indigo-500"
+                                />
+                              </div>
+                              {/* Color */}
+                              <div className="flex items-center justify-between">
+                                <span className="text-[8px] text-gray-500 font-bold uppercase">Color</span>
+                                <input
+                                  type="color"
+                                  value={currentTheme.bgAnimation.color}
+                                  onChange={(e) => updatePendingTheme({ ...currentTheme, bgAnimation: { ...currentTheme.bgAnimation!, color: e.target.value } })}
+                                  className="w-4 h-4 rounded border border-gray-600 cursor-pointer"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
                         <div className="bg-gray-900/40 p-3 rounded-lg border border-gray-700/30 space-y-3 mt-4">
                           <div className="flex items-center justify-between">
                             <span className="text-[9px] text-gray-400 font-bold uppercase">Capa Overlay</span>
@@ -1377,7 +1504,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           by Fernely Nunez Sosa
         </p>
       </div>
-    </div >
+      {/* History Panel */}
+      <HistoryPanel
+        isOpen={showHistoryPanel}
+        onClose={() => setShowHistoryPanel(false)}
+        history={history || []}
+        onRestore={(entry) => {
+          if (onRestore) onRestore(entry);
+          setShowHistoryPanel(false);
+        }}
+      />
+    </div>
   );
 };
 

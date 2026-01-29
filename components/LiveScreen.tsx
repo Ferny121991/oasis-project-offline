@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Slide, Theme } from '../types';
 import { Type, AlignLeft, AlignCenter, AlignRight, Image, Plus, Minus } from 'lucide-react';
+import AnimatedBackground from './AnimatedBackground';
 
 interface LiveScreenProps {
   slide: Slide | null;
@@ -13,6 +14,8 @@ interface LiveScreenProps {
   blackout?: boolean;
   autoPlay?: boolean; // New prop
   mute?: boolean;     // New prop
+  karaokeActive?: boolean;
+  karaokeIndex?: number;
 }
 
 const LiveScreen: React.FC<LiveScreenProps> = ({
@@ -25,7 +28,9 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   isLogoMode = false,
   blackout = false,
   autoPlay = true,  // Default to true for backward compatibility
-  mute = false      // Default to false
+  mute = false,      // Default to false
+  karaokeActive = false,
+  karaokeIndex = -1
 }) => {
   const [showTools, setShowTools] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -116,6 +121,16 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             }}
+          />
+        )}
+
+        {/* Animated Background Layer */}
+        {!isLogoMode && theme.bgAnimation && (
+          <AnimatedBackground
+            type={theme.bgAnimation.type}
+            speed={theme.bgAnimation.speed}
+            color={theme.bgAnimation.color}
+            intensity={theme.bgAnimation.intensity}
           />
         )}
 
@@ -229,14 +244,84 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                           borderRadius: `${theme.textHighlightRadius || 4}px`,
                           boxDecorationBreak: 'clone',
                           WebkitBoxDecorationBreak: 'clone',
-                          background: theme.textGradient || (theme.textBackgroundColor !== 'transparent' ? theme.textBackgroundColor : 'transparent'),
-                          WebkitBackgroundClip: theme.textGradient ? 'text' : 'unset',
-                          WebkitTextFillColor: theme.textGradient ? 'transparent' : 'unset',
-                          color: theme.textGradient ? 'transparent' : theme.textColor,
+                          background: (!slide.segments || slide.segments.length === 0)
+                            ? (theme.textGradient || (theme.textBackgroundColor !== 'transparent' ? theme.textBackgroundColor : 'transparent'))
+                            : (theme.textBackgroundColor !== 'transparent' ? theme.textBackgroundColor : 'transparent'),
+                          WebkitBackgroundClip: (!slide.segments || slide.segments.length === 0) && theme.textGradient ? 'text' : 'unset',
+                          WebkitTextFillColor: (!slide.segments || slide.segments.length === 0) && theme.textGradient ? 'transparent' : 'unset',
+                          color: (!slide.segments || slide.segments.length === 0) && theme.textGradient ? 'transparent' : theme.textColor,
                           fontSize: theme.fontSize.includes('text-') ? `calc(var(--base-font-size, 5cqh) * var(--font-size-multiplier, 1))` : theme.fontSize
                         }}
                       >
-                        {slide.content}
+                        {/* Render segments if available, otherwise fallback to content */}
+                        {slide.segments && slide.segments.length > 0 ? (
+                          slide.segments.map((segment) => {
+                            const isSpace = segment.text.trim() === '';
+                            if (isSpace) {
+                              return <span key={segment.id}>{segment.text}</span>;
+                            }
+
+                            // Calculate font size for segment
+                            const segFontSize = segment.fontSize
+                              ? (segment.fontSize.includes('text-')
+                                ? `calc(var(--base-font-size, 5cqh) * ${segment.fontSize === 'text-2xl' ? '0.3' :
+                                  segment.fontSize === 'text-4xl' ? '0.5' :
+                                    segment.fontSize === 'text-6xl' ? '0.7' :
+                                      segment.fontSize === 'text-8xl' ? '1.0' :
+                                        segment.fontSize === 'text-9xl' ? '1.2' :
+                                          segment.fontSize.includes('10rem') ? '1.5' :
+                                            segment.fontSize.includes('12rem') ? '1.8' : '1.0'
+                                })`
+                                : segment.fontSize)
+                              : undefined;
+
+                            return (
+                              <span
+                                key={segment.id}
+                                style={{
+                                  color: segment.gradient ? 'transparent' : (segment.color || 'inherit'),
+                                  fontSize: segFontSize,
+                                  fontWeight: segment.fontWeight || 'inherit',
+                                  fontFamily: segment.fontFamily || 'inherit',
+                                  fontStyle: segment.italic ? 'italic' : 'inherit',
+                                  textDecoration: segment.underline ? 'underline' : 'inherit',
+                                  background: segment.gradient || 'transparent',
+                                  WebkitBackgroundClip: segment.gradient ? 'text' : undefined,
+                                  WebkitTextFillColor: segment.gradient ? 'transparent' : undefined,
+                                  textShadow: segment.shadowColor
+                                    ? `0 0 ${segment.shadowBlur || 10}px ${segment.shadowColor}`
+                                    : undefined,
+                                  WebkitTextStroke: segment.textStrokeWidth
+                                    ? `${segment.textStrokeWidth}px ${segment.textStrokeColor || '#000'}`
+                                    : undefined,
+                                  letterSpacing: segment.letterSpacing ? `${segment.letterSpacing}em` : undefined,
+                                  transform: segment.rotation ? `rotate(${segment.rotation}deg)` : undefined,
+                                  display: segment.rotation ? 'inline-block' : undefined
+                                }}
+                              >
+                                {segment.text}
+                              </span>
+                            );
+                          })
+                        ) : (
+                          karaokeActive ? (
+                            slide.content.split(/\s+/).map((word, idx) => (
+                              <span
+                                key={idx}
+                                className={`transition-all duration-300 inline-block mr-[0.5cqh] ${idx === karaokeIndex
+                                    ? 'text-yellow-400 scale-110 font-bold drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]'
+                                    : idx < karaokeIndex
+                                      ? 'text-indigo-400 opacity-80'
+                                      : 'opacity-100'
+                                  }`}
+                              >
+                                {word}
+                              </span>
+                            ))
+                          ) : (
+                            slide.content
+                          )
+                        )}
                       </div>
                     </div>
                   )}

@@ -53,12 +53,20 @@ export interface Theme {
   shadowOffsetX: number;
   shadowOffsetY: number;
 
+  // Animation
+  animation: AnimationType;
+  bgAnimation?: {
+    type: 'none' | 'particles' | 'stars' | 'waves' | 'gradient-pulse';
+    speed?: number;
+    color?: string;
+    intensity?: number;
+  };
+
   // Outline / Stroke
   textStrokeWidth: number; // 0 - 5px
   textStrokeColor: string;
 
   // Background Image/Overlay
-  animation: AnimationType;
   bgImageBlur: number; // px (0-20)
   bgBrightness: number; // percentage (0.2 - 1.5)
   bgOverlayOpacity: number; // 0 - 0.9
@@ -104,10 +112,35 @@ export interface Theme {
 export interface Slide {
   id: string;
   type: 'text' | 'image' | 'youtube';
-  content: string; // The text lyrics or caption
+  content: string; // The text lyrics or caption (fallback si no hay segments)
+  segments?: TextSegment[]; // Para texto enriquecido con estilos por palabra
   mediaUrl?: string; // URL/Base64 for image slides
   videoId?: string; // YouTube Video ID
   label?: string; // e.g., "Coro", "Verso 1"
+  operatorNotes?: string; // Internal notes visible only to the operator, not on projector
+}
+
+// Segmento de texto con estilos individuales para edición rica
+export interface TextSegment {
+  id: string;
+  text: string;
+  // Override styles (undefined = usar tema global del slide)
+  color?: string;
+  fontSize?: string;
+  fontWeight?: string;
+  fontFamily?: string;
+  gradient?: string;
+  animation?: AnimationType;
+  shadowColor?: string;
+  shadowBlur?: number;
+  textStrokeWidth?: number;
+  textStrokeColor?: string;
+  italic?: boolean;
+  underline?: boolean;
+  letterSpacing?: number; // em or px
+  rotation?: number; // degrees
+  scale?: number; // 0.5 = 50%, 1 = 100%, 2 = 200%
+  customFontSize?: number; // exacto en pixeles o porcentaje
 }
 
 export interface PresentationItem {
@@ -137,6 +170,14 @@ export interface Project {
   description?: string;
   createdAt: string;
   updatedAt: string;
+  scheduledDate?: string; // ISO string for calendar
   playlist: PresentationItem[];
   customThemes?: Theme[];
+}
+
+export interface HistoryEntry {
+  id: string;
+  timestamp: number;
+  description: string;
+  data: Theme;
 }
