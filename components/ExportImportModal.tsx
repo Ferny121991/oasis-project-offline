@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PresentationItem, Theme, Project } from '../types';
 import { Download, Upload, X, FileJson, Check, AlertCircle, FolderOpen, Music, Palette, Settings2 } from 'lucide-react';
 
@@ -73,10 +73,17 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
     const [selectedProjectId, setSelectedProjectId] = useState<string>(currentProjectId || '');
 
     // Selected items from playlist (for individual item export)
-    const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set(playlist.map(item => item.id)));
+    const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
 
     // Selected items for import
     const [selectedImportItemIds, setSelectedImportItemIds] = useState<Set<string>>(new Set());
+
+    // Initialize selected items when modal opens or playlist changes
+    useEffect(() => {
+        if (isOpen) {
+            setSelectedItemIds(new Set(playlist.map(item => item.id)));
+        }
+    }, [isOpen, playlist]);
 
     if (!isOpen) return null;
 
@@ -267,7 +274,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
         setError(null);
     };
 
-    const toggleItemSelection = (itemId: string) => {
+    const toggleItemSelection = useCallback((itemId: string) => {
         setSelectedItemIds(prev => {
             const newSet = new Set(prev);
             if (newSet.has(itemId)) {
@@ -277,7 +284,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
             }
             return newSet;
         });
-    };
+    }, []);
 
     const toggleAllItems = () => {
         const currentPlaylist = projects.length > 0 && selectedProjectId
@@ -301,7 +308,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
     };
 
     // Import item selection functions
-    const toggleImportItemSelection = (itemId: string) => {
+    const toggleImportItemSelection = useCallback((itemId: string) => {
         setSelectedImportItemIds(prev => {
             const newSet = new Set(prev);
             if (newSet.has(itemId)) {
@@ -311,7 +318,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
             }
             return newSet;
         });
-    };
+    }, []);
 
     const toggleAllImportItems = () => {
         if (!importData || !importData.playlist) return;
