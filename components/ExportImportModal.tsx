@@ -78,12 +78,16 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
     // Selected items for import
     const [selectedImportItemIds, setSelectedImportItemIds] = useState<Set<string>>(new Set());
 
-    // Initialize selected items when modal opens or playlist changes
+    // Initialize selected items when modal opens
     useEffect(() => {
         if (isOpen && playlist && Array.isArray(playlist)) {
             setSelectedItemIds(new Set(playlist.map(item => item.id)));
         }
-    }, [isOpen, playlist]);
+        // Reset when modal closes
+        if (!isOpen) {
+            setSelectedItemIds(new Set());
+        }
+    }, [isOpen]); // ONLY depend on isOpen, not playlist
 
     if (!isOpen) return null;
 
