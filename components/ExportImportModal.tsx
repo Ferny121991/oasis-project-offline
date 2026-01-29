@@ -89,6 +89,31 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
         }
     }, [isOpen]); // ONLY depend on isOpen, not playlist
 
+    // Helper functions - MUST be before the early return to comply with Rules of Hooks
+    const toggleItemSelection = useCallback((itemId: string) => {
+        setSelectedItemIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(itemId)) {
+                newSet.delete(itemId);
+            } else {
+                newSet.add(itemId);
+            }
+            return newSet;
+        });
+    }, []);
+
+    const toggleImportItemSelection = useCallback((itemId: string) => {
+        setSelectedImportItemIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(itemId)) {
+                newSet.delete(itemId);
+            } else {
+                newSet.add(itemId);
+            }
+            return newSet;
+        });
+    }, []);
+
     if (!isOpen) return null;
 
     const handleExport = () => {
@@ -273,22 +298,11 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
         setError(null);
     };
 
+
     const toggleImportOption = (key: keyof ImportOptions) => {
         setImportOptions(prev => ({ ...prev, [key]: !prev[key] }));
         setError(null);
     };
-
-    const toggleItemSelection = useCallback((itemId: string) => {
-        setSelectedItemIds(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(itemId)) {
-                newSet.delete(itemId);
-            } else {
-                newSet.add(itemId);
-            }
-            return newSet;
-        });
-    }, []);
 
     const toggleAllItems = () => {
         const currentPlaylist = projects.length > 0 && selectedProjectId
@@ -310,19 +324,6 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
             setSelectedItemIds(new Set(project.playlist.map(item => item.id)));
         }
     };
-
-    // Import item selection functions
-    const toggleImportItemSelection = useCallback((itemId: string) => {
-        setSelectedImportItemIds(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(itemId)) {
-                newSet.delete(itemId);
-            } else {
-                newSet.add(itemId);
-            }
-            return newSet;
-        });
-    }, []);
 
     const toggleAllImportItems = () => {
         if (!importData || !importData.playlist) return;
