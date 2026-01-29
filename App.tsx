@@ -24,7 +24,9 @@ type MobileTab = 'control' | 'playlist' | 'preview';
 
 const App: React.FC = () => {
   // Security State
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('oasis_authenticated') === 'true';
+  });
   const [passcodeInput, setPasscodeInput] = useState('');
   const [authError, setAuthError] = useState(false);
 
@@ -33,6 +35,7 @@ const App: React.FC = () => {
     if (passcodeInput === '1291') {
       setIsAuthenticated(true);
       setAuthError(false);
+      localStorage.setItem('oasis_authenticated', 'true');
     } else {
       setAuthError(true);
       setPasscodeInput('');
@@ -1676,10 +1679,32 @@ const App: React.FC = () => {
                     Conectado
                   </div>
                 </div>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('oasis_authenticated');
+                    window.location.reload();
+                  }}
+                  className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                  title="Bloquear Sistema"
+                >
+                  <Lock size={18} />
+                </button>
               </div>
             ) : (
-              <div className="text-xs text-gray-500 italic bg-gray-850 px-3 py-1.5 rounded-lg border border-gray-800">
-                Guardado Local Activo
+              <div className="flex items-center gap-4">
+                <div className="text-xs text-gray-500 italic bg-gray-850 px-3 py-1.5 rounded-lg border border-gray-800">
+                  Guardado Local Activo
+                </div>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('oasis_authenticated');
+                    window.location.reload();
+                  }}
+                  className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                  title="Bloquear Sistema"
+                >
+                  <Lock size={18} />
+                </button>
               </div>
             )}
           </div>
