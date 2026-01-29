@@ -171,58 +171,96 @@ export interface ActionHistoryEntry {
 }
 
 export const actionHistoryService = {
-    async log(userId: string, actionType: string, description: string, metadata?: Record<string, any>) {
-        try {
-            const { error } = await supabase
-                .from('action_history')
-                .insert({
-                    user_id: userId,
-                    action_type: actionType,
-                    description,
-                    metadata: metadata || {}
-                });
+    async log(userId: string | undefined, actionType: string, description: string, metadata?: Record<string, any>) {
+        const entry: ActionHistoryEntry = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            user_id: userId || 'local',
+            action_type: actionType,
+            description,
+            metadata: metadata || {},
+            created_at: new Date().toISOString()
+        };
 
-            if (error) {
-                console.error('Error logging action:', error);
-            }
+        // Always save to localStorage as immediate feedback/fallback
+        try {
+            const localHistory = JSON.parse(localStorage.getItem('oasis_action_history') || '[]');
+            localStorage.setItem('oasis_action_history', JSON.stringify([entry, ...localHistory].slice(0, 100)));
         } catch (e) {
-            console.error('Action log error:', e);
+            console.error('Local history save error:', e);
+        }
+
+        // If logged in, also save to Supabase
+        if (userId && userId !== 'local') {
+            try {
+                const { error } = await supabase
+                    .from('action_history')
+                    .insert({
+                        user_id: userId,
+                        action_type: actionType,
+                        description,
+                        metadata: metadata || {}
+                    });
+
+                if (error) {
+                    console.error('Error logging action to cloud:', error);
+                }
+            } catch (e) {
+                console.error('Cloud action log error:', e);
+            }
         }
     },
 
-    async getHistory(userId: string, limit: number = 50): Promise<ActionHistoryEntry[]> {
+    async getHistory(userId: string | undefined, limit: number = 50): Promise<ActionHistoryEntry[]> {
+        let history: ActionHistoryEntry[] = [];
+
+        // 1. Get from localStorage
         try {
-            const { data, error } = await supabase
-                .from('action_history')
-                .select('*')
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false })
-                .limit(limit);
-
-            if (error) {
-                console.error('Error fetching history:', error);
-                return [];
-            }
-
-            return data || [];
+            const localData = JSON.parse(localStorage.getItem('oasis_action_history') || '[]');
+            history = localData;
         } catch (e) {
-            console.error('History fetch error:', e);
-            return [];
+            console.error('Local history fetch error:', e);
         }
+
+        // 2. If logged in, try to fetch from cloud and merge/sync
+        if (userId && userId !== 'local') {
+            try {
+                const { data, error } = await supabase
+                    .from('action_history')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false })
+                    .limit(limit);
+
+                if (!error && data) {
+                    // Combine and sort by date, removing duplicates by ID if they exist
+                    const combined = [...data, ...history];
+                    const unique = Array.from(new Map(combined.map(item => [item.id || item.created_at, item])).values());
+                    history = (unique as ActionHistoryEntry[])
+                        .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
+                        .slice(0, limit);
+                }
+            } catch (e) {
+                console.error('Cloud history fetch error:', e);
+            }
+        }
+
+        return history.slice(0, limit);
     },
 
-    async clearHistory(userId: string) {
-        try {
-            const { error } = await supabase
-                .from('action_history')
-                .delete()
-                .eq('user_id', userId);
+    async clearHistory(userId: string | undefined) {
+        // Clear local
+        localStorage.removeItem('oasis_action_history');
 
-            if (error) {
-                console.error('Error clearing history:', error);
+        // Clear cloud if logged in
+        if (userId && userId !== 'local') {
+            try {
+                await supabase
+                    .from('action_history')
+                    .delete()
+                    .eq('user_id', userId);
+            } catch (e) {
+                console.error('History clear error:', e);
             }
-        } catch (e) {
-            console.error('History clear error:', e);
         }
     }
 };

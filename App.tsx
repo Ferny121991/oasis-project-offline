@@ -456,6 +456,14 @@ const App: React.FC = () => {
       alert("Debes iniciar sesión con Google para sincronizar.");
       return;
     }
+
+    // Log intent to history
+    actionHistoryService.log(
+      session.user.id,
+      'cloud_sync_started',
+      'Sincronización manual iniciada'
+    );
+
     await fetchUserData();
   };
 
@@ -626,11 +634,19 @@ const App: React.FC = () => {
     setCustomThemes([]);
     setActiveSlideIndex(-1);
 
+    // Log to action history
+    actionHistoryService.log(
+      session?.user?.id,
+      'project_created',
+      `Proyecto creado: ${name}`,
+      { projectId: newProject.id, name }
+    );
+
     // Unblock after state settles
     setTimeout(() => {
       isSwitchingProject.current = false;
     }, 250);
-  }, []);
+  }, [session?.user?.id]);
 
 
   const handleSelectProject = useCallback((projectId: string) => {
@@ -676,11 +692,21 @@ const App: React.FC = () => {
 
     // 4. LOAD new project data
     const project = projects.find(p => p.id === projectId);
+    const userId = session?.user?.id;
+
     if (project) {
       setCurrentProjectId(projectId);
       setPlaylist(project.playlist || []);
       setCustomThemes(project.customThemes || []);
       setActiveSlideIndex(-1);
+
+      // Log to action history
+      actionHistoryService.log(
+        session?.user?.id,
+        'project_opened',
+        `Proyecto abierto: ${project.name}`,
+        { projectId, name: project.name }
+      );
     }
 
     // 5. UNBLOCK auto-saves after a longer delay (500ms instead of 200ms for safer sync)
@@ -691,21 +717,43 @@ const App: React.FC = () => {
   }, [currentProjectId, projects, playlist, customThemes]);
 
   const handleDeleteProject = useCallback((projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    const userId = session?.user?.id;
+
     setProjects(prev => prev.filter(p => p.id !== projectId));
     if (currentProjectId === projectId) {
       setCurrentProjectId(null);
       setPlaylist([]);
       setCustomThemes([]);
     }
-  }, [currentProjectId]);
+
+    // Log to action history
+    actionHistoryService.log(
+      session?.user?.id,
+      'project_deleted',
+      `Proyecto eliminado: ${project?.name || 'Desconocido'}`,
+      { projectId, name: project?.name }
+    );
+  }, [currentProjectId, projects, session?.user?.id]);
 
   const handleRenameProject = useCallback((projectId: string, newName: string) => {
+    const project = projects.find(p => p.id === projectId);
+    const userId = session?.user?.id;
+
     setProjects(prev => prev.map(p =>
       p.id === projectId
         ? { ...p, name: newName, updatedAt: new Date().toISOString() }
         : p
     ));
-  }, []);
+
+    // Log to action history
+    actionHistoryService.log(
+      session?.user?.id,
+      'project_renamed',
+      `Proyecto renombrado: "${project?.name}" a "${newName}"`,
+      { projectId, oldName: project?.name, newName }
+    );
+  }, [projects, session?.user?.id]);
 
   const handleDuplicateProject = (projectId: string) => {
     const project = projects.find(p => p.id === projectId);
@@ -720,6 +768,14 @@ const App: React.FC = () => {
     };
 
     setProjects(prev => [...prev, newProject]);
+
+    // Log to action history
+    actionHistoryService.log(
+      session?.user?.id,
+      'project_duplicated',
+      `Proyecto duplicado: ${project.name}`,
+      { originalId: projectId, newId: newProject.id, name: newProject.name }
+    );
   };
 
   const handleUpdateProjectDate = (projectId: string, date: string | undefined) => {
@@ -763,6 +819,85 @@ const App: React.FC = () => {
       isSwitchingProject.current = false;
     }, 500);
   };
+
+  // Import Playlist Handler - supports selective import
+  const handleImportPlaylist = useCallback((
+    items: PresentationItem[],
+    themes: Theme[],
+    mode: 'replace' | 'merge',
+    importedProjects?: Project[]
+  ) => {
+    const userId = session?.user?.id;
+
+    // Handle playlist import
+    if (items.length > 0) {
+      if (mode === 'replace') {
+        setPlaylist(items);
+      } else {
+        setPlaylist(prev => [...prev, ...items]);
+      }
+
+      // Log to action history
+      if (userId) {
+        actionHistoryService.log(
+          userId,
+          'data_imported',
+          `Importados ${items.length} items a la playlist (modo: ${mode === 'merge' ? 'agregar' : 'reemplazar'})`,
+          { itemCount: items.length, mode }
+        );
+      }
+    }
+
+    // Handle themes import
+    if (themes.length > 0) {
+      if (mode === 'replace') {
+        setCustomThemes(themes);
+      } else {
+        setCustomThemes(prev => {
+          const existingNames = prev.map(t => t.name);
+          const newThemes = themes.filter(t => !existingNames.includes(t.name));
+          return [...prev, ...newThemes];
+        });
+      }
+
+      if (userId) {
+        actionHistoryService.log(
+          userId,
+          'themes_imported',
+          `Importados ${themes.length} temas personalizados`,
+          { themeCount: themes.length, mode }
+        );
+      }
+    }
+
+    // Handle projects import
+    if (importedProjects && importedProjects.length > 0) {
+      if (mode === 'replace') {
+        setProjects(importedProjects);
+      } else {
+        setProjects(prev => {
+          const existingIds = prev.map(p => p.id);
+          const newProjects = importedProjects.map(p => {
+            // If project ID exists, create a new ID
+            if (existingIds.includes(p.id)) {
+              return { ...p, id: `${p.id}_${Date.now()}`, name: `${p.name} (Importado)` };
+            }
+            return p;
+          });
+          return [...prev, ...newProjects];
+        });
+      }
+
+      if (userId) {
+        actionHistoryService.log(
+          userId,
+          'projects_imported',
+          `Importados ${importedProjects.length} proyectos`,
+          { projectCount: importedProjects.length, mode }
+        );
+      }
+    }
+  }, [session?.user?.id]);
 
   // Divider Management Functions
   const handleAddDivider = useCallback((title: string, color?: string, icon?: string) => {
@@ -826,7 +961,15 @@ const App: React.FC = () => {
     };
 
     setPlaylist(prev => [...prev, newItem]);
-  }, [playlist]);
+
+    // Log to action history
+    actionHistoryService.log(
+      session?.user?.id,
+      'song_added',
+      `Añadido: ${item.title}`,
+      { itemId: item.id, type: item.type, slideCount: item.slides?.length || 0 }
+    );
+  }, [playlist, session?.user?.id]);
 
   const stopBackgroundAudio = useCallback(() => setBackgroundAudioItem(null), []);
 
@@ -870,11 +1013,20 @@ const App: React.FC = () => {
   }, [audioStartTime, audioElapsedOffset, isAudioPlaying]);
 
   const handleDeleteItem = (id: string) => {
+    const item = playlist.find(i => i.id === id);
     setPlaylist(prev => prev.filter(item => item.id !== id));
     if (activeItemId === id) {
       setActiveItemId(null);
       setActiveSlideIndex(-1);
     }
+
+    // Log to action history
+    actionHistoryService.log(
+      session?.user?.id,
+      'song_removed',
+      `Eliminado: ${item?.title || 'Elemento'}`,
+      { itemId: id, type: item?.type }
+    );
   };
 
   // --- CORE UPDATE FUNCTIONS ---
@@ -906,6 +1058,8 @@ const App: React.FC = () => {
     if (!activeItemId) return;
 
     const activeItem = playlist.find(i => i.id === activeItemId);
+    const userId = session?.user?.id;
+
     if (activeItem) {
       // Save current theme to history before updating (limited to 50 steps)
       const entry: import('./types').HistoryEntry = {
@@ -920,6 +1074,14 @@ const App: React.FC = () => {
       if (!originalThemes[activeItemId]) {
         setOriginalThemes(prev => ({ ...prev, [activeItemId]: activeItem.theme }));
       }
+
+      // Log to action history
+      actionHistoryService.log(
+        session?.user?.id,
+        'theme_changed',
+        `Cambio de estilo en: ${activeItem.title}`,
+        { itemId: activeItemId, themeName: newTheme.name }
+      );
     }
 
     setPlaylist(prev => prev.map(item =>
@@ -958,9 +1120,20 @@ const App: React.FC = () => {
   };
 
   const handleUpdateItemTitle = (itemId: string, newTitle: string) => {
+    const item = playlist.find(i => i.id === itemId);
+    const userId = session?.user?.id;
+
     setPlaylist(prev => prev.map(item =>
       item.id === itemId ? { ...item, title: newTitle } : item
     ));
+
+    // Log to action history
+    actionHistoryService.log(
+      session?.user?.id,
+      'item_renamed',
+      `Renombrado: "${item?.title}" a "${newTitle}"`,
+      { itemId, oldTitle: item?.title, newTitle }
+    );
   };
 
   const handleUpdateSlideLabel = (itemId: string, slideId: string, newLabel: string) => {
@@ -1069,26 +1242,6 @@ const App: React.FC = () => {
       setPlaylist(prev => [...prev, newItem]);
     }
   };
-
-  // Handler for importing playlists from file
-  const handleImportPlaylist = useCallback((items: PresentationItem[], themes: Theme[], mode: 'replace' | 'merge') => {
-    if (mode === 'replace') {
-      setPlaylist(items);
-      setCustomThemes(themes);
-    } else {
-      // Merge mode: add new items and themes (avoiding duplicates by ID)
-      setPlaylist(prev => {
-        const existingIds = new Set(prev.map(i => i.id));
-        const newItems = items.filter(i => !existingIds.has(i.id));
-        return [...prev, ...newItems];
-      });
-      setCustomThemes(prev => {
-        const existingNames = new Set(prev.map(t => t.name));
-        const newThemes = themes.filter(t => !existingNames.has(t.name));
-        return [...prev, ...newThemes];
-      });
-    }
-  }, []);
 
   // Logic to add a manual slide (Image or Text) to the current item
   const handleAddSlideToActiveItem = (newSlide: Slide) => {
@@ -1268,15 +1421,33 @@ const App: React.FC = () => {
       setLiveSlideIndex(targetSlideIndex);
       if (slideIndex !== undefined) setActiveSlideIndex(targetSlideIndex);
       setIsPreviewHidden(false);
+
+      // Log to action history
+      if (item) {
+        actionHistoryService.log(
+          session?.user?.id,
+          'live_started',
+          `Transmitiendo: ${item.title}`,
+          { itemId: targetItemId, slideIndex: targetSlideIndex }
+        );
+      }
     }
 
-  }, [activeItemId, activeSlideIndex, liveItemId]);
+  }, [activeItemId, activeSlideIndex, liveItemId, session?.user?.id, playlist]);
 
   const stopLive = useCallback(() => {
     setLiveItemId(null);
     setLiveSlideIndex(-1);
     setFrozenLiveItem(null);
-  }, []);
+
+    // Log to action history
+    actionHistoryService.log(
+      session?.user?.id,
+      'live_stopped',
+      'Se detuvo la transmisión en vivo',
+      {}
+    );
+  }, [session?.user?.id]);
 
   useEffect(() => {
     (window as any).makeLive = makeLive;
@@ -2178,6 +2349,8 @@ const App: React.FC = () => {
         onClose={() => setShowExportImport(false)}
         playlist={playlist}
         customThemes={customThemes}
+        projects={projects}
+        currentProjectId={currentProjectId}
         onImport={handleImportPlaylist}
       />
 
