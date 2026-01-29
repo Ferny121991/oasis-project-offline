@@ -19,12 +19,11 @@ export interface LiveState {
 }
 
 export interface RealtimeSyncService {
-    subscribe: (sessionId: string, onStateChange: (state: LiveState) => void) => void;
-    updateState: (sessionId: string, state: Partial<LiveState>) => Promise<void>;
-    sendCommand: (sessionId: string, command: LiveState['command']) => Promise<void>;
+    subscribe: (userId: string, onStateChange: (state: LiveState) => void) => void;
+    updateState: (userId: string, state: Partial<LiveState>) => Promise<void>;
+    sendCommand: (userId: string, command: LiveState['command']) => Promise<void>;
     unsubscribe: () => void;
     isConnected: () => boolean;
-    generateSessionId: () => string;
 }
 
 let channel: RealtimeChannel | null = null;
@@ -32,25 +31,20 @@ let isSubscribed = false;
 
 export const createRealtimeSyncService = (): RealtimeSyncService => {
     return {
-        generateSessionId: () => {
-            // Generate a simple 6-character code
-            return Math.random().toString(36).substring(2, 8).toUpperCase();
-        },
-
-        subscribe: (sessionId: string, onStateChange: (state: LiveState) => void) => {
+        subscribe: (userId: string, onStateChange: (state: LiveState) => void) => {
             if (channel) {
                 channel.unsubscribe();
             }
 
             channel = supabase
-                .channel(`realtime_sync:${sessionId}`)
+                .channel(`realtime_sync:${userId}`)
                 .on(
                     'postgres_changes',
                     {
                         event: '*',
                         schema: 'public',
                         table: 'realtime_sync',
-                        filter: `user_id=eq.${sessionId}` // Using user_id column with sessionId value
+                        filter: `user_id=eq.${userId}`
                     },
                     (payload) => {
                         if (payload.new && (payload.new as any).live_state) {
@@ -64,13 +58,13 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 });
         },
 
-        updateState: async (sessionId: string, state: Partial<LiveState>) => {
+        updateState: async (userId: string, state: Partial<LiveState>) => {
             try {
                 // First try to get existing state
                 const { data: existing } = await supabase
                     .from('realtime_sync')
                     .select('live_state')
-                    .eq('user_id', sessionId) // Using user_id column with sessionId value
+                    .eq('user_id', userId)
                     .single();
 
                 const existingState = (existing?.live_state as LiveState) || {
@@ -97,7 +91,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 const { error } = await supabase
                     .from('realtime_sync')
                     .upsert({
-                        user_id: sessionId, // Using user_id column with sessionId value
+                        user_id: userId,
                         live_state: newState,
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'user_id' });
@@ -110,12 +104,12 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
             }
         },
 
-        sendCommand: async (sessionId: string, command: LiveState['command']) => {
+        sendCommand: async (userId: string, command: LiveState['command']) => {
             try {
                 const { data: existing } = await supabase
                     .from('realtime_sync')
                     .select('live_state')
-                    .eq('user_id', sessionId) // Using user_id column with sessionId value
+                    .eq('user_id', userId)
                     .single();
 
                 const existingState = (existing?.live_state as LiveState) || {
@@ -141,7 +135,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 const { error } = await supabase
                     .from('realtime_sync')
                     .upsert({
-                        user_id: sessionId, // Using user_id column with sessionId value
+                        user_id: userId,
                         live_state: newState,
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'user_id' });

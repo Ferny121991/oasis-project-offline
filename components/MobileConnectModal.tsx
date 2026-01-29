@@ -15,31 +15,15 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
     const [copied, setCopied] = useState(false);
     const [showMobileControl, setShowMobileControl] = useState(false);
     const [liveState, setLiveState] = useState<LiveState | null>(null);
-    const [sessionId, setSessionId] = useState<string>('');
+    const [userId, setUserId] = useState<string | null>(null);
 
     useEffect(() => {
-        // Check if there's a session parameter in URL (from QR code scan)
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlSessionId = urlParams.get('session');
-
-        let savedSessionId: string;
-
-        if (urlSessionId) {
-            // Use session from URL and save it
-            savedSessionId = urlSessionId;
-            localStorage.setItem('oasis_session_id', savedSessionId);
-            setSessionId(savedSessionId);
-            // Automatically show mobile control if coming from QR scan
-            setShowMobileControl(true);
-        } else {
-            // Generate or load session ID
-            savedSessionId = localStorage.getItem('oasis_session_id') || '';
-            if (!savedSessionId) {
-                savedSessionId = realtimeSyncService.generateSessionId();
-                localStorage.setItem('oasis_session_id', savedSessionId);
+        // Get current user
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                setUserId(session.user.id);
             }
-            setSessionId(savedSessionId);
-        }
+        });
 
         // Load saved IP from local storage
         const savedIp = localStorage.getItem('oasis_host_ip');
@@ -59,16 +43,16 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
 
     // Subscribe to realtime updates when in mobile control mode
     useEffect(() => {
-        if (!showMobileControl || !sessionId) return;
+        if (!showMobileControl || !userId) return;
 
-        realtimeSyncService.subscribe(sessionId, (state: LiveState) => {
+        realtimeSyncService.subscribe(userId, (state: LiveState) => {
             setLiveState(state);
         });
 
         return () => {
             realtimeSyncService.unsubscribe();
         };
-    }, [showMobileControl, sessionId]);
+    }, [showMobileControl, userId]);
 
     const handleIpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setIpAddress(e.target.value);
@@ -77,7 +61,7 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
 
     const getConnectUrl = () => {
         const host = ipAddress || 'YOUR_IP_ADDRESS';
-        return `${window.location.protocol}//${host}:${port}?session=${sessionId}`;
+        return `${window.location.protocol}//${host}:${port}`;
     };
 
     const handleCopy = () => {
@@ -87,8 +71,8 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
     };
 
     const sendCommand = async (command: LiveState['command']) => {
-        if (!sessionId) return;
-        await realtimeSyncService.sendCommand(sessionId, command);
+        if (!userId) return;
+        await realtimeSyncService.sendCommand(userId, command);
     };
 
     if (!isOpen) return null;
@@ -140,17 +124,6 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
                                     * Abre la terminal y escribe <code className="bg-gray-700 px-1 rounded">ipconfig</code> (Windows) para ver tu IPv4.
                                 </p>
                             </div>
-
-                            {/* Session Code Display */}
-                            {sessionId && (
-                                <div className="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 p-4 rounded-xl border border-indigo-500/30">
-                                    <div className="text-center">
-                                        <p className="text-[10px] uppercase font-bold text-indigo-300 mb-2">Código de Sesión</p>
-                                        <p className="text-2xl font-black text-white tracking-widest">{sessionId}</p>
-                                        <p className="text-[10px] text-indigo-300 mt-2">Comparte este código para control remoto</p>
-                                    </div>
-                                </div>
-                            )}
 
                             <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl">
                                 {ipAddress ? (

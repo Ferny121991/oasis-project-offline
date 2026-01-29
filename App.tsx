@@ -281,46 +281,29 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Shared Session ID for Remote Control (Generated once or loaded from localStorage)
-  const [sessionId, setSessionId] = useState<string>(() => {
-    const saved = localStorage.getItem('oasis_session_id');
-    if (saved) return saved;
-    const newId = realtimeSyncService.generateSessionId();
-    localStorage.setItem('oasis_session_id', newId);
-    return newId;
-  });
-
-  // Realtime Sync for Mobile Control (Using Shared Session ID)
+  // Realtime Sync for Mobile Control
   useEffect(() => {
-    if (!sessionId) return;
+    if (!session?.user) return;
 
-    // Subscribe to realtime changes using sessionId
-    realtimeSyncService.subscribe(sessionId, (state: LiveState) => {
+    // Subscribe to realtime changes
+    realtimeSyncService.subscribe(session.user.id, (state: LiveState) => {
       // Process commands from mobile
       if (state.command) {
         switch (state.command) {
           case 'next':
-            setLiveSlideIndex(prev => {
-              if (liveItemId) {
-                const item = playlist.find(i => i.id === liveItemId);
-                if (item && prev < item.slides.length - 1) {
-                  const nextIdx = prev + 1;
-                  setActiveSlideIndex(nextIdx);
-                  return nextIdx;
-                }
+            if (liveItemId) {
+              const item = playlist.find(i => i.id === liveItemId);
+              if (item && liveSlideIndex < item.slides.length - 1) {
+                setLiveSlideIndex(prev => prev + 1);
+                setActiveSlideIndex(liveSlideIndex + 1);
               }
-              return prev;
-            });
+            }
             break;
           case 'prev':
-            setLiveSlideIndex(prev => {
-              if (liveItemId && prev > 0) {
-                const nextIdx = prev - 1;
-                setActiveSlideIndex(nextIdx);
-                return nextIdx;
-              }
-              return prev;
-            });
+            if (liveItemId && liveSlideIndex > 0) {
+              setLiveSlideIndex(prev => prev - 1);
+              setActiveSlideIndex(liveSlideIndex - 1);
+            }
             break;
           case 'blackout':
             setIsPreviewHidden(prev => !prev);
@@ -333,21 +316,21 @@ const App: React.FC = () => {
             break;
         }
         // Clear the command after processing
-        realtimeSyncService.updateState(sessionId, { command: null });
+        realtimeSyncService.updateState(session.user.id, { command: null });
       }
     });
 
     return () => {
       realtimeSyncService.unsubscribe();
     };
-  }, [sessionId, liveItemId, playlist]); // Removed liveSlideIndex to avoid infinite loop when updating back
+  }, [session, liveItemId, liveSlideIndex, playlist]);
 
-  // Broadcast live state to mobile devices (Using Shared Session ID)
+  // Broadcast live state to mobile devices
   useEffect(() => {
-    if (!sessionId || isProjectorMode) return;
+    if (!session?.user || isProjectorMode) return;
 
     const broadcastState = async () => {
-      await realtimeSyncService.updateState(sessionId, {
+      await realtimeSyncService.updateState(session.user.id, {
         liveItemId,
         liveSlideIndex,
         activeItemId,
@@ -362,9 +345,9 @@ const App: React.FC = () => {
     };
 
     // Debounce broadcasts
-    const timer = setTimeout(broadcastState, 500);
+    const timer = setTimeout(broadcastState, 300);
     return () => clearTimeout(timer);
-  }, [sessionId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode]);
+  }, [session, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode]);
 
   // Sync from Supabase on Login
   const isCloudLoading = useRef(false);
