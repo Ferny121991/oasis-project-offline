@@ -16,6 +16,7 @@ interface LiveScreenProps {
   mute?: boolean;     // New prop
   karaokeActive?: boolean;
   karaokeIndex?: number;
+  onVideoEnd?: () => void;
 }
 
 const LiveScreen: React.FC<LiveScreenProps> = ({
@@ -30,9 +31,63 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   autoPlay = true,  // Default to true for backward compatibility
   mute = false,      // Default to false
   karaokeActive = false,
-  karaokeIndex = -1
+  karaokeIndex = -1,
+  onVideoEnd
 }) => {
   const [showTools, setShowTools] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerRef = useRef<any>(null);
+
+  // YouTube API listener for auto-advance
+  useEffect(() => {
+    let checkInterval: ReturnType<typeof setInterval>;
+
+    if (slide?.type === 'youtube' && slide.videoId && onVideoEnd) {
+      const initPlayer = () => {
+        if ((window as any).YT && (window as any).YT.Player && iframeRef.current) {
+          if (checkInterval) clearInterval(checkInterval);
+
+          // Destroy previous player if it exists
+          if (playerRef.current && playerRef.current.destroy) {
+            try { playerRef.current.destroy(); } catch (e) { console.warn(e); }
+          }
+
+          playerRef.current = new (window as any).YT.Player(iframeRef.current, {
+            events: {
+              'onStateChange': (event: any) => {
+                // YT.PlayerState.ENDED is 0
+                if (event.data === 0) {
+                  onVideoEnd();
+                }
+              }
+            }
+          });
+        }
+      };
+
+      // Load YouTube API if not already present
+      if (!(window as any).YT || !(window as any).YT.Player) {
+        if (!document.getElementById('youtube-iframe-api')) {
+          const tag = document.createElement('script');
+          tag.id = 'youtube-iframe-api';
+          tag.src = "https://www.youtube.com/iframe_api";
+          const firstScriptTag = document.getElementsByTagName('script')[0];
+          firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+        }
+        checkInterval = setInterval(initPlayer, 500);
+      } else {
+        initPlayer();
+      }
+    }
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+      if (playerRef.current && playerRef.current.destroy) {
+        try { playerRef.current.destroy(); } catch (e) { console.warn(e); }
+        playerRef.current = null;
+      }
+    };
+  }, [slide?.id, slide?.type, onVideoEnd]);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseMove = () => {
@@ -168,6 +223,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                   {slide.type === 'youtube' && slide.videoId && (
                     <div className="w-[90%] h-[92%] flex items-center justify-center bg-black rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 relative z-10 transition-all duration-500">
                       <iframe
+                        ref={iframeRef}
                         className="w-full h-full"
                         src={`https://www.youtube-nocookie.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&origin=${window.location.protocol}//${window.location.host}&rel=0`}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -309,10 +365,10 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                               <span
                                 key={idx}
                                 className={`transition-all duration-300 inline-block mr-[0.5cqh] ${idx === karaokeIndex
-                                    ? 'text-yellow-400 scale-110 font-bold drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]'
-                                    : idx < karaokeIndex
-                                      ? 'text-indigo-400 opacity-80'
-                                      : 'opacity-100'
+                                  ? 'text-yellow-400 scale-110 font-bold drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]'
+                                  : idx < karaokeIndex
+                                    ? 'text-indigo-400 opacity-80'
+                                    : 'opacity-100'
                                   }`}
                               >
                                 {word}

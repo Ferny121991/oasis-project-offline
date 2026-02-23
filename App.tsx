@@ -117,99 +117,6 @@ const App: React.FC = () => {
   // Sync Channel for Multi-window Projector
   const syncChannel = useRef<BroadcastChannel | null>(null);
 
-  useEffect(() => {
-    // Check if we are in projector mode
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('projector') === 'true') {
-      setIsProjectorMode(true);
-    }
-
-    // Initialize Sync Channel
-    syncChannel.current = new BroadcastChannel('flujo_projector_sync');
-
-    // If we are the projector, listen for updates and fullscreen commands
-    if (params.get('projector') === 'true') {
-      const handleMessage = (e: MessageEvent) => {
-        if (e.data === 'TOGGLE_FULLSCREEN') {
-          if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen auto-block:", err));
-          }
-        }
-      };
-      window.addEventListener('message', handleMessage);
-
-      // Local keyboard shortcuts for the projector window
-      const handleProjectorKeys = (e: KeyboardEvent) => {
-        if (e.key.toLowerCase() === 'f' || e.key === 'F11') {
-          e.preventDefault();
-          if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => console.error(err));
-          } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-          }
-        }
-      };
-      window.addEventListener('keydown', handleProjectorKeys);
-
-      syncChannel.current.onmessage = (event) => {
-        const { type, data } = event.data;
-        if (type === 'SYNC_STATE') {
-          setLiveItemId(data.liveItemId);
-          setActiveItemId(data.activeItemId);
-          setLiveSlideIndex(data.liveSlideIndex);
-          setActiveSlideIndex(data.activeSlideIndex);
-          setPlaylist(data.playlist);
-          if (data.stagedTheme) setStagedTheme(data.stagedTheme);
-          setIsPreviewHidden(data.isPreviewHidden);
-          setIsTextHidden(data.isTextHidden);
-          setIsLogoActive(data.isLogoActive);
-
-          if (data.frozenLiveItem) {
-            if (data.frozenLiveItem.slides) {
-              setFrozenLiveItem(data.frozenLiveItem);
-            } else {
-              // It's a stub, find it in the new playlist that was just set
-              const found = data.playlist.find((i: any) => i.id === data.frozenLiveItem.id);
-              if (found) setFrozenLiveItem(found);
-            }
-          } else {
-            setFrozenLiveItem(null);
-          }
-          // Split Screen sync
-          if (data.showSplitScreen !== undefined) setShowSplitScreen(data.showSplitScreen);
-          if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
-          if (data.splitRightSlide !== undefined) setSplitRightSlide(data.splitRightSlide);
-          if (data.splitRatio !== undefined) setSplitRatio(data.splitRatio);
-          if (data.splitRatio !== undefined) setSplitRatio(data.splitRatio);
-          if (data.splitFontScale !== undefined) setSplitFontScale(data.splitFontScale);
-
-          // Karaoke Sync
-          if (data.isKaraokeActive !== undefined) setIsKaraokeActive(data.isKaraokeActive);
-          if (data.karaokeIndex !== undefined) setKaraokeIndex(data.karaokeIndex);
-        }
-      };
-
-      // Request initial state from any open main window
-      syncChannel.current.postMessage({ type: 'REQUEST_STATE' });
-
-      return () => {
-        window.removeEventListener('message', handleMessage);
-        window.removeEventListener('keydown', handleProjectorKeys);
-        syncChannel.current?.close();
-      };
-    } else {
-      // If we are the main window, respond to state requests
-      syncChannel.current.onmessage = (event) => {
-        if (event.data.type === 'REQUEST_STATE') {
-          sendSyncState();
-        }
-      };
-    }
-
-    return () => {
-      syncChannel.current?.close();
-    };
-  }, []);
 
   const sendSyncState = useCallback(() => {
     if (syncChannel.current) {
@@ -1526,13 +1433,29 @@ const App: React.FC = () => {
 
   const navigateLiveNext = useCallback(() => {
     if (!liveItemId) return;
-    const item = playlist.find(p => p.id === liveItemId);
-    if (item && liveSlideIndex < item.slides.length - 1) {
+    const currentIndex = playlist.findIndex(p => p.id === liveItemId);
+    if (currentIndex === -1) return;
+
+    const item = playlist[currentIndex];
+    if (liveSlideIndex < item.slides.length - 1) {
       const nextIndex = liveSlideIndex + 1;
       setLiveSlideIndex(nextIndex);
       // If we are currently viewing the live item, move the preview selector too
       if (activeItemId === liveItemId) {
         setActiveSlideIndex(nextIndex);
+      }
+    } else if (currentIndex < playlist.length - 1) {
+      // Auto advance to next item in playlist if it exists
+      const nextItem = playlist[currentIndex + 1];
+      if (nextItem.type !== 'divider') {
+        setLiveItemId(nextItem.id);
+        setLiveSlideIndex(0);
+        setFrozenLiveItem(nextItem);
+        // Also update preview if it was following the live view
+        if (activeItemId === liveItemId) {
+          setActiveItemId(nextItem.id);
+          setActiveSlideIndex(0);
+        }
       }
     }
   }, [liveItemId, liveSlideIndex, activeItemId, playlist]);
@@ -1548,6 +1471,16 @@ const App: React.FC = () => {
       }
     }
   }, [liveItemId, liveSlideIndex, activeItemId]);
+
+  const handleVideoEnd = useCallback(() => {
+    if (isProjectorMode) {
+      // If we are the projector, notify the main window
+      syncChannel.current?.postMessage({ type: 'VIDEO_ENDED' });
+    } else {
+      // If we are the main window, navigate locally
+      navigateLiveNext();
+    }
+  }, [isProjectorMode, navigateLiveNext]);
 
 
 
@@ -1677,12 +1610,110 @@ const App: React.FC = () => {
               hideText={isTextHidden}
               isLogoMode={isLogoActive}
               blackout={isPreviewHidden}
+              onVideoEnd={handleVideoEnd}
             />
           )}
         </div>
       </div>
     );
   }
+  // --- SYNC CHANNEL INITIALIZATION (Moved here to avoid used-before-definition lint errors) ---
+  useEffect(() => {
+    // Check if we are in projector mode
+    const params = new URLSearchParams(window.location.search);
+    const projectorKey = params.get('projector');
+    if (projectorKey === 'true') {
+      setIsProjectorMode(true);
+    }
+
+    // Initialize Sync Channel
+    syncChannel.current = new BroadcastChannel('flujo_projector_sync');
+
+    // If we are the projector, listen for updates and fullscreen commands
+    if (projectorKey === 'true') {
+      const handleMessage = (e: MessageEvent) => {
+        if (e.data === 'TOGGLE_FULLSCREEN') {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen auto-block:", err));
+          }
+        }
+      };
+      window.addEventListener('message', handleMessage);
+
+      // Local keyboard shortcuts for the projector window
+      const handleProjectorKeys = (e: KeyboardEvent) => {
+        if (e.key.toLowerCase() === 'f' || e.key === 'F11') {
+          e.preventDefault();
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.error(err));
+          } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+          }
+        }
+      };
+      window.addEventListener('keydown', handleProjectorKeys);
+
+      syncChannel.current.onmessage = (event: MessageEvent) => {
+        const { type, data } = event.data;
+        if (type === 'SYNC_STATE') {
+          setLiveItemId(data.liveItemId);
+          setActiveItemId(data.activeItemId);
+          setLiveSlideIndex(data.liveSlideIndex);
+          setActiveSlideIndex(data.activeSlideIndex);
+          setPlaylist(data.playlist);
+          if (data.stagedTheme) setStagedTheme(data.stagedTheme);
+          setIsPreviewHidden(data.isPreviewHidden);
+          setIsTextHidden(data.isTextHidden);
+          setIsLogoActive(data.isLogoActive);
+
+          if (data.frozenLiveItem) {
+            if (data.frozenLiveItem.slides) {
+              setFrozenLiveItem(data.frozenLiveItem);
+            } else {
+              // It's a stub, find it in the new playlist that was just set
+              const found = data.playlist.find((i: any) => i.id === data.frozenLiveItem.id);
+              if (found) setFrozenLiveItem(found);
+            }
+          } else {
+            setFrozenLiveItem(null);
+          }
+          // Split Screen sync
+          if (data.showSplitScreen !== undefined) setShowSplitScreen(data.showSplitScreen);
+          if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
+          if (data.splitRightSlide !== undefined) setSplitRightSlide(data.splitRightSlide);
+          if (data.splitRatio !== undefined) setSplitRatio(data.splitRatio);
+          if (data.splitFontScale !== undefined) setSplitFontScale(data.splitFontScale);
+
+          // Karaoke Sync
+          if (data.isKaraokeActive !== undefined) setIsKaraokeActive(data.isKaraokeActive);
+          if (data.karaokeIndex !== undefined) setKaraokeIndex(data.karaokeIndex);
+        }
+      };
+
+      // Request initial state from any open main window
+      syncChannel.current.postMessage({ type: 'REQUEST_STATE' });
+
+      return () => {
+        window.removeEventListener('message', handleMessage);
+        window.removeEventListener('keydown', handleProjectorKeys);
+        syncChannel.current?.close();
+      };
+    } else {
+      // If we are the main window, respond to state requests and video events
+      syncChannel.current.onmessage = (event: MessageEvent) => {
+        const { type } = event.data;
+        if (type === 'REQUEST_STATE') {
+          sendSyncState();
+        } else if (type === 'VIDEO_ENDED') {
+          navigateLiveNext();
+        }
+      };
+    }
+
+    return () => {
+      syncChannel.current?.close();
+    };
+  }, [navigateLiveNext, sendSyncState]);
 
   if (!isAuthenticated && !isProjectorMode) {
     return (
@@ -2151,6 +2182,7 @@ const App: React.FC = () => {
                 blackout={isPreviewHidden && liveItemId === activeItem?.id}
                 autoPlay={false}
                 mute={true}
+                onVideoEnd={handleVideoEnd}
               />
             )}
 
@@ -2172,6 +2204,7 @@ const App: React.FC = () => {
                     blackout={isPreviewHidden}
                     autoPlay={false} // PIP is static to avoid sync annoyance
                     mute={true}      // PIP is silent
+                    onVideoEnd={handleVideoEnd}
                   />
                 </div>
               </div>

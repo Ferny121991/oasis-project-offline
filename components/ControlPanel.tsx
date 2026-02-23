@@ -247,6 +247,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   // No local state for karaoke needed, use prop
   const [newThemeName, setNewThemeName] = useState('');
+  const [addYouTubeToCurrent, setAddYouTubeToCurrent] = useState(false);
 
   // Use cloud themes if available, otherwise local
   const customThemes = propCustomThemes ?? localCustomThemes;
@@ -375,19 +376,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     if (inputType === 'youtube') {
       const videoId = inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1];
       if (videoId) {
-        onAddItem({
+        const newSlide: Slide = {
           id: Math.random().toString(36).substr(2, 9),
-          title: `YouTube: ${videoId}`,
-          type: 'custom',
-          slides: [{
+          type: 'youtube',
+          content: inputText,
+          videoId: videoId,
+          label: 'YOUTUBE'
+        };
+
+        if (addYouTubeToCurrent && hasActiveItem) {
+          onAddSlide(newSlide);
+        } else {
+          onAddItem({
             id: Math.random().toString(36).substr(2, 9),
-            type: 'youtube',
-            content: inputText,
-            videoId: videoId,
-            label: 'YOUTUBE'
-          }],
-          theme: currentTheme
-        });
+            title: `YouTube: ${videoId}`,
+            type: 'custom',
+            slides: [newSlide],
+            theme: currentTheme
+          });
+        }
         setInputText('');
       } else {
         alert("Por favor pega un link de YouTube válido.");
@@ -610,6 +617,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     {!inputText && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none group-hover:opacity-0 transition-opacity">
                       <p className="text-gray-400 text-xs italic">Escribe arriba para navegar...</p>
                     </div>}
+                  </div>
+                  <div className="flex items-center gap-3 mb-2 p-3 bg-gray-800/50 rounded-xl border border-gray-700/50">
+                    <button
+                      onClick={() => setAddYouTubeToCurrent(!addYouTubeToCurrent)}
+                      className={`flex items-center gap-2 p-2 rounded-lg transition-all ${addYouTubeToCurrent ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+                    >
+                      <Layers size={14} />
+                      <span className="text-[10px] font-bold uppercase">{addYouTubeToCurrent ? 'Unir con actual (Slider)' : 'Crear nuevo item'}</span>
+                    </button>
+                    <p className="text-[9px] text-gray-500 italic flex-1">
+                      {addYouTubeToCurrent ? 'El video se agregará como una diapositiva al elemento seleccionado.' : 'Se creará un nuevo elemento en la lista para este video.'}
+                    </p>
                   </div>
                   <p className="text-[9px] text-gray-500 mb-2 italic">Tip: Pega el link directo o escribe palabras clave para buscar.</p>
                 </div>
