@@ -205,6 +205,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [loading, setLoading] = useState(false);
   const [inputText, setInputText] = useState('');
   const [inputType, setInputType] = useState<'youtube' | 'scripture' | 'manual'>('youtube');
+  const [youtubeInsertMode, setYoutubeInsertMode] = useState<'together' | 'separate'>('together');
   const [bibleVersion, setBibleVersion] = useState('Reina Valera 1960');
   const [density, setDensity] = useState<DensityMode>('classic');
   const [songResults, setSongResults] = useState<SongSearchResult[]>([]);
@@ -369,28 +370,64 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   // No secondary preview effect for audio, it stays in the list.
 
+  const extractYouTubeVideoIds = (text: string): string[] => {
+    const regex = /(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/shorts\/|\/live\/|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/g;
+    const ids: string[] = [];
+    const seen = new Set<string>();
+
+    for (const match of text.matchAll(regex)) {
+      const id = match[1];
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
+    }
+
+    return ids;
+  };
+
   const handleSearch = async () => {
     if (!inputText.trim()) return;
     if (inputType === 'youtube') {
-      const videoId = inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1];
-      if (videoId) {
+      const videoIds = extractYouTubeVideoIds(inputText);
+      if (videoIds.length === 0) {
+        alert("Por favor pega uno o varios links de YouTube válidos.");
+        return;
+      }
+
+      if (youtubeInsertMode === 'separate') {
+        videoIds.forEach((videoId) => {
+          onAddItem({
+            id: Math.random().toString(36).substr(2, 9),
+            title: `YouTube: ${videoId}`,
+            type: 'custom',
+            slides: [{
+              id: Math.random().toString(36).substr(2, 9),
+              type: 'youtube',
+              content: `https://youtu.be/${videoId}`,
+              videoId,
+              label: 'YOUTUBE'
+            }],
+            theme: currentTheme
+          });
+        });
+      } else {
         onAddItem({
           id: Math.random().toString(36).substr(2, 9),
-          title: `YouTube: ${videoId}`,
+          title: videoIds.length > 1 ? `YouTube Mix (${videoIds.length})` : `YouTube: ${videoIds[0]}`,
           type: 'custom',
-          slides: [{
+          slides: videoIds.map((videoId, index) => ({
             id: Math.random().toString(36).substr(2, 9),
-            type: 'youtube',
-            content: inputText,
-            videoId: videoId,
-            label: 'YOUTUBE'
-          }],
+            type: 'youtube' as const,
+            content: `https://youtu.be/${videoId}`,
+            videoId,
+            label: videoIds.length > 1 ? `YOUTUBE ${index + 1}` : 'YOUTUBE'
+          })),
           theme: currentTheme
         });
-        setInputText('');
-      } else {
-        alert("Por favor pega un link de YouTube válido.");
       }
+
+      setInputText('');
       return;
     }
     setLoading(true);
@@ -658,7 +695,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       <p className="text-gray-400 text-xs italic">Escribe arriba para navegar...</p>
                     </div>}
                   </div>
-                  <p className="text-[9px] text-gray-500 mb-2 italic">Tip: Pega el link directo o escribe palabras clave para buscar.</p>
+                  <p className="text-[9px] text-gray-500 mb-2 italic">Tip: Pega uno o varios links (separados por espacios o saltos de línea) o escribe palabras clave para buscar.</p>
+                  <div className="rounded-lg border border-gray-700/50 bg-gray-950/40 p-2">
+                    <div className="text-[9px] text-gray-400 uppercase tracking-wider mb-2 font-bold">Modo de inserción</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setYoutubeInsertMode('together')}
+                        className={`px-2 py-1.5 rounded text-[9px] font-bold uppercase transition-colors ${youtubeInsertMode === 'together' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+                      >
+                        Juntos (slider)
+                      </button>
+                      <button
+                        onClick={() => setYoutubeInsertMode('separate')}
+                        className={`px-2 py-1.5 rounded text-[9px] font-bold uppercase transition-colors ${youtubeInsertMode === 'separate' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+                      >
+                        Separados
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

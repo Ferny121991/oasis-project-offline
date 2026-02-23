@@ -1579,6 +1579,18 @@ const App: React.FC = () => {
     }
   }, [liveItemId, liveSlideIndex, activeItemId]);
 
+  const handleLiveYoutubeEnd = useCallback(() => {
+    if (!liveItem) return;
+    const currentLiveSlide = liveItem.slides[liveSlideIndex];
+    if (!currentLiveSlide || currentLiveSlide.type !== 'youtube') return;
+    if (liveSlideIndex >= liveItem.slides.length - 1) return;
+
+    const nextIndex = liveSlideIndex + 1;
+    setLiveSlideIndex(nextIndex);
+    if (activeItemId === liveItem.id) {
+      setActiveSlideIndex(nextIndex);
+    }
+  }, [liveItem, liveSlideIndex, activeItemId]);
 
 
   // Keyboard Shortcuts
@@ -1707,6 +1719,7 @@ const App: React.FC = () => {
               hideText={isTextHidden}
               isLogoMode={isLogoActive}
               blackout={isPreviewHidden}
+              onYoutubeEnd={handleLiveYoutubeEnd}
             />
           )}
         </div>

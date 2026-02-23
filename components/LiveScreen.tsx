@@ -16,6 +16,7 @@ interface LiveScreenProps {
   mute?: boolean;     // New prop
   karaokeActive?: boolean;
   karaokeIndex?: number;
+  onYoutubeEnd?: () => void;
 }
 
 const LiveScreen: React.FC<LiveScreenProps> = ({
@@ -30,7 +31,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   autoPlay = true,  // Default to true for backward compatibility
   mute = false,      // Default to false
   karaokeActive = false,
-  karaokeIndex = -1
+  karaokeIndex = -1,
+  onYoutubeEnd
 }) => {
   const [showTools, setShowTools] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,6 +90,27 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
     if (nextIndex < 0) nextIndex = 0;
     onUpdateTheme({ ...theme, fontSize: sizes[nextIndex] });
   };
+
+
+  useEffect(() => {
+    const handleYouTubeMessage = (event: MessageEvent) => {
+      if (!onYoutubeEnd || slide?.type !== 'youtube') return;
+      if (typeof event.data !== 'string') return;
+      if (!event.origin.includes('youtube.com') && !event.origin.includes('youtube-nocookie.com')) return;
+
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.event === 'onStateChange' && payload.info === 0) {
+          onYoutubeEnd();
+        }
+      } catch {
+        // Ignore non-JSON postMessage payloads.
+      }
+    };
+
+    window.addEventListener('message', handleYouTubeMessage);
+    return () => window.removeEventListener('message', handleYouTubeMessage);
+  }, [onYoutubeEnd, slide?.type, slide?.id]);
 
   const textShadowStyle = theme.shadow ? `${theme.shadowOffsetX}px ${theme.shadowOffsetY}px ${theme.shadowBlur}px ${theme.shadowColor}` : 'none';
   const textStrokeStyle = theme.textStrokeWidth > 0 ? `${theme.textStrokeWidth}px ${theme.textStrokeColor}` : 'none';
@@ -169,7 +192,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                     <div className="w-[90%] h-[92%] flex items-center justify-center bg-black rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 relative z-10 transition-all duration-500">
                       <iframe
                         className="w-full h-full"
-                        src={`https://www.youtube-nocookie.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&origin=${window.location.protocol}//${window.location.host}&rel=0`}
+                        src={`https://www.youtube-nocookie.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&origin=${window.location.protocol}//${window.location.host}&rel=0&playerapiid=${slide.id}`}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
                       ></iframe>
