@@ -523,22 +523,32 @@ const App: React.FC = () => {
     };
   }, [session, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, stopLive, isAudioPlaying]);
 
-  // Broadcast live state to mobile devices
+  // Broadcast live state (debounced)
+  const lastStateStr = useRef<string>('');
   useEffect(() => {
     if (!session?.user || isProjectorMode) return;
 
-    const broadcastState = async () => {
+    const stateToBroadcast = {
+      liveItemId,
+      liveSlideIndex,
+      activeItemId,
+      activeSlideIndex,
+      isPreviewHidden,
+      isTextHidden,
+      isLogoActive,
+      showSplitScreen,
+      isKaraokeActive,
+      karaokeIndex,
+      backgroundAudioTitle: backgroundAudioItem?.title,
+      isAudioPlaying: isAudioPlaying
+    };
+
+    const currentStateStr = JSON.stringify(stateToBroadcast);
+    if (currentStateStr === lastStateStr.current) return;
+
+    const timer = setTimeout(async () => {
       await realtimeSyncService.updateState(session.user.id, {
-        liveItemId,
-        liveSlideIndex,
-        activeItemId,
-        activeSlideIndex,
-        isPreviewHidden,
-        isTextHidden,
-        isLogoActive,
-        showSplitScreen,
-        isKaraokeActive,
-        karaokeIndex,
+        ...stateToBroadcast,
         playlist: playlist.map(p => ({ id: p.id, title: p.title, type: p.type })),
         activeItemSlides: activeItem?.slides.map(s => ({
           id: s.id,
@@ -548,13 +558,10 @@ const App: React.FC = () => {
         })),
         projects: projects.map(p => ({ id: p.id, name: p.name })),
         currentProjectName: projects.find(p => p.id === currentProjectId)?.name,
-        backgroundAudioTitle: backgroundAudioItem?.title,
-        isAudioPlaying: isAudioPlaying
       });
-    };
+      lastStateStr.current = currentStateStr;
+    }, 800);
 
-    // Debounce broadcasts
-    const timer = setTimeout(broadcastState, 300);
     return () => clearTimeout(timer);
   }, [session, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, playlist, activeItem, projects, currentProjectId, backgroundAudioItem, isAudioPlaying]);
 
@@ -727,17 +734,30 @@ const App: React.FC = () => {
     }
   }, [playlist, customThemes]);
 
-  // Persistence Effect: Cloud SYNC (Debounced)
+  // Persistence Effect: Cloud SYNC (Debounced with Deep Comparison)
+  const lastCloudPlaylist = useRef<string>('');
+  const lastCloudProjects = useRef<string>('');
+  const lastCloudThemes = useRef<string>('');
+
   useEffect(() => {
-    // Only sync if logged in, data loaded, and not currently loading cloud data
     if (!session?.user || !dataLoaded.current || isCloudLoading.current) return;
+
+    // Skip if nothing changed according to string comparison
+    const currentPlaylistStr = JSON.stringify(playlist);
+    const currentThemesStr = JSON.stringify(customThemes);
+    const currentProjectsStr = JSON.stringify(projects);
+
+    if (currentPlaylistStr === lastCloudPlaylist.current &&
+      currentThemesStr === lastCloudThemes.current &&
+      currentProjectsStr === lastCloudProjects.current) {
+      return;
+    }
 
     const timer = setTimeout(async () => {
       setIsSyncing(true);
       try {
         let finalProjects = projects;
 
-        // If we have an active project, ensure the project list reflects the current state of that project
         if (currentProjectId) {
           finalProjects = projects.map(p =>
             p.id === currentProjectId
@@ -750,25 +770,28 @@ const App: React.FC = () => {
           .from('user_settings')
           .upsert({
             id: session.user.id,
-            playlist: playlist, // Current active playlist
+            playlist: playlist,
             custom_themes: customThemes,
-            projects: finalProjects, // Synced projects list
+            projects: finalProjects,
             current_project_id: currentProjectId,
             updated_at: new Date().toISOString()
           });
 
-        if (error) {
-          console.error("Cloud sync error:", error);
-          setSyncError("Error al sincronizar con la nube");
-        } else {
+        if (!error) {
+          lastCloudPlaylist.current = currentPlaylistStr;
+          lastCloudThemes.current = currentThemesStr;
+          lastCloudProjects.current = currentProjectsStr;
           setSyncError(null);
+        } else {
+          console.error("Cloud sync error:", error);
+          setSyncError("Error al sincronizar");
         }
       } catch (e) {
         console.error("Critical sync error", e);
       } finally {
         setIsSyncing(false);
       }
-    }, 2000); // 2 second debounce
+    }, 5000); // 5 second debounce for stability
 
     return () => clearTimeout(timer);
   }, [playlist, customThemes, projects, currentProjectId, session]);
