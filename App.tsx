@@ -647,13 +647,13 @@ const App: React.FC = () => {
         isSwitchingProject.current = false;
       }, 1000);
     }
-  }, [session, handleSelectProject]);
+  }, [session]);
 
 
   useEffect(() => {
-    if (session?.user) {
+    if (session?.user && !dataLoaded.current) {
       fetchUserData();
-    } else {
+    } else if (!session?.user) {
       dataLoaded.current = false;
     }
   }, [session, fetchUserData]);
@@ -742,10 +742,15 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!session?.user || !dataLoaded.current || isCloudLoading.current) return;
 
-    // Skip if nothing changed according to string comparison
+    // Skip if nothing changed according to string comparison (IGNORING volatile updatedAt field)
+    const stripVolatile = (projs: any[]) => projs.map(p => {
+      const { updatedAt, ...rest } = p;
+      return rest;
+    });
+
     const currentPlaylistStr = JSON.stringify(playlist);
     const currentThemesStr = JSON.stringify(customThemes);
-    const currentProjectsStr = JSON.stringify(projects);
+    const currentProjectsStr = JSON.stringify(stripVolatile(projects));
 
     if (currentPlaylistStr === lastCloudPlaylist.current &&
       currentThemesStr === lastCloudThemes.current &&
@@ -819,10 +824,9 @@ const App: React.FC = () => {
       // Skip if project doesn't exist (edge case during deletion)
       if (!target) return prev;
 
-      // DEEP COMPARISON CHEAP TRICK: Compare JSON strings to avoid referenced object equality issues
-      // or simply rely on strict equality if immutable updates are guaranteed.
-      // For now, strict equality is safer than deep compare for performance, but we must ensure we don't spam.
-      if (target.playlist !== playlist || target.customThemes !== customThemes) {
+      // Use deep comparison to avoid spamming updates and triggering sync loops
+      if (JSON.stringify(target.playlist) !== JSON.stringify(playlist) ||
+        JSON.stringify(target.customThemes) !== JSON.stringify(customThemes)) {
         return prev.map(p =>
           p.id === currentProjectId
             ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
