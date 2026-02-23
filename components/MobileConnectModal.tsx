@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import { Smartphone, X, Wifi, Copy, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Eraser, Image, Monitor } from 'lucide-react';
+import { Smartphone, X, Wifi, Copy, Check, ChevronLeft, Monitor } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { realtimeSyncService, LiveState } from '../services/realtimeService';
+import RemoteControlPanel from './RemoteControlPanel';
 
 interface MobileConnectModalProps {
     isOpen: boolean;
@@ -68,11 +69,6 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
         navigator.clipboard.writeText(getConnectUrl());
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-    };
-
-    const sendCommand = async (command: LiveState['command']) => {
-        if (!userId) return;
-        await realtimeSyncService.sendCommand(userId, command);
     };
 
     if (!isOpen) return null;
@@ -153,7 +149,6 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
                                 </button>
                             </div>
 
-                            {/* Test Mobile Control Button - Always show */}
                             <button
                                 onClick={() => setShowMobileControl(true)}
                                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors"
@@ -167,95 +162,29 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
                                     <Wifi size={10} /> Asegúrate que ambos dispositivos estén en la misma red WiFi
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 ) : (
-                    /* Mobile Control Panel */
-                    <div className="p-6">
-                        <div className="flex items-center justify-between mb-6 border-b border-gray-800 pb-4">
+                    <div className="p-4 h-[80vh] flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
                             <button
                                 onClick={() => setShowMobileControl(false)}
                                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
                             >
-                                <ChevronLeft size={20} />
-                                <span className="text-sm">Volver</span>
+                                <ChevronLeft size={18} />
+                                <span className="text-xs">Cerrar Control</span>
                             </button>
-                            <h2 className="text-lg font-bold text-white">Control Remoto</h2>
+                            <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest italic">Helix Remote</h2>
                             <div className="w-8"></div>
                         </div>
 
-                        {/* Live Status */}
-                        <div className="bg-gray-800/50 rounded-xl p-4 mb-6 border border-gray-700">
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs text-gray-500 uppercase font-bold">Estado</span>
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${liveState?.liveItemId ? 'bg-red-500 animate-pulse' : 'bg-gray-600'}`}></div>
-                                    <span className={`text-xs font-bold ${liveState?.liveItemId ? 'text-red-400' : 'text-gray-500'}`}>
-                                        {liveState?.liveItemId ? 'EN VIVO' : 'SIN ACTIVIDAD'}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="text-center py-2">
-                                <span className="text-3xl font-black text-white">
-                                    {liveState?.liveSlideIndex !== undefined && liveState.liveSlideIndex >= 0
-                                        ? `Slide ${liveState.liveSlideIndex + 1}`
-                                        : '-'}
-                                </span>
-                            </div>
+                        <div className="flex-1 overflow-hidden">
+                            <RemoteControlPanel
+                                liveState={liveState}
+                                isConnected={realtimeSyncService.isConnected()}
+                                sendCommand={(cmd, data) => realtimeSyncService.sendCommand(userId || '', cmd, data)}
+                            />
                         </div>
-
-                        {/* Navigation Controls */}
-                        <div className="grid grid-cols-2 gap-3 mb-6">
-                            <button
-                                onClick={() => sendCommand('prev')}
-                                className="bg-gray-800 hover:bg-gray-700 active:bg-indigo-600 text-white py-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
-                            >
-                                <ChevronLeft size={32} />
-                                <span>Anterior</span>
-                            </button>
-                            <button
-                                onClick={() => sendCommand('next')}
-                                className="bg-gray-800 hover:bg-gray-700 active:bg-indigo-600 text-white py-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
-                            >
-                                <span>Siguiente</span>
-                                <ChevronRight size={32} />
-                            </button>
-                        </div>
-
-                        {/* Quick Actions */}
-                        <div className="grid grid-cols-3 gap-2">
-                            <button
-                                onClick={() => sendCommand('blackout')}
-                                className={`flex flex-col items-center justify-center p-4 rounded-xl transition-colors ${liveState?.isPreviewHidden ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}
-                            >
-                                {liveState?.isPreviewHidden ? <EyeOff size={24} /> : <Eye size={24} />}
-                                <span className="text-[10px] font-bold mt-1">BLACK</span>
-                            </button>
-                            <button
-                                onClick={() => sendCommand('clear')}
-                                className={`flex flex-col items-center justify-center p-4 rounded-xl transition-colors ${liveState?.isTextHidden ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}
-                            >
-                                <Eraser size={24} />
-                                <span className="text-[10px] font-bold mt-1">CLEAR</span>
-                            </button>
-                            <button
-                                onClick={() => sendCommand('logo')}
-                                className={`flex flex-col items-center justify-center p-4 rounded-xl transition-colors ${liveState?.isLogoActive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}
-                            >
-                                <Image size={24} />
-                                <span className="text-[10px] font-bold mt-1">LOGO</span>
-                            </button>
-                        </div>
-
-                        {realtimeSyncService.isConnected() && (
-                            <div className="mt-4 text-center">
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-[10px] font-bold border border-green-500/20">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                    Conectado en Tiempo Real
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
             </div>

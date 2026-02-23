@@ -5,23 +5,32 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 export interface LiveState {
     liveItemId: string | null;
     liveSlideIndex: number;
-    activeItemId: string | null;
-    activeSlideIndex: number;
-    isPreviewHidden: boolean;
-    isTextHidden: boolean;
-    isLogoActive: boolean;
-    showSplitScreen: boolean;
-    isKaraokeActive: boolean;
-    karaokeIndex: number;
+    activeItemId?: string | null;
+    activeSlideIndex?: number;
+    isPreviewHidden?: boolean;
+    isTextHidden?: boolean;
+    isLogoActive?: boolean;
+    showSplitScreen?: boolean;
+    isKaraokeActive?: boolean;
+    karaokeIndex?: number;
+    playlist?: { id: string, title: string, type: string }[];
+    activeItemSlides?: { id: string, label?: string, content: string, operatorNotes?: string }[];
+    backgroundAudioTitle?: string;
+    isAudioPlaying?: boolean;
+    videoProgress?: number;
+    videoDuration?: number;
+    projects?: { id: string, name: string }[];
+    currentProjectName?: string;
     lastUpdated: string;
     // Command from mobile to main
-    command?: 'next' | 'prev' | 'blackout' | 'clear' | 'logo' | 'go_live' | null;
+    command?: string | null;
+    commandData?: any;
 }
 
 export interface RealtimeSyncService {
     subscribe: (userId: string, onStateChange: (state: LiveState) => void) => void;
     updateState: (userId: string, state: Partial<LiveState>) => Promise<void>;
-    sendCommand: (userId: string, command: LiveState['command']) => Promise<void>;
+    sendCommand: (userId: string, command: string | null, data?: any) => Promise<void>;
     unsubscribe: () => void;
     isConnected: () => boolean;
 }
@@ -104,7 +113,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
             }
         },
 
-        sendCommand: async (userId: string, command: LiveState['command']) => {
+        sendCommand: async (userId: string, command: string | null, data?: any) => {
             try {
                 const { data: existing } = await supabase
                     .from('realtime_sync')
@@ -115,20 +124,13 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 const existingState = (existing?.live_state as LiveState) || {
                     liveItemId: null,
                     liveSlideIndex: -1,
-                    activeItemId: null,
-                    activeSlideIndex: -1,
-                    isPreviewHidden: false,
-                    isTextHidden: false,
-                    isLogoActive: false,
-                    showSplitScreen: false,
-                    isKaraokeActive: false,
-                    karaokeIndex: -1,
                     lastUpdated: new Date().toISOString()
                 };
 
                 const newState: LiveState = {
                     ...existingState,
                     command,
+                    commandData: data || null,
                     lastUpdated: new Date().toISOString()
                 };
 

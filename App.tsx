@@ -114,6 +114,19 @@ const App: React.FC = () => {
   const [splitRatio, setSplitRatio] = useState(50);
   const [splitFontScale, setSplitFontScale] = useState(0.5);
 
+  // Mobile & Sync State
+  const [mobileTab, setMobileTab] = useState<MobileTab>('playlist');
+  const [session, setSession] = useState<Session | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const dataLoaded = useRef(false);
+  const isSwitchingProject = useRef(false);
+
+  // --- Derived State ---
+  const activeItem = playlist.find(i => i.id === activeItemId);
+  // Priority for live item: 1. Find in current playlist, 2. Fallback to frozenLiveItem
+  const liveItem = (liveItemId ? playlist.find(i => i.id === liveItemId) : null) || frozenLiveItem;
+
   // Sync Channel for Multi-window Projector
   const syncChannel = useRef<BroadcastChannel | null>(null);
 
@@ -145,6 +158,99 @@ const App: React.FC = () => {
       }
     }
   }, [liveItemId, liveSlideIndex, activeItemId, playlist]);
+
+  const stopLive = useCallback(() => {
+    setLiveItemId(null);
+    setLiveSlideIndex(-1);
+    setFrozenLiveItem(null);
+
+    // Log to action history
+    actionHistoryService.log(
+      session?.user?.id,
+      'live_stopped',
+      'Se detuvo la transmisión en vivo',
+      {}
+    );
+  }, [session?.user?.id]);
+
+  const makeLive = useCallback((itemId?: string, slideIndex?: number) => {
+    const targetItemId = itemId !== undefined ? itemId : activeItemId;
+
+    // If we're making a DIFFERENT item live, start at the first slide (0) 
+    // unless a specific slide index was provided (via double click).
+    let targetSlideIndex = slideIndex;
+    if (targetSlideIndex === undefined) {
+      targetSlideIndex = (targetItemId !== liveItemId) ? 0 : activeSlideIndex;
+    }
+
+    if (targetItemId) {
+      const item = playlist.find(i => i.id === targetItemId);
+      if (item && item.type === 'divider') return; // Cannot make a divider live
+
+      if (item) setFrozenLiveItem(item);
+      setLiveItemId(targetItemId);
+      // Also make it active so the user can edit it immediately
+      setActiveItemId(targetItemId);
+      setLiveSlideIndex(targetSlideIndex);
+      if (slideIndex !== undefined) setActiveSlideIndex(targetSlideIndex);
+      setIsPreviewHidden(false);
+
+      // Log to action history
+      if (item) {
+        actionHistoryService.log(
+          session?.user?.id,
+          'live_started',
+          `Transmitiendo: ${item.title}`,
+          { itemId: targetItemId, slideIndex: targetSlideIndex }
+        );
+      }
+    }
+  }, [activeItemId, activeSlideIndex, liveItemId, session?.user?.id, playlist]);
+
+  const handleSelectProject = useCallback((projectId: string) => {
+    // 1. BLOCK auto-saves
+    isSwitchingProject.current = true;
+
+    // 2. SNAPSHOT BACKUP: Save current project state for failsafe
+    if (currentProjectId) {
+      try {
+        const snapshot = { playlist, customThemes, timestamp: Date.now() };
+        localStorage.setItem(`project_snapshot_${currentProjectId}`, JSON.stringify(snapshot));
+      } catch (e) { }
+    }
+
+    // 3. FORCE SAVE current project state synchronously
+    if (currentProjectId) {
+      setProjects(prev => prev.map(p =>
+        p.id === currentProjectId ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() } : p
+      ));
+    }
+
+    // 4. LOAD new project data
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setCurrentProjectId(projectId);
+      setPlaylist(project.playlist || []);
+      setCustomThemes(project.customThemes || []);
+      setActiveSlideIndex(-1);
+    }
+
+    // 5. UNBLOCK auto-saves after delay
+    setTimeout(() => { isSwitchingProject.current = false; }, 500);
+  }, [currentProjectId, projects, playlist, customThemes]);
+
+  const toggleAudioPlayback = useCallback(() => {
+    if (!audioIframeRef.current) return;
+    const msg = isAudioPlaying ? '{"event":"command","func":"pauseVideo","args":""}' : '{"event":"command","func":"playVideo","args":""}';
+    audioIframeRef.current.contentWindow?.postMessage(msg, '*');
+
+    if (isAudioPlaying) {
+      setAudioElapsedOffset(prev => prev + (Date.now() - audioStartTime));
+    } else {
+      setAudioStartTime(Date.now());
+    }
+    setIsAudioPlaying(!isAudioPlaying);
+  }, [isAudioPlaying, audioStartTime]);
 
   const navigateLivePrev = useCallback(() => {
     if (!liveItemId) return;
@@ -289,7 +395,7 @@ const App: React.FC = () => {
     if (!isProjectorMode) {
       sendSyncState();
     }
-  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, isProjectorMode, sendSyncState, frozenLiveItem]);
+  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitFontScale, isProjectorMode, sendSyncState, frozenLiveItem]);
 
   // Ensure sync when window focus changes (user comes back to tab)
   useEffect(() => {
@@ -298,16 +404,8 @@ const App: React.FC = () => {
     return () => window.removeEventListener('focus', handleFocus);
   }, [sendSyncState]);
 
-  // Mobile State
-  const [mobileTab, setMobileTab] = useState<MobileTab>('playlist');
-
-  const [session, setSession] = useState<Session | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
-
   const liveViewRef = useRef<HTMLDivElement>(null);
   const miniGridRef = useRef<HTMLDivElement>(null);
-  const dataLoaded = useRef(false);
 
   // Auth Effect
   useEffect(() => {
@@ -331,42 +429,70 @@ const App: React.FC = () => {
     // Subscribe to realtime changes
     realtimeSyncService.subscribe(session.user.id, (state: LiveState) => {
       // Process commands from mobile
-      if (state.command) {
-        switch (state.command) {
-          case 'next':
-            if (liveItemId) {
-              const item = playlist.find(i => i.id === liveItemId);
-              if (item && liveSlideIndex < item.slides.length - 1) {
-                setLiveSlideIndex(prev => prev + 1);
-                setActiveSlideIndex(liveSlideIndex + 1);
+      const { command, commandData } = state;
+      if (!command) return;
+
+      switch (command) {
+        case 'next':
+          if (isKaraokeActive && liveItemId) {
+            const item = playlist.find(p => p.id === liveItemId);
+            if (item) {
+              const slide = item.slides[liveSlideIndex];
+              const wordCount = slide.content.split(/\s+/).length;
+              if (karaokeIndex < wordCount - 1) {
+                setKaraokeIndex(prev => prev + 1);
+              } else {
+                navigateLiveNext();
+                setKaraokeIndex(-1);
               }
+            } else {
+              navigateLiveNext();
             }
-            break;
-          case 'prev':
-            if (liveItemId && liveSlideIndex > 0) {
-              setLiveSlideIndex(prev => prev - 1);
-              setActiveSlideIndex(liveSlideIndex - 1);
+          } else {
+            navigateLiveNext();
+          }
+          break;
+        case 'prev':
+          if (isKaraokeActive && karaokeIndex > -1) {
+            setKaraokeIndex(prev => prev - 1);
+          } else {
+            navigateLivePrev();
+            setKaraokeIndex(-1);
+          }
+          break;
+        case 'blackout': setIsPreviewHidden(prev => !prev); break;
+        case 'clear': setIsTextHidden(prev => !prev); break;
+        case 'logo': setIsLogoActive(prev => !prev); break;
+        case 'jump_to_item':
+          if (commandData?.itemId) {
+            const item = playlist.find(p => p.id === commandData.itemId);
+            if (item) {
+              setActiveItemId(item.id);
+              setActiveSlideIndex(0);
+              if (commandData.makeLive) makeLive(item.id, 0);
             }
-            break;
-          case 'blackout':
-            setIsPreviewHidden(prev => !prev);
-            break;
-          case 'clear':
-            setIsTextHidden(prev => !prev);
-            break;
-          case 'logo':
-            setIsLogoActive(prev => !prev);
-            break;
-        }
-        // Clear the command after processing
-        realtimeSyncService.updateState(session.user.id, { command: null });
+          }
+          break;
+        case 'jump_to_slide':
+          if (commandData?.index !== undefined) {
+            setLiveSlideIndex(commandData.index);
+            setActiveSlideIndex(commandData.index);
+          }
+          break;
+        case 'change_project':
+          if (commandData?.projectId) handleSelectProject(commandData.projectId);
+          break;
+        case 'toggle_audio': toggleAudioPlayback(); break;
+        case 'stop_live': stopLive(); break;
       }
+      // Clear the command after processing
+      realtimeSyncService.updateState(session.user.id, { command: null, commandData: null });
     });
 
     return () => {
       realtimeSyncService.unsubscribe();
     };
-  }, [session, liveItemId, liveSlideIndex, playlist]);
+  }, [session, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, stopLive, isAudioPlaying]);
 
   // Broadcast live state to mobile devices
   useEffect(() => {
@@ -383,14 +509,25 @@ const App: React.FC = () => {
         isLogoActive,
         showSplitScreen,
         isKaraokeActive,
-        karaokeIndex
+        karaokeIndex,
+        playlist: playlist.map(p => ({ id: p.id, title: p.title, type: p.type })),
+        activeItemSlides: activeItem?.slides.map(s => ({
+          id: s.id,
+          label: s.label,
+          content: s.content,
+          operatorNotes: s.operatorNotes
+        })),
+        projects: projects.map(p => ({ id: p.id, name: p.name })),
+        currentProjectName: projects.find(p => p.id === currentProjectId)?.name,
+        backgroundAudioTitle: backgroundAudioItem?.title,
+        isAudioPlaying: isAudioPlaying
       });
     };
 
     // Debounce broadcasts
     const timer = setTimeout(broadcastState, 300);
     return () => clearTimeout(timer);
-  }, [session, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode]);
+  }, [session, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, playlist, activeItem, projects, currentProjectId, backgroundAudioItem, isAudioPlaying]);
 
   // Sync from Supabase on Login
   const isCloudLoading = useRef(false);
@@ -474,7 +611,7 @@ const App: React.FC = () => {
         isSwitchingProject.current = false;
       }, 1000);
     }
-  }, [session]);
+  }, [session, handleSelectProject]);
 
 
   useEffect(() => {
@@ -612,7 +749,6 @@ const App: React.FC = () => {
   // Auto-save current project's playlist (with guard to prevent infinite loop AND ensure data is loaded)
   const isUpdatingProjectRef = useRef(false);
   // Auto-save current project's playlist (with security check)
-  const isSwitchingProject = useRef(false);
   useEffect(() => {
     // GUARD: Do not auto-save if we are currently switching projects
     if (isSwitchingProject.current) return;
@@ -692,72 +828,6 @@ const App: React.FC = () => {
   }, [session?.user?.id]);
 
 
-  const handleSelectProject = useCallback((projectId: string) => {
-    // 1. BLOCK auto-saves
-    isSwitchingProject.current = true;
-
-    // 2. SNAPSHOT BACKUP: Save current project state to localStorage as a failsafe
-    if (currentProjectId) {
-      try {
-        const snapshot = {
-          playlist,
-          customThemes,
-          timestamp: Date.now(),
-          version: Date.now() // Simple version tracking
-        };
-        localStorage.setItem(`project_snapshot_${currentProjectId}`, JSON.stringify(snapshot));
-
-        // Clean up old snapshots (keep only last 7 days)
-        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('project_snapshot_')) {
-            try {
-              const snap = JSON.parse(localStorage.getItem(key) || '{}');
-              if (snap.timestamp && snap.timestamp < sevenDaysAgo) {
-                localStorage.removeItem(key);
-              }
-            } catch { }
-          }
-        });
-      } catch (e) {
-        console.warn('Failed to save project snapshot:', e);
-      }
-    }
-
-    // 3. FORCE SAVE current project state synchronously to the projects array before switching
-    if (currentProjectId) {
-      setProjects(prev => prev.map(p =>
-        p.id === currentProjectId
-          ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
-          : p
-      ));
-    }
-
-    // 4. LOAD new project data
-    const project = projects.find(p => p.id === projectId);
-    const userId = session?.user?.id;
-
-    if (project) {
-      setCurrentProjectId(projectId);
-      setPlaylist(project.playlist || []);
-      setCustomThemes(project.customThemes || []);
-      setActiveSlideIndex(-1);
-
-      // Log to action history
-      actionHistoryService.log(
-        session?.user?.id,
-        'project_opened',
-        `Proyecto abierto: ${project.name}`,
-        { projectId, name: project.name }
-      );
-    }
-
-    // 5. UNBLOCK auto-saves after a longer delay (500ms instead of 200ms for safer sync)
-    setTimeout(() => {
-      isSwitchingProject.current = false;
-    }, 500);
-
-  }, [currentProjectId, projects, playlist, customThemes]);
 
   const handleDeleteProject = useCallback((projectId: string) => {
     const project = projects.find(p => p.id === projectId);
@@ -1016,21 +1086,6 @@ const App: React.FC = () => {
 
   const stopBackgroundAudio = useCallback(() => setBackgroundAudioItem(null), []);
 
-  const toggleAudioPlayback = useCallback(() => {
-    if (!audioIframeRef.current) return;
-    const msg = isAudioPlaying ? '{"event":"command","func":"pauseVideo","args":""}' : '{"event":"command","func":"playVideo","args":""}';
-    audioIframeRef.current.contentWindow?.postMessage(msg, '*');
-
-    if (isAudioPlaying) {
-      // If pausing, save how much time has passed
-      setAudioElapsedOffset(prev => prev + (Date.now() - audioStartTime));
-    } else {
-      // If resuming, reset the base start time to now
-      setAudioStartTime(Date.now());
-    }
-
-    setIsAudioPlaying(!isAudioPlaying);
-  }, [isAudioPlaying, audioStartTime]);
 
   const seekAudio = useCallback((seconds: number) => {
     if (!audioIframeRef.current) return;
@@ -1078,7 +1133,7 @@ const App: React.FC = () => {
   const lastActiveItemId = useRef<string | null>(null);
   useEffect(() => {
     if (activeItemId !== lastActiveItemId.current) {
-      const activeItem = playlist.find(i => i.id === activeItemId);
+      // Use top-level derived activeItem
       if (activeItem) {
         setStagedTheme(activeItem.theme);
       } else {
@@ -1100,7 +1155,7 @@ const App: React.FC = () => {
   const handleUpdateActiveItemTheme = (newTheme: Theme) => {
     if (!activeItemId) return;
 
-    const activeItem = playlist.find(i => i.id === activeItemId);
+    // Use top-level derived activeItem
     const userId = session?.user?.id;
 
     if (activeItem) {
@@ -1420,12 +1475,6 @@ const App: React.FC = () => {
 
   const [previewSlide, setPreviewSlide] = useState<Slide | null>(null);
 
-  // --- Derived State ---
-  const activeItem = playlist.find(i => i.id === activeItemId);
-  // Priority for live item: 
-  // 1. Find in current playlist (live updates)
-  // 2. Fallback to frozenLiveItem (persists across project switches)
-  const liveItem = (liveItemId ? playlist.find(i => i.id === liveItemId) : null) || frozenLiveItem;
 
   // 1. DASHBOARD VIEW (Private Staging)
   const currentSlide: Slide | null = activeItem && activeSlideIndex >= 0
@@ -1453,54 +1502,6 @@ const App: React.FC = () => {
   //    Priority: Blackout > Logo > Slide(with ClearText option)
   const projectorContent = isPreviewHidden || isLogoActive ? null : projectorSlide;
 
-  const makeLive = useCallback((itemId?: string, slideIndex?: number) => {
-    const targetItemId = itemId !== undefined ? itemId : activeItemId;
-
-    // If we're making a DIFFERENT item live, start at the first slide (0) 
-    // unless a specific slide index was provided (via double click).
-    let targetSlideIndex = slideIndex;
-    if (targetSlideIndex === undefined) {
-      targetSlideIndex = (targetItemId !== liveItemId) ? 0 : activeSlideIndex;
-    }
-
-    if (targetItemId) {
-      const item = playlist.find(i => i.id === targetItemId);
-      if (item && item.type === 'divider') return; // Cannot make a divider live
-
-      if (item) setFrozenLiveItem(item);
-      setLiveItemId(targetItemId);
-      // Also make it active so the user can edit it immediately
-      setActiveItemId(targetItemId);
-      setLiveSlideIndex(targetSlideIndex);
-      if (slideIndex !== undefined) setActiveSlideIndex(targetSlideIndex);
-      setIsPreviewHidden(false);
-
-      // Log to action history
-      if (item) {
-        actionHistoryService.log(
-          session?.user?.id,
-          'live_started',
-          `Transmitiendo: ${item.title}`,
-          { itemId: targetItemId, slideIndex: targetSlideIndex }
-        );
-      }
-    }
-
-  }, [activeItemId, activeSlideIndex, liveItemId, session?.user?.id, playlist]);
-
-  const stopLive = useCallback(() => {
-    setLiveItemId(null);
-    setLiveSlideIndex(-1);
-    setFrozenLiveItem(null);
-
-    // Log to action history
-    actionHistoryService.log(
-      session?.user?.id,
-      'live_stopped',
-      'Se detuvo la transmisión en vivo',
-      {}
-    );
-  }, [session?.user?.id]);
 
   useEffect(() => {
     (window as any).makeLive = makeLive;
