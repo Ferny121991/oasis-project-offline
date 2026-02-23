@@ -1208,15 +1208,54 @@ const App: React.FC = () => {
   const handleUploadImages = async (files: FileList | null, itemId?: string) => {
     if (!files || files.length === 0) return;
 
+    const compressImageToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error(`No se pudo leer la imagen: ${file.name}`));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error(`No se pudo procesar la imagen: ${file.name}`));
+        img.onload = () => {
+          const MAX_DIMENSION = 1920;
+          const QUALITY = 0.82;
+
+          const needsResize = img.width > MAX_DIMENSION || img.height > MAX_DIMENSION;
+          const scale = needsResize ? Math.min(MAX_DIMENSION / img.width, MAX_DIMENSION / img.height) : 1;
+          const targetWidth = Math.max(1, Math.round(img.width * scale));
+          const targetHeight = Math.max(1, Math.round(img.height * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('No se pudo inicializar el compresor de imágenes.'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+          // WebP reduces payload size significantly and avoids losing images during cloud sync.
+          const compressedDataUrl = canvas.toDataURL('image/webp', QUALITY);
+          resolve(compressedDataUrl);
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+
     const newSlides: Slide[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const reader = new FileReader();
-      const promise = new Promise<string>((resolve) => {
-        reader.onload = (e) => resolve(e.target?.result as string);
-      });
-      reader.readAsDataURL(file);
-      const dataUrl = await promise;
+
+      let dataUrl = '';
+      try {
+        dataUrl = await compressImageToDataUrl(file);
+      } catch (error) {
+        console.error('Error uploading image', error);
+        alert(`No se pudo cargar "${file.name}". Intenta con otra imagen.`);
+        continue;
+      }
 
       newSlides.push({
         id: Math.random().toString(36).substr(2, 9),
@@ -1226,6 +1265,8 @@ const App: React.FC = () => {
         label: file.name.split('.')[0].toUpperCase()
       });
     }
+
+    if (newSlides.length === 0) return;
 
     if (itemId) {
       setPlaylist(prev => prev.map(item =>
