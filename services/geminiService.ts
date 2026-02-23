@@ -800,3 +800,53 @@ export const processManualText = async (text: string, density: DensityMode = 'cl
     };
   }
 };
+export interface YouTubeSearchResult {
+  id: string;
+  title: string;
+  author: string;
+  thumbnail: string;
+  duration?: string;
+}
+
+export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
+  if (!apiKey) return [];
+  const model = ai.models;
+
+  const prompt = `
+    Actúa como un buscador de YouTube. El usuario busca: "${query}".
+    Devuelve los 6 resultados más relevantes de música cristiana (himnos, coros, adoración).
+    IMPORTANTE: Debes devolver los IDs de YouTube REALES si los conoces, o IDs probables basados en títulos comunes.
+    FORMATO JSON.
+  `;
+
+  try {
+    const response = await model.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              title: { type: Type.STRING },
+              author: { type: Type.STRING },
+              duration: { type: Type.STRING, nullable: true }
+            }
+          }
+        }
+      }
+    });
+
+    const data = JSON.parse(response.text || '[]');
+    return data.map((item: any) => ({
+      ...item,
+      thumbnail: `https://img.youtube.com/vi/${item.id}/mqdefault.jpg`
+    }));
+  } catch (error) {
+    console.error("Error in AI YouTube search:", error);
+    return [];
+  }
+};

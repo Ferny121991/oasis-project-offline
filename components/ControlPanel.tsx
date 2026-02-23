@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, DensityMode, SongSearchResult } from '../services/geminiService';
+import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, DensityMode, SongSearchResult, searchYouTube, YouTubeSearchResult } from '../services/geminiService';
 import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
@@ -29,10 +29,14 @@ interface ControlPanelProps {
   onDeselect?: () => void;
   // Audio Control Props
   isAudioPlaying?: boolean;
-  backgroundAudioItem?: { videoId: string; title: string } | null;
+  backgroundAudioItem?: { id?: string; videoId: string; title: string } | null;
+  bgAudioPlaylist?: { id: string; videoId: string; title: string }[];
   onToggleAudioPlayback?: () => void;
   onSeekAudio?: (seconds: number) => void;
-  bgAudioItem?: { videoId: string; title: string } | null;
+  onNextAudio?: () => void;
+  onPrevAudio?: () => void;
+  onRemoveAudio?: (id: string) => void;
+  onSelectAudio?: (index: number) => void;
   history: HistoryEntry[];
   onRestore: (entry: HistoryEntry) => void;
   isKaraokeActive?: boolean;
@@ -193,7 +197,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   backgroundAudioItem,
   onToggleAudioPlayback,
   onSeekAudio,
-  bgAudioItem,
+  onNextAudio,
+  onPrevAudio,
+  onRemoveAudio,
+  onSelectAudio,
+  bgAudioPlaylist = [],
   history,
   onRestore,
   isKaraokeActive = false,
@@ -209,7 +217,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [bibleVersion, setBibleVersion] = useState('Reina Valera 1960');
   const [density, setDensity] = useState<DensityMode>('classic');
   const [songResults, setSongResults] = useState<SongSearchResult[]>([]);
+  const [youtubeResults, setYoutubeResults] = useState<YouTubeSearchResult[]>([]);
   const [isSearchingSongs, setIsSearchingSongs] = useState(false);
+  const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text'));
 
   // Bible book autocomplete suggestions
@@ -376,6 +386,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     if (inputType === 'youtube') {
       const videoId = inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1];
       if (videoId) {
+        // Direct link - Add immediately
         const newSlide: Slide = {
           id: Math.random().toString(36).substr(2, 9),
           type: 'youtube',
@@ -397,7 +408,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         }
         setInputText('');
       } else {
-        alert("Por favor pega un link de YouTube válido.");
+        // Search mode
+        setIsSearchingYoutube(true);
+        try {
+          const results = await searchYouTube(inputText);
+          setYoutubeResults(results);
+        } catch (err) {
+          alert("Error al buscar en YouTube.");
+        } finally {
+          setIsSearchingYoutube(false);
+        }
       }
       return;
     }
@@ -606,18 +626,122 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
               {inputType === 'youtube' && (
                 <div className="mb-4">
-                  <div className="relative group overflow-hidden rounded-xl border border-gray-700 bg-black aspect-video mb-3 shadow-inner">
-                    <iframe
-                      id="youtube-browser-iframe"
-                      className="w-full h-full"
-                      src={inputText.includes('v=') || inputText.includes('youtu.be') ? `https://www.youtube-nocookie.com/embed/${inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || ''}?autoplay=0&mute=1&origin=${window.location.protocol}//${window.location.host}` : `https://www.youtube-nocookie.com/embed?listType=search&list=${inputText || 'Musica Cristiana'}&origin=${window.location.protocol}//${window.location.host}`}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    ></iframe>
-                    {!inputText && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none group-hover:opacity-0 transition-opacity">
-                      <p className="text-gray-400 text-xs italic">Escribe arriba para navegar...</p>
-                    </div>}
+                  {/* YouTube Browser / Search Results */}
+                  <div className="mb-4">
+                    {youtubeResults.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-2 mb-3 max-h-[400px] overflow-y-auto pr-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">📺 Resultados de Búsqueda</span>
+                          <button onClick={() => setYoutubeResults([])} className="text-gray-500 hover:text-white transition-colors">
+                            <X size={14} />
+                          </button>
+                        </div>
+                        {youtubeResults.map((result) => (
+                          <div key={result.id} className="bg-gray-800/80 border border-gray-700/50 rounded-xl overflow-hidden hover:border-red-500/50 transition-all group flex flex-col sm:flex-row shadow-lg">
+                            <div className="relative aspect-video sm:w-40 flex-shrink-0 cursor-pointer overflow-hidden" onClick={() => setInputText(`https://www.youtube.com/watch?v=${result.id}`)}>
+                              <img src={result.thumbnail} alt={result.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                <PlayCircle size={32} className="text-white drop-shadow-lg" />
+                              </div>
+                              {result.duration && <span className="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1.5 py-0.5 rounded font-bold">{result.duration}</span>}
+                            </div>
+                            <div className="p-3 flex flex-col justify-between flex-1 min-w-0">
+                              <div>
+                                <h4 className="text-xs font-bold text-white line-clamp-2 leading-tight mb-1">{result.title}</h4>
+                                <p className="text-[10px] text-gray-400 truncate">{result.author}</p>
+                              </div>
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  onClick={() => {
+                                    const newSlide: Slide = {
+                                      id: Math.random().toString(36).substr(2, 9),
+                                      type: 'youtube',
+                                      content: `https://www.youtube.com/watch?v=${result.id}`,
+                                      videoId: result.id,
+                                      label: 'YOUTUBE'
+                                    };
+                                    if (addYouTubeToCurrent && hasActiveItem) {
+                                      onAddSlide(newSlide);
+                                    } else {
+                                      onAddItem({
+                                        id: Math.random().toString(36).substr(2, 9),
+                                        title: result.title,
+                                        type: 'custom',
+                                        slides: [newSlide],
+                                        theme: currentTheme
+                                      });
+                                    }
+                                  }}
+                                  className="flex-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all"
+                                >
+                                  + PROYECTOR
+                                </button>
+                                <button
+                                  onClick={() => onSetBackgroundAudio?.(result.id, result.title)}
+                                  className="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all flex items-center justify-center gap-1"
+                                >
+                                  <Music size={12} /> + FONDO
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="relative group overflow-hidden rounded-xl border border-gray-700 bg-black aspect-video mb-3 shadow-inner">
+                        <iframe
+                          id="youtube-browser-iframe"
+                          className="w-full h-full"
+                          src={inputText.includes('v=') || inputText.includes('youtu.be') ? `https://www.youtube-nocookie.com/embed/${inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || ''}?autoplay=0&mute=1&origin=${window.location.protocol}//${window.location.host}` : `https://www.youtube-nocookie.com/embed?listType=search&list=${inputText || 'Musica Cristiana'}&origin=${window.location.protocol}//${window.location.host}`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        ></iframe>
+                        {!inputText && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none group-hover:opacity-0 transition-opacity">
+                          <p className="text-gray-400 text-xs italic">Escribe arriba para navegar...</p>
+                        </div>}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Playlist of Background Audio */}
+                  {bgAudioPlaylist.length > 0 && (
+                    <div className="mb-4 bg-gray-900/50 rounded-xl border border-gray-700/50 overflow-hidden shadow-xl animate-fade-in">
+                      <div className="p-2.5 bg-gradient-to-r from-pink-900/30 to-rose-900/30 border-b border-gray-700/50 flex items-center justify-between">
+                        <span className="text-[10px] text-pink-300 font-bold uppercase tracking-widest flex items-center gap-2">
+                          <Music size={12} /> Playlist de Fondo ({bgAudioPlaylist.length})
+                        </span>
+                        <div className="flex gap-1">
+                          <button onClick={() => onPrevAudio?.()} className="p-1 text-gray-400 hover:text-white transition-colors"><SkipBack size={14} /></button>
+                          <button onClick={() => onNextAudio?.()} className="p-1 text-gray-400 hover:text-white transition-colors"><SkipForward size={14} /></button>
+                        </div>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto">
+                        {bgAudioPlaylist.map((track, idx) => (
+                          <div
+                            key={track.id}
+                            className={`flex items-center gap-3 p-3 border-b border-gray-800/50 group hover:bg-white/5 transition-all ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''}`}
+                          >
+                            <span className="text-[10px] font-bold text-gray-600 w-4">{idx + 1}</span>
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectAudio?.(idx)}>
+                              <p className={`text-xs font-medium truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-300'}`}>
+                                {track.title}
+                              </p>
+                              {backgroundAudioItem?.id === track.id && (
+                                <span className="text-[9px] text-pink-500 font-bold uppercase animate-pulse">Reproduciendo ahora</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-3 mb-2 p-3 bg-gray-800/50 rounded-xl border border-gray-700/50">
                     <button
                       onClick={() => setAddYouTubeToCurrent(!addYouTubeToCurrent)}
@@ -738,11 +862,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           handleSearch();
                         }
                       }}
-                      disabled={loading || isSearchingSongs || !inputText}
+                      disabled={loading || isSearchingSongs || isSearchingYoutube || !inputText}
                       className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white py-3.5 rounded-xl flex justify-center items-center gap-2 font-bold text-sm shadow-lg shadow-indigo-500/20 transition-all font-sans"
                     >
-                      {loading || isSearchingSongs ? <Loader2 className="animate-spin" size={18} /> : (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) ? <Eraser size={18} /> : <Plus size={18} />}
-                      {loading ? 'GENERANDO...' : (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) ? 'APLICAR CAMBIO' : 'AGREGAR A LISTA'}
+                      {loading || isSearchingSongs || isSearchingYoutube ? <Loader2 className="animate-spin" size={18} /> : (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) ? <Eraser size={18} /> : (inputType === 'youtube' && !inputText.includes('v=') && !inputText.includes('youtu.be')) ? <Search size={18} /> : <Plus size={18} />}
+                      {loading ? 'GENERANDO...' : isSearchingYoutube ? 'BUSCANDO...' : (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) ? 'APLICAR CAMBIO' : (inputType === 'youtube' && !inputText.includes('v=') && !inputText.includes('youtu.be')) ? 'BUSCAR' : 'AGREGAR A LISTA'}
                     </button>
 
                     {hasActiveItem && (

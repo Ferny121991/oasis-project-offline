@@ -65,7 +65,8 @@ const App: React.FC = () => {
   const [liveItemId, setLiveItemId] = useState<string | null>(null);
   const [liveSlideIndex, setLiveSlideIndex] = useState<number>(-1);
   const [frozenLiveItem, setFrozenLiveItem] = useState<PresentationItem | null>(null);
-  const [backgroundAudioItem, setBackgroundAudioItem] = useState<{ videoId: string; title: string } | null>(null);
+  const [bgAudioPlaylist, setBgAudioPlaylist] = useState<{ id: string; videoId: string; title: string }[]>([]);
+  const [currentAudioIndex, setCurrentAudioIndex] = useState<number>(-1);
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [audioStartTime, setAudioStartTime] = useState<number>(0);
   const [audioElapsedOffset, setAudioElapsedOffset] = useState<number>(0);
@@ -126,6 +127,7 @@ const App: React.FC = () => {
   const activeItem = playlist.find(i => i.id === activeItemId);
   // Priority for live item: 1. Find in current playlist, 2. Fallback to frozenLiveItem
   const liveItem = (liveItemId ? playlist.find(i => i.id === liveItemId) : null) || frozenLiveItem;
+  const backgroundAudioItem = currentAudioIndex >= 0 ? bgAudioPlaylist[currentAudioIndex] : null;
 
   // Sync Channel for Multi-window Projector
   const syncChannel = useRef<BroadcastChannel | null>(null);
@@ -251,6 +253,33 @@ const App: React.FC = () => {
     }
     setIsAudioPlaying(!isAudioPlaying);
   }, [isAudioPlaying, audioStartTime]);
+
+  const navigateNextAudio = useCallback(() => {
+    if (bgAudioPlaylist.length === 0) return;
+    setCurrentAudioIndex(prev => (prev + 1) % bgAudioPlaylist.length);
+  }, [bgAudioPlaylist]);
+
+  const navigatePrevAudio = useCallback(() => {
+    if (bgAudioPlaylist.length === 0) return;
+    setCurrentAudioIndex(prev => (prev - 1 + bgAudioPlaylist.length) % bgAudioPlaylist.length);
+  }, [bgAudioPlaylist]);
+
+  // YouTube IFrame API message listener for background audio
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (typeof event.data === 'string' && event.data.includes('infoDelivery')) {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.event === 'infoDelivery' && data.info && data.info.playerState === 0) {
+            // Video ended (playerState: 0)
+            navigateNextAudio();
+          }
+        } catch (e) { }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [navigateNextAudio]);
 
   const navigateLivePrev = useCallback(() => {
     if (!liveItemId) return;
@@ -1084,7 +1113,10 @@ const App: React.FC = () => {
     );
   }, [playlist, session?.user?.id]);
 
-  const stopBackgroundAudio = useCallback(() => setBackgroundAudioItem(null), []);
+  const stopBackgroundAudio = useCallback(() => {
+    setBgAudioPlaylist([]);
+    setCurrentAudioIndex(-1);
+  }, []);
 
 
   const seekAudio = useCallback((seconds: number) => {
@@ -1506,7 +1538,11 @@ const App: React.FC = () => {
   useEffect(() => {
     (window as any).makeLive = makeLive;
     (window as any).stopLive = stopLive;
-    (window as any).setBackgroundAudio = setBackgroundAudioItem;
+    (window as any).setBackgroundAudio = (vid: string, title: string) => {
+      const newItem = { id: `bga_${Date.now()}`, videoId: vid, title: title || 'Fondo' };
+      setBgAudioPlaylist(prev => [...prev, newItem]);
+      if (currentAudioIndex === -1) setCurrentAudioIndex(0);
+    };
   }, [makeLive, stopLive]);
 
   // Update slide content for an existing item
@@ -1772,7 +1808,15 @@ const App: React.FC = () => {
           onUpdateSlideSegments={handleUpdateSlideSegments}
           onPreviewSlideUpdate={setPreviewSlide}
 
-          onSetBackgroundAudio={(vid, title) => setBackgroundAudioItem(vid ? { videoId: vid, title: title || '' } : null)}
+          onSetBackgroundAudio={(vid, title) => {
+            if (!vid) {
+              stopBackgroundAudio();
+              return;
+            }
+            const newItem = { id: `bga_${Date.now()}`, videoId: vid, title: title || 'Fondo Desconocido' };
+            setBgAudioPlaylist(prev => [...prev, newItem]);
+            if (currentAudioIndex === -1) setCurrentAudioIndex(0);
+          }}
           onStopLive={stopLive}
           isLiveActive={!!liveItemId}
 
@@ -1791,8 +1835,13 @@ const App: React.FC = () => {
           // Passing audio controls
           isAudioPlaying={isAudioPlaying}
           backgroundAudioItem={backgroundAudioItem}
+          bgAudioPlaylist={bgAudioPlaylist}
           onToggleAudioPlayback={toggleAudioPlayback}
           onSeekAudio={seekAudio}
+          onNextAudio={navigateNextAudio}
+          onPrevAudio={navigatePrevAudio}
+          onRemoveAudio={(id) => setBgAudioPlaylist(prev => prev.filter(t => t.id !== id))}
+          onSelectAudio={(index) => setCurrentAudioIndex(index)}
           // Custom Themes
           customThemes={customThemes}
           onUpdateCustomThemes={setCustomThemes}
@@ -1986,7 +2035,11 @@ const App: React.FC = () => {
                 liveSlideIndex={liveSlideIndex}
                 onSlideClick={handleSlideClick}
                 onSlideDoubleClick={(itemId, index) => makeLive(itemId, index)}
-                onToggleBackgroundAudio={(vid, title) => setBackgroundAudioItem({ videoId: vid, title })}
+                onToggleBackgroundAudio={(vid, title) => {
+                  const newItem = { id: `bga_${Date.now()}`, videoId: vid, title: title || 'Fondo' };
+                  setBgAudioPlaylist(prev => [...prev, newItem]);
+                  if (currentAudioIndex === -1) setCurrentAudioIndex(0);
+                }}
                 onDeleteItem={handleDeleteItem}
                 onDeleteSlide={handleDeleteSlide}
                 onDuplicateSlide={handleDuplicateSlide}
@@ -2319,13 +2372,12 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* HIDDEN BACKGROUND AUDIO PLAYER */}
       {
         backgroundAudioItem && (
           <div className="fixed bottom-[-100px] left-[-100px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden">
             <iframe
               ref={audioIframeRef}
-              src={`https://www.youtube-nocookie.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&loop=1&playlist=${backgroundAudioItem.videoId}&origin=${window.location.protocol}//${window.location.host}`}
+              src={`https://www.youtube-nocookie.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&rel=0&origin=${window.location.protocol}//${window.location.host}`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             ></iframe>
           </div>
