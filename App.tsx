@@ -117,6 +117,56 @@ const App: React.FC = () => {
   // Sync Channel for Multi-window Projector
   const syncChannel = useRef<BroadcastChannel | null>(null);
 
+  const navigateLiveNext = useCallback(() => {
+    if (!liveItemId) return;
+    const currentIndex = playlist.findIndex(p => p.id === liveItemId);
+    if (currentIndex === -1) return;
+
+    const item = playlist[currentIndex];
+    if (liveSlideIndex < item.slides.length - 1) {
+      const nextIndex = liveSlideIndex + 1;
+      setLiveSlideIndex(nextIndex);
+      // If we are currently viewing the live item, move the preview selector too
+      if (activeItemId === liveItemId) {
+        setActiveSlideIndex(nextIndex);
+      }
+    } else if (currentIndex < playlist.length - 1) {
+      // Auto advance to next item in playlist if it exists
+      const nextItem = playlist[currentIndex + 1];
+      if (nextItem.type !== 'divider') {
+        setLiveItemId(nextItem.id);
+        setLiveSlideIndex(0);
+        setFrozenLiveItem(nextItem);
+        // Also update preview if it was following the live view
+        if (activeItemId === liveItemId) {
+          setActiveItemId(nextItem.id);
+          setActiveSlideIndex(0);
+        }
+      }
+    }
+  }, [liveItemId, liveSlideIndex, activeItemId, playlist]);
+
+  const navigateLivePrev = useCallback(() => {
+    if (!liveItemId) return;
+    if (liveSlideIndex > 0) {
+      const prevIndex = liveSlideIndex - 1;
+      setLiveSlideIndex(prevIndex);
+      // If we are currently viewing the live item, move the preview selector too
+      if (activeItemId === liveItemId) {
+        setActiveSlideIndex(prevIndex);
+      }
+    }
+  }, [liveItemId, liveSlideIndex, activeItemId]);
+
+  const handleVideoEnd = useCallback(() => {
+    if (isProjectorMode) {
+      // If we are the projector, notify the main window
+      syncChannel.current?.postMessage({ type: 'VIDEO_ENDED' });
+    } else {
+      // If we are the main window, navigate locally
+      navigateLiveNext();
+    }
+  }, [isProjectorMode, navigateLiveNext]);
 
   const sendSyncState = useCallback(() => {
     if (syncChannel.current) {
@@ -128,7 +178,7 @@ const App: React.FC = () => {
           liveSlideIndex,
           activeSlideIndex,
           playlist,
-          stagedTheme, // Send the staged theme
+          stagedTheme,
           isPreviewHidden,
           isTextHidden,
           isLogoActive,
@@ -139,8 +189,6 @@ const App: React.FC = () => {
           splitFontScale,
           isKaraokeActive,
           karaokeIndex,
-          // Optimization: If frozen item is in playlist, only send its ID to save bandwidth
-          // Optimization: If frozen item is in playlist, only send its ID to save bandwidth
           frozenLiveItem: (frozenLiveItem && playlist.some(i => i.id === frozenLiveItem.id))
             ? { id: frozenLiveItem.id }
             : frozenLiveItem
@@ -148,6 +196,93 @@ const App: React.FC = () => {
       });
     }
   }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, frozenLiveItem]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const projectorKey = params.get('projector');
+    if (projectorKey === 'true') {
+      setIsProjectorMode(true);
+    }
+
+    syncChannel.current = new BroadcastChannel('flujo_projector_sync');
+
+    if (projectorKey === 'true') {
+      const handleMessage = (e: MessageEvent) => {
+        if (e.data === 'TOGGLE_FULLSCREEN') {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen auto-block:", err));
+          }
+        }
+      };
+      window.addEventListener('message', handleMessage);
+
+      const handleProjectorKeys = (e: KeyboardEvent) => {
+        if (e.key.toLowerCase() === 'f' || e.key === 'F11') {
+          e.preventDefault();
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.error(err));
+          } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+          }
+        }
+      };
+      window.addEventListener('keydown', handleProjectorKeys);
+
+      syncChannel.current.onmessage = (event: MessageEvent) => {
+        const { type, data } = event.data;
+        if (type === 'SYNC_STATE') {
+          setLiveItemId(data.liveItemId);
+          setActiveItemId(data.activeItemId);
+          setLiveSlideIndex(data.liveSlideIndex);
+          setActiveSlideIndex(data.activeSlideIndex);
+          setPlaylist(data.playlist);
+          if (data.stagedTheme) setStagedTheme(data.stagedTheme);
+          setIsPreviewHidden(data.isPreviewHidden);
+          setIsTextHidden(data.isTextHidden);
+          setIsLogoActive(data.isLogoActive);
+
+          if (data.frozenLiveItem) {
+            if (data.frozenLiveItem.slides) {
+              setFrozenLiveItem(data.frozenLiveItem);
+            } else {
+              const found = data.playlist.find((i: any) => i.id === data.frozenLiveItem.id);
+              if (found) setFrozenLiveItem(found);
+            }
+          } else {
+            setFrozenLiveItem(null);
+          }
+          if (data.showSplitScreen !== undefined) setShowSplitScreen(data.showSplitScreen);
+          if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
+          if (data.splitRightSlide !== undefined) setSplitRightSlide(data.splitRightSlide);
+          if (data.splitRatio !== undefined) setSplitRatio(data.splitRatio);
+          if (data.splitFontScale !== undefined) setSplitFontScale(data.splitFontScale);
+          if (data.isKaraokeActive !== undefined) setIsKaraokeActive(data.isKaraokeActive);
+          if (data.karaokeIndex !== undefined) setKaraokeIndex(data.karaokeIndex);
+        }
+      };
+
+      syncChannel.current.postMessage({ type: 'REQUEST_STATE' });
+
+      return () => {
+        window.removeEventListener('message', handleMessage);
+        window.removeEventListener('keydown', handleProjectorKeys);
+        syncChannel.current?.close();
+      };
+    } else {
+      syncChannel.current.onmessage = (event: MessageEvent) => {
+        if (event.data.type === 'REQUEST_STATE') {
+          sendSyncState();
+        } else if (event.data.type === 'VIDEO_ENDED') {
+          navigateLiveNext();
+        }
+      };
+    }
+
+    return () => {
+      syncChannel.current?.close();
+    };
+  }, [navigateLiveNext, sendSyncState]);
+
 
   // Sync state whenever it changes
   useEffect(() => {
@@ -1431,56 +1566,6 @@ const App: React.FC = () => {
     }
   }, [activeItemId, activeSlideIndex, playlist]);
 
-  const navigateLiveNext = useCallback(() => {
-    if (!liveItemId) return;
-    const currentIndex = playlist.findIndex(p => p.id === liveItemId);
-    if (currentIndex === -1) return;
-
-    const item = playlist[currentIndex];
-    if (liveSlideIndex < item.slides.length - 1) {
-      const nextIndex = liveSlideIndex + 1;
-      setLiveSlideIndex(nextIndex);
-      // If we are currently viewing the live item, move the preview selector too
-      if (activeItemId === liveItemId) {
-        setActiveSlideIndex(nextIndex);
-      }
-    } else if (currentIndex < playlist.length - 1) {
-      // Auto advance to next item in playlist if it exists
-      const nextItem = playlist[currentIndex + 1];
-      if (nextItem.type !== 'divider') {
-        setLiveItemId(nextItem.id);
-        setLiveSlideIndex(0);
-        setFrozenLiveItem(nextItem);
-        // Also update preview if it was following the live view
-        if (activeItemId === liveItemId) {
-          setActiveItemId(nextItem.id);
-          setActiveSlideIndex(0);
-        }
-      }
-    }
-  }, [liveItemId, liveSlideIndex, activeItemId, playlist]);
-
-  const navigateLivePrev = useCallback(() => {
-    if (!liveItemId) return;
-    if (liveSlideIndex > 0) {
-      const prevIndex = liveSlideIndex - 1;
-      setLiveSlideIndex(prevIndex);
-      // If we are currently viewing the live item, move the preview selector too
-      if (activeItemId === liveItemId) {
-        setActiveSlideIndex(prevIndex);
-      }
-    }
-  }, [liveItemId, liveSlideIndex, activeItemId]);
-
-  const handleVideoEnd = useCallback(() => {
-    if (isProjectorMode) {
-      // If we are the projector, notify the main window
-      syncChannel.current?.postMessage({ type: 'VIDEO_ENDED' });
-    } else {
-      // If we are the main window, navigate locally
-      navigateLiveNext();
-    }
-  }, [isProjectorMode, navigateLiveNext]);
 
 
 
@@ -1617,103 +1702,6 @@ const App: React.FC = () => {
       </div>
     );
   }
-  // --- SYNC CHANNEL INITIALIZATION (Moved here to avoid used-before-definition lint errors) ---
-  useEffect(() => {
-    // Check if we are in projector mode
-    const params = new URLSearchParams(window.location.search);
-    const projectorKey = params.get('projector');
-    if (projectorKey === 'true') {
-      setIsProjectorMode(true);
-    }
-
-    // Initialize Sync Channel
-    syncChannel.current = new BroadcastChannel('flujo_projector_sync');
-
-    // If we are the projector, listen for updates and fullscreen commands
-    if (projectorKey === 'true') {
-      const handleMessage = (e: MessageEvent) => {
-        if (e.data === 'TOGGLE_FULLSCREEN') {
-          if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen auto-block:", err));
-          }
-        }
-      };
-      window.addEventListener('message', handleMessage);
-
-      // Local keyboard shortcuts for the projector window
-      const handleProjectorKeys = (e: KeyboardEvent) => {
-        if (e.key.toLowerCase() === 'f' || e.key === 'F11') {
-          e.preventDefault();
-          if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => console.error(err));
-          } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-          }
-        }
-      };
-      window.addEventListener('keydown', handleProjectorKeys);
-
-      syncChannel.current.onmessage = (event: MessageEvent) => {
-        const { type, data } = event.data;
-        if (type === 'SYNC_STATE') {
-          setLiveItemId(data.liveItemId);
-          setActiveItemId(data.activeItemId);
-          setLiveSlideIndex(data.liveSlideIndex);
-          setActiveSlideIndex(data.activeSlideIndex);
-          setPlaylist(data.playlist);
-          if (data.stagedTheme) setStagedTheme(data.stagedTheme);
-          setIsPreviewHidden(data.isPreviewHidden);
-          setIsTextHidden(data.isTextHidden);
-          setIsLogoActive(data.isLogoActive);
-
-          if (data.frozenLiveItem) {
-            if (data.frozenLiveItem.slides) {
-              setFrozenLiveItem(data.frozenLiveItem);
-            } else {
-              // It's a stub, find it in the new playlist that was just set
-              const found = data.playlist.find((i: any) => i.id === data.frozenLiveItem.id);
-              if (found) setFrozenLiveItem(found);
-            }
-          } else {
-            setFrozenLiveItem(null);
-          }
-          // Split Screen sync
-          if (data.showSplitScreen !== undefined) setShowSplitScreen(data.showSplitScreen);
-          if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
-          if (data.splitRightSlide !== undefined) setSplitRightSlide(data.splitRightSlide);
-          if (data.splitRatio !== undefined) setSplitRatio(data.splitRatio);
-          if (data.splitFontScale !== undefined) setSplitFontScale(data.splitFontScale);
-
-          // Karaoke Sync
-          if (data.isKaraokeActive !== undefined) setIsKaraokeActive(data.isKaraokeActive);
-          if (data.karaokeIndex !== undefined) setKaraokeIndex(data.karaokeIndex);
-        }
-      };
-
-      // Request initial state from any open main window
-      syncChannel.current.postMessage({ type: 'REQUEST_STATE' });
-
-      return () => {
-        window.removeEventListener('message', handleMessage);
-        window.removeEventListener('keydown', handleProjectorKeys);
-        syncChannel.current?.close();
-      };
-    } else {
-      // If we are the main window, respond to state requests and video events
-      syncChannel.current.onmessage = (event: MessageEvent) => {
-        const { type } = event.data;
-        if (type === 'REQUEST_STATE') {
-          sendSyncState();
-        } else if (type === 'VIDEO_ENDED') {
-          navigateLiveNext();
-        }
-      };
-    }
-
-    return () => {
-      syncChannel.current?.close();
-    };
-  }, [navigateLiveNext, sendSyncState]);
 
   if (!isAuthenticated && !isProjectorMode) {
     return (
