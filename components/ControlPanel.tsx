@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, DensityMode, SongSearchResult } from '../services/geminiService';
+import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
 import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw } from 'lucide-react';
@@ -418,39 +419,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
         if (ev.target?.result) {
-          const img = new Image();
-          img.src = ev.target.result as string;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 1280;
-            const MAX_HEIGHT = 720;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-              if (width > MAX_WIDTH) {
-                height *= MAX_WIDTH / width;
-                width = MAX_WIDTH;
-              }
-            } else {
-              if (height > MAX_HEIGHT) {
-                width *= MAX_HEIGHT / height;
-                height = MAX_HEIGHT;
-              }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-
-            // Compress to JPEG with 0.5 quality for better sync
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
-
+          try {
+            const compressedBase64 = await compressImage(ev.target.result as string);
             updatePendingTheme({ ...currentTheme, background: `url(${compressedBase64}) center/cover no-repeat` });
             e.target.value = ''; // Reset
-          };
+          } catch (err) {
+            console.error("Background compression failed", err);
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -462,36 +439,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     if (file) {
       // Compress/Resize image before saving to avoid database size limits
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
         if (ev.target?.result) {
-          const img = new Image();
-          img.src = ev.target.result as string;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 1280;
-            const MAX_HEIGHT = 720;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-              if (width > MAX_WIDTH) {
-                height *= MAX_WIDTH / width;
-                width = MAX_WIDTH;
-              }
-            } else {
-              if (height > MAX_HEIGHT) {
-                width *= MAX_HEIGHT / height;
-                height = MAX_HEIGHT;
-              }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-
-            // Compress to JPEG with 0.5 quality for better sync
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
-
+          try {
+            const compressedBase64 = await compressImage(ev.target.result as string);
             const newSlide: Slide = {
               id: Math.random().toString(36).substr(2, 9),
               type: 'image',
@@ -501,7 +452,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             };
             onAddSlide(newSlide);
             e.target.value = ''; // Reset
-          };
+          } catch (err) {
+            console.error("Slide image compression failed", err);
+          }
         }
       };
       reader.readAsDataURL(file);

@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Slide, PresentationItem } from "../types";
 import { DEFAULT_THEME } from "../constants";
+import { compressImage } from './imageService';
 import rv1960Data from '../data/bibles/es_rvr.json';
 import nviData from '../data/bibles/es_nvi.json';
 import lblaData from '../data/bibles/es_lbla.json';
@@ -703,6 +704,14 @@ export const fetchSongLyrics = async (songQuery: string, density: DensityMode = 
 export const processManualText = async (text: string, density: DensityMode = 'classic'): Promise<PresentationItem> => {
   // Check if text is actually a base64 image
   if (text.trim().startsWith('data:image/')) {
+    const rawDataUrl = text.trim();
+    let finalUrl = rawDataUrl;
+    try {
+      finalUrl = await compressImage(rawDataUrl);
+    } catch (err) {
+      console.warn("Pasted image compression failed", err);
+    }
+
     return {
       id: generateId(),
       title: "Imagen Pegada",
@@ -711,7 +720,7 @@ export const processManualText = async (text: string, density: DensityMode = 'cl
         id: generateId(),
         type: 'image',
         content: '',
-        mediaUrl: text.trim(),
+        mediaUrl: finalUrl,
         label: 'IMAGEN'
       }],
       theme: { ...DEFAULT_THEME }

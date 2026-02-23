@@ -18,6 +18,7 @@ import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
 import { realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
+import { compressImage } from './services/imageService';
 
 // Mobile Tab Type
 type MobileTab = 'control' | 'playlist' | 'preview';
@@ -1213,7 +1214,17 @@ const App: React.FC = () => {
       const file = files[i];
       const reader = new FileReader();
       const promise = new Promise<string>((resolve) => {
-        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onload = async (e) => {
+          const rawDataUrl = e.target?.result as string;
+          try {
+            // Compress image to avoid database/storage limits
+            const compressed = await compressImage(rawDataUrl);
+            resolve(compressed);
+          } catch (err) {
+            console.error("Compression failed, using original", err);
+            resolve(rawDataUrl);
+          }
+        };
       });
       reader.readAsDataURL(file);
       const dataUrl = await promise;
