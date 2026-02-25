@@ -45,7 +45,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
   // YouTube postMessage listener for auto-advance (does NOT touch the DOM)
   useEffect(() => {
-    if (slide?.type !== 'youtube' || !slide.videoId || !onVideoEnd) return;
+    if (slide?.type !== 'youtube' || !slide.videoId) return;
 
     const handleMessage = (event: MessageEvent) => {
       // YouTube sends postMessage events when enablejsapi=1
@@ -53,16 +53,12 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        // YouTube sends state changes via info.playerState
-        // playerState 0 = ENDED
-        if (data?.event === 'onStateChange' && data?.info === 0) {
-          onVideoEndRef.current?.();
+        // YouTube sends state changes via info.playerState — playerState 0 = ENDED
+        if ((data && data.event === 'onStateChange' && data.info === 0) ||
+          (data && data.info && data.info.playerState === 0)) {
+          if (onVideoEndRef.current) onVideoEndRef.current();
         }
-        // Alternative format from some YT API versions
-        if (data?.info?.playerState === 0) {
-          onVideoEndRef.current?.();
-        }
-      } catch {
+      } catch (_e) {
         // Not a JSON message or not from YouTube — ignore
       }
     };
@@ -71,11 +67,15 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
     // Tell the iframe to start sending events by posting "listening" command
     const sendListenCommand = () => {
-      if (iframeRef.current?.contentWindow) {
-        iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: 'listening', id: 1 }),
-          '*'
-        );
+      try {
+        if (iframeRef.current && iframeRef.current.contentWindow) {
+          iframeRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: 'listening', id: 1 }),
+            '*'
+          );
+        }
+      } catch (_e) {
+        // Ignore cross-origin errors
       }
     };
 
@@ -83,8 +83,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
     const iframe = iframeRef.current;
     if (iframe) {
       iframe.addEventListener('load', sendListenCommand);
-      // Also try immediately in case iframe is already loaded
-      sendListenCommand();
+      setTimeout(sendListenCommand, 1000);
     }
 
     return () => {
