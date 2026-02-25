@@ -487,7 +487,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
                     onSlideDoubleClick={() => onSlideDoubleClick(item.id, index)}
                     onDeleteSlide={() => onDeleteSlide(item.id, slide.id)}
                     onDuplicateSlide={onDuplicateSlide ? () => onDuplicateSlide(item.id, slide.id) : undefined}
-                    onToggleBackgroundAudio={slide.videoId ? () => onToggleBackgroundAudio?.(slide.videoId!, item.title) : undefined}
+                    onToggleBackgroundAudio={slide.videoId ? () => onToggleBackgroundAudio?.(slide.videoId!, slide.label || slide.content || item.title) : undefined}
                     itemTitle={item.title}
                     isSplitMode={isSplitMode}
                     onSetSplitLeft={onSetSplitLeft}

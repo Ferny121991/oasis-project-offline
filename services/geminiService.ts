@@ -809,44 +809,116 @@ export interface YouTubeSearchResult {
 }
 
 export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
-  if (!apiKey) return [];
-  const model = ai.models;
+  // Strategy 1: Try Piped API (public, no API key needed)
+  const pipedInstances = [
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.adminforge.de',
+    'https://api.piped.projectsegfau.lt',
+  ];
 
-  const prompt = `
-    Actúa como un buscador de YouTube. El usuario busca: "${query}".
-    Devuelve los 6 resultados más relevantes de música cristiana (himnos, coros, adoración).
-    IMPORTANTE: Debes devolver los IDs de YouTube REALES si los conoces, o IDs probables basados en títulos comunes.
-    FORMATO JSON.
-  `;
+  for (const instance of pipedInstances) {
+    try {
+      const res = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`, {
+        signal: AbortSignal.timeout(6000)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          return data.items.slice(0, 8).map((item: any) => {
+            // Extract video ID from the URL (format: /watch?v=XXXX)
+            const videoId = item.url?.replace('/watch?v=', '') || '';
+            return {
+              id: videoId,
+              title: item.title || 'Sin título',
+              author: item.uploaderName || item.uploader || 'Desconocido',
+              thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+              duration: item.duration ? formatDuration(item.duration) : undefined
+            };
+          }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
+        }
+      }
+    } catch (e) {
+      console.warn(`Piped instance ${instance} failed:`, e);
+    }
+  }
 
-  try {
-    const response = await model.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING },
-              title: { type: Type.STRING },
-              author: { type: Type.STRING },
-              duration: { type: Type.STRING, nullable: true }
+  // Strategy 2: Try Invidious API
+  const invidiousInstances = [
+    'https://inv.nadeko.net',
+    'https://invidious.nerdvpn.de',
+    'https://yt.cdaut.de',
+  ];
+
+  for (const instance of invidiousInstances) {
+    try {
+      const res = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, {
+        signal: AbortSignal.timeout(6000)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return data.slice(0, 8).map((item: any) => ({
+            id: item.videoId,
+            title: item.title || 'Sin título',
+            author: item.author || 'Desconocido',
+            thumbnail: `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`,
+            duration: item.lengthSeconds ? formatDuration(item.lengthSeconds) : undefined
+          })).filter((item: YouTubeSearchResult) => item.id);
+        }
+      }
+    } catch (e) {
+      console.warn(`Invidious instance ${instance} failed:`, e);
+    }
+  }
+
+  // Strategy 3: Fallback to Gemini AI (requires API key)
+  if (apiKey) {
+    try {
+      const model = ai.models;
+      const prompt = `
+        Actúa como un buscador de YouTube. El usuario busca: "${query}".
+        Devuelve los 6 resultados más relevantes.
+        IMPORTANTE: Debes devolver los IDs de YouTube REALES si los conoces.
+        FORMATO JSON.
+      `;
+
+      const response = await model.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                title: { type: Type.STRING },
+                author: { type: Type.STRING },
+                duration: { type: Type.STRING, nullable: true }
+              }
             }
           }
         }
-      }
-    });
+      });
 
-    const data = JSON.parse(response.text || '[]');
-    return data.map((item: any) => ({
-      ...item,
-      thumbnail: `https://img.youtube.com/vi/${item.id}/mqdefault.jpg`
-    }));
-  } catch (error) {
-    console.error("Error in AI YouTube search:", error);
-    return [];
+      const data = JSON.parse(response.text || '[]');
+      return data.map((item: any) => ({
+        ...item,
+        thumbnail: `https://img.youtube.com/vi/${item.id}/mqdefault.jpg`
+      }));
+    } catch (error) {
+      console.error("Error in AI YouTube search:", error);
+    }
   }
+
+  return [];
+};
+
+// Helper to format seconds to MM:SS
+const formatDuration = (seconds: number): string => {
+  if (typeof seconds !== 'number' || seconds <= 0) return '';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 };

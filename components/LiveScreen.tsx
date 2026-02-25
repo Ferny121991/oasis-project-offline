@@ -36,58 +36,64 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 }) => {
   const [showTools, setShowTools] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const playerRef = useRef<any>(null);
+  const onVideoEndRef = useRef(onVideoEnd);
 
-  // YouTube API listener for auto-advance
+  // Keep the callback ref up to date without triggering re-renders
   useEffect(() => {
-    let checkInterval: ReturnType<typeof setInterval>;
+    onVideoEndRef.current = onVideoEnd;
+  }, [onVideoEnd]);
 
-    if (slide?.type === 'youtube' && slide.videoId && onVideoEnd) {
-      const initPlayer = () => {
-        if ((window as any).YT && (window as any).YT.Player && iframeRef.current) {
-          if (checkInterval) clearInterval(checkInterval);
+  // YouTube postMessage listener for auto-advance (does NOT touch the DOM)
+  useEffect(() => {
+    if (slide?.type !== 'youtube' || !slide.videoId || !onVideoEnd) return;
 
-          // Destroy previous player if it exists
-          if (playerRef.current && playerRef.current.destroy) {
-            try { playerRef.current.destroy(); } catch (e) { console.warn(e); }
-          }
+    const handleMessage = (event: MessageEvent) => {
+      // YouTube sends postMessage events when enablejsapi=1
+      if (event.origin !== 'https://www.youtube.com' && event.origin !== 'https://www.youtube-nocookie.com') return;
 
-          playerRef.current = new (window as any).YT.Player(iframeRef.current, {
-            events: {
-              'onStateChange': (event: any) => {
-                // YT.PlayerState.ENDED is 0
-                if (event.data === 0) {
-                  onVideoEnd();
-                }
-              }
-            }
-          });
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        // YouTube sends state changes via info.playerState
+        // playerState 0 = ENDED
+        if (data?.event === 'onStateChange' && data?.info === 0) {
+          onVideoEndRef.current?.();
         }
-      };
-
-      // Load YouTube API if not already present
-      if (!(window as any).YT || !(window as any).YT.Player) {
-        if (!document.getElementById('youtube-iframe-api')) {
-          const tag = document.createElement('script');
-          tag.id = 'youtube-iframe-api';
-          tag.src = "https://www.youtube.com/iframe_api";
-          const firstScriptTag = document.getElementsByTagName('script')[0];
-          firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+        // Alternative format from some YT API versions
+        if (data?.info?.playerState === 0) {
+          onVideoEndRef.current?.();
         }
-        checkInterval = setInterval(initPlayer, 500);
-      } else {
-        initPlayer();
+      } catch {
+        // Not a JSON message or not from YouTube — ignore
       }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    // Tell the iframe to start sending events by posting "listening" command
+    const sendListenCommand = () => {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'listening', id: 1 }),
+          '*'
+        );
+      }
+    };
+
+    // Send listen command after iframe loads
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.addEventListener('load', sendListenCommand);
+      // Also try immediately in case iframe is already loaded
+      sendListenCommand();
     }
 
     return () => {
-      if (checkInterval) clearInterval(checkInterval);
-      if (playerRef.current && playerRef.current.destroy) {
-        try { playerRef.current.destroy(); } catch (e) { console.warn(e); }
-        playerRef.current = null;
+      window.removeEventListener('message', handleMessage);
+      if (iframe) {
+        iframe.removeEventListener('load', sendListenCommand);
       }
     };
-  }, [slide?.id, slide?.type, onVideoEnd]);
+  }, [slide?.id, slide?.type]);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseMove = () => {
@@ -221,13 +227,16 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                 <div key={slide.id} className={`w-full h-full flex flex-col justify-center items-center ${getAnimationClass()}`}>
                   {/* YOUTUBE SLIDE */}
                   {slide.type === 'youtube' && slide.videoId && (
-                    <div className="w-[90%] h-[92%] flex items-center justify-center bg-black rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 relative z-10 transition-all duration-500">
+                    <div className="w-full h-full flex items-center justify-center bg-black overflow-hidden relative z-10">
                       <iframe
                         ref={iframeRef}
                         className="w-full h-full"
-                        src={`https://www.youtube-nocookie.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&origin=${window.location.protocol}//${window.location.host}&rel=0`}
+                        src={`https://www.youtube-nocookie.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1`}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
+                        title="YouTube video"
+                        loading="eager"
+                        referrerPolicy="no-referrer-when-downgrade"
                       ></iframe>
                     </div>
                   )}

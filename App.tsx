@@ -129,6 +129,10 @@ const App: React.FC = () => {
   const liveItem = (liveItemId ? playlist.find(i => i.id === liveItemId) : null) || frozenLiveItem;
   const backgroundAudioItem = currentAudioIndex >= 0 ? bgAudioPlaylist[currentAudioIndex] : null;
 
+  // Refs for stable callbacks
+  const bgAudioPlaylistRef = useRef(bgAudioPlaylist);
+  useEffect(() => { bgAudioPlaylistRef.current = bgAudioPlaylist; }, [bgAudioPlaylist]);
+
   // Sync Channel for Multi-window Projector
   const syncChannel = useRef<BroadcastChannel | null>(null);
 
@@ -255,31 +259,80 @@ const App: React.FC = () => {
   }, [isAudioPlaying, audioStartTime]);
 
   const navigateNextAudio = useCallback(() => {
-    if (bgAudioPlaylist.length === 0) return;
-    setCurrentAudioIndex(prev => (prev + 1) % bgAudioPlaylist.length);
-  }, [bgAudioPlaylist]);
+    const playlist = bgAudioPlaylistRef.current;
+    if (playlist.length === 0) return;
+    setCurrentAudioIndex(prev => (prev + 1) % playlist.length);
+  }, []);
 
   const navigatePrevAudio = useCallback(() => {
-    if (bgAudioPlaylist.length === 0) return;
-    setCurrentAudioIndex(prev => (prev - 1 + bgAudioPlaylist.length) % bgAudioPlaylist.length);
-  }, [bgAudioPlaylist]);
+    const playlist = bgAudioPlaylistRef.current;
+    if (playlist.length === 0) return;
+    setCurrentAudioIndex(prev => (prev - 1 + playlist.length) % playlist.length);
+  }, []);
 
-  // YouTube IFrame API message listener for background audio
+  // YouTube IFrame Player API for background audio auto-advance
+  const bgPlayerRef = useRef<any>(null);
+
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (typeof event.data === 'string' && event.data.includes('infoDelivery')) {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.event === 'infoDelivery' && data.info && data.info.playerState === 0) {
-            // Video ended (playerState: 0)
-            navigateNextAudio();
+    if (!backgroundAudioItem?.videoId) {
+      if (bgPlayerRef.current) {
+        try { bgPlayerRef.current.destroy(); } catch (e) { /* ignore */ }
+        bgPlayerRef.current = null;
+      }
+      return;
+    }
+
+    let checkInterval: ReturnType<typeof setInterval>;
+
+    const initBgPlayer = () => {
+      // Check if YT is ready and iframe exists
+      if ((window as any).YT && (window as any).YT.Player && audioIframeRef.current) {
+        if (checkInterval) clearInterval(checkInterval);
+
+        // Destroy previous player to avoid leaks
+        if (bgPlayerRef.current && bgPlayerRef.current.destroy) {
+          try { bgPlayerRef.current.destroy(); } catch (e) { /* ignore */ }
+        }
+
+        bgPlayerRef.current = new (window as any).YT.Player(audioIframeRef.current, {
+          events: {
+            'onStateChange': (event: any) => {
+              if (event.data === 0) { // ENDED
+                navigateNextAudio();
+              }
+            },
+            'onError': (e: any) => {
+              console.error("YouTube Player Error:", e);
+            }
           }
-        } catch (e) { }
+        });
       }
     };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [navigateNextAudio]);
+
+    // Load YouTube API script if not present
+    if (!(window as any).YT || !(window as any).YT.Player) {
+      if (!document.getElementById('youtube-iframe-api')) {
+        const tag = document.createElement('script');
+        tag.id = 'youtube-iframe-api';
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+      }
+      // Poll until YT is ready
+      checkInterval = setInterval(initBgPlayer, 500);
+    } else {
+      // YT API already loaded, wait a bit for iframe to render
+      setTimeout(initBgPlayer, 100);
+    }
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+      if (bgPlayerRef.current && bgPlayerRef.current.destroy) {
+        try { bgPlayerRef.current.destroy(); } catch (e) { /* ignore */ }
+        bgPlayerRef.current = null;
+      }
+    };
+  }, [backgroundAudioItem?.videoId, navigateNextAudio]);
 
   const navigateLivePrev = useCallback(() => {
     if (!liveItemId) return;
@@ -1561,14 +1614,18 @@ const App: React.FC = () => {
   //    Priority: Blackout > Logo > Slide(with ClearText option)
   const projectorContent = isPreviewHidden || isLogoActive ? null : projectorSlide;
 
-
   useEffect(() => {
     (window as any).makeLive = makeLive;
     (window as any).stopLive = stopLive;
     (window as any).setBackgroundAudio = (vid: string, title: string) => {
+      console.log("Setting background audio:", vid, title);
       const newItem = { id: `bga_${Date.now()}`, videoId: vid, title: title || 'Fondo' };
-      setBgAudioPlaylist(prev => [...prev, newItem]);
-      if (currentAudioIndex === -1) setCurrentAudioIndex(0);
+      setBgAudioPlaylist(prev => {
+        const alreadyExists = prev.some(item => item.videoId === vid);
+        if (alreadyExists) return prev;
+        return [...prev, newItem];
+      });
+      setCurrentAudioIndex(prev => prev === -1 ? 0 : prev);
     };
   }, [makeLive, stopLive]);
 
@@ -2403,9 +2460,12 @@ const App: React.FC = () => {
         backgroundAudioItem && (
           <div className="fixed bottom-[-100px] left-[-100px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden">
             <iframe
+              key={backgroundAudioItem.id}
               ref={audioIframeRef}
-              src={`https://www.youtube-nocookie.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&rel=0&origin=${window.location.protocol}//${window.location.host}`}
+              id="bg-audio-iframe"
+              src={`https://www.youtube.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&rel=0&origin=${window.location.origin}`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              title="Background audio"
             ></iframe>
           </div>
         )

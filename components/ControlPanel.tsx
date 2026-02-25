@@ -692,7 +692,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <iframe
                           id="youtube-browser-iframe"
                           className="w-full h-full"
-                          src={inputText.includes('v=') || inputText.includes('youtu.be') ? `https://www.youtube-nocookie.com/embed/${inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || ''}?autoplay=0&mute=1&origin=${window.location.protocol}//${window.location.host}` : `https://www.youtube-nocookie.com/embed?listType=search&list=${inputText || 'Musica Cristiana'}&origin=${window.location.protocol}//${window.location.host}`}
+                          src={inputText.includes('v=') || inputText.includes('youtu.be') ? `https://www.youtube.com/embed/${inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || ''}?autoplay=0&mute=1&origin=${window.location.protocol}//${window.location.host}` : `https://www.youtube.com/embed?listType=search&list=${inputText || 'Musica Cristiana'}&origin=${window.location.protocol}//${window.location.host}`}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           allowFullScreen
                         ></iframe>
