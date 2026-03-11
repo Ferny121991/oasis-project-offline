@@ -13,8 +13,8 @@ export interface LiveState {
     showSplitScreen?: boolean;
     isKaraokeActive?: boolean;
     karaokeIndex?: number;
-    playlist?: { id: string, title: string, type: string }[];
-    activeItemSlides?: { id: string, label?: string, content: string, operatorNotes?: string }[];
+    playlist?: { id: string, title: string, type: string, slides?: any[] }[];
+    activeItemSlides?: { id: string, label?: string, content: string, operatorNotes?: string, type?: string, mediaUrl?: string, videoId?: string }[];
     backgroundAudioTitle?: string;
     isAudioPlaying?: boolean;
     videoProgress?: number;

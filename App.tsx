@@ -566,6 +566,47 @@ const App: React.FC = () => {
           break;
         case 'toggle_audio': toggleAudioPlayback(); break;
         case 'stop_live': stopLive(); break;
+        case 'add_bible':
+          if (commandData?.query) {
+            import('./services/geminiService').then(({ fetchBiblePassage }) => {
+              fetchBiblePassage(commandData.query, commandData.version, 'classic').then(passage => {
+                if (passage) {
+                  const newItem = {
+                    id: Date.now().toString(),
+                    title: passage.title,
+                    type: 'scripture' as const,
+                    slides: passage.slides,
+                    theme: stagedTheme,
+                    query: commandData.query,
+                    bibleVersion: commandData.version
+                  };
+                  setPlaylist(prev => [...prev, newItem]);
+                  if (commandData.makeLive) makeLive(newItem.id, 0);
+                }
+              }).catch(console.error);
+            });
+          }
+          break;
+        case 'add_song':
+          if (commandData?.query) {
+            import('./services/geminiService').then(({ fetchSongLyrics }) => {
+              fetchSongLyrics(commandData.query, 'classic').then(song => {
+                if (song) {
+                  const newItem = {
+                    id: Date.now().toString(),
+                    title: song.title,
+                    type: 'song' as const,
+                    slides: song.slides,
+                    theme: stagedTheme,
+                    query: commandData.query
+                  };
+                  setPlaylist(prev => [...prev, newItem]);
+                  if (commandData.makeLive) makeLive(newItem.id, 0);
+                }
+              }).catch(console.error);
+            });
+          }
+          break;
       }
       // Clear the command after processing
       realtimeSyncService.updateState(session.user.id, { command: null, commandData: null });
@@ -602,12 +643,15 @@ const App: React.FC = () => {
     const timer = setTimeout(async () => {
       await realtimeSyncService.updateState(session.user.id, {
         ...stateToBroadcast,
-        playlist: playlist.map(p => ({ id: p.id, title: p.title, type: p.type })),
+        playlist: playlist.map(p => ({ id: p.id, title: p.title, type: p.type, slides: p.slides })),
         activeItemSlides: activeItem?.slides.map(s => ({
           id: s.id,
           label: s.label,
+          type: s.type,
           content: s.content,
-          operatorNotes: s.operatorNotes
+          operatorNotes: s.operatorNotes,
+          mediaUrl: s.mediaUrl,
+          videoId: s.videoId
         })),
         projects: projects.map(p => ({ id: p.id, name: p.name })),
         currentProjectName: projects.find(p => p.id === currentProjectId)?.name,

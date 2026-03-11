@@ -165,26 +165,13 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
                         </div>
                     </div>
                 ) : (
-                    <div className="p-4 h-[80vh] flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <button
-                                onClick={() => setShowMobileControl(false)}
-                                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                            >
-                                <ChevronLeft size={18} />
-                                <span className="text-xs">Cerrar Control</span>
-                            </button>
-                            <h2 className="text-sm font-black text-gray-500 uppercase tracking-widest italic">Helix Remote</h2>
-                            <div className="w-8"></div>
-                        </div>
-
-                        <div className="flex-1 overflow-hidden">
-                            <RemoteControlPanel
-                                liveState={liveState}
-                                isConnected={realtimeSyncService.isConnected()}
-                                sendCommand={(cmd, data) => realtimeSyncService.sendCommand(userId || '', cmd, data)}
-                            />
-                        </div>
+                    <div className="fixed inset-0 z-[100000] bg-[#080d08] w-full h-[100dvh] flex flex-col m-0 p-0 overflow-hidden">
+                        <RemoteControlPanel
+                            liveState={liveState}
+                            isConnected={realtimeSyncService.isConnected()}
+                            sendCommand={(cmd, data) => realtimeSyncService.sendCommand(userId || '', cmd, data)}
+                            onClose={() => setShowMobileControl(false)}
+                        />
                     </div>
                 )}
             </div>

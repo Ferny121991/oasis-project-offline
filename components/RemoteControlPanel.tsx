@@ -22,10 +22,11 @@ interface RemoteControlPanelProps {
     liveState: LiveState | null;
     sendCommand: (command: string, data?: any) => Promise<void>;
     isConnected: boolean;
+    onClose?: () => void;
 }
 
-const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, sendCommand, isConnected }) => {
-    const [activeTab, setActiveTab] = useState<'control' | 'playlist' | 'projects'>('control');
+const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, sendCommand, isConnected, onClose }) => {
+    const [activeTab, setActiveTab] = useState<'control' | 'playlist' | 'projects' | 'add'>('control');
     const [searchQuery, setSearchQuery] = useState('');
 
     if (!liveState) {
@@ -50,7 +51,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
             {/* Top App Bar */}
             <div className="flex items-center justify-between px-4 py-3 bg-[#080d08]/80 backdrop-blur-md border-b border-[#0df20d]/10 shrink-0 z-50">
                 <button
-                    onClick={() => setActiveTab('playlist')}
+                    onClick={onClose ? onClose : () => setActiveTab('playlist')}
                     className="p-2 -ml-2 text-slate-300 hover:text-[#0df20d] transition-colors rounded-full hover:bg-[#0df20d]/10 flex items-center justify-center">
                     <ChevronLeft size={24} />
                 </button>
@@ -73,11 +74,24 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         <div className="p-4">
                             <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.3)] border border-[#0df20d]/20 bg-slate-900/50 flex flex-col justify-end p-5"
                                 style={{ background: 'radial-gradient(circle at center top, rgba(13,242,13,0.15) 0%, rgba(10,18,10,1) 80%)' }}>
-                                <div className="absolute top-3 left-3 bg-[#0df20d]/20 backdrop-blur-sm border border-[#0df20d]/30 px-2 py-1 rounded text-[10px] font-bold text-[#0df20d] uppercase tracking-wide shadow-sm">
+                                <div className="absolute top-3 left-3 z-10 bg-[#0df20d]/20 backdrop-blur-sm border border-[#0df20d]/30 px-2 py-1 rounded text-[10px] font-bold text-[#0df20d] uppercase tracking-wide shadow-sm">
                                     {hasLiveItem ? 'Current Output' : 'Preview'}
                                 </div>
 
-                                <p className="text-white text-xl md:text-2xl font-bold leading-tight drop-shadow-md text-center italic line-clamp-3">
+                                {hasLiveItem && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.type === 'image' && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.mediaUrl && (
+                                    <div className="absolute inset-0 z-0">
+                                        <img src={liveState.activeItemSlides[liveState.liveSlideIndex].mediaUrl} alt="slide" className="w-full h-full object-cover opacity-60" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-[#080d08] via-transparent to-transparent"></div>
+                                    </div>
+                                )}
+                                {hasLiveItem && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.type === 'youtube' && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.videoId && (
+                                    <div className="absolute inset-0 z-0">
+                                        <img src={`https://img.youtube.com/vi/${liveState.activeItemSlides[liveState.liveSlideIndex].videoId}/0.jpg`} alt="video" className="w-full h-full object-cover opacity-60" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-[#080d08] via-transparent to-transparent"></div>
+                                    </div>
+                                )}
+
+                                <p className="text-white text-xl md:text-2xl font-bold leading-tight drop-shadow-md text-center italic line-clamp-3 relative z-10">
                                     {hasLiveItem
                                         ? (liveState.activeItemSlides?.[liveState.liveSlideIndex]?.content.replace(/<[^>]*>?/gm, '') || '')
                                         : 'Selecciona un item para comenzar'}
@@ -145,8 +159,10 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                         >
                                             {isLive && <div className="absolute inset-0 bg-gradient-to-r from-[#0df20d]/5 to-transparent opacity-50"></div>}
 
-                                            <div className={`relative w-20 aspect-video rounded-lg overflow-hidden shrink-0 flex items-center justify-center ${isLive ? 'border border-[#0df20d]/30 bg-[#121a12]' : 'bg-[#121a12] border border-slate-700'}`}>
-                                                {slide.type === 'video' ? <Monitor size={16} className="text-slate-500" /> : <Type size={16} className={isLive ? 'text-[#0df20d]/80' : 'text-slate-600'} />}
+                                            <div className={`relative w-24 aspect-video rounded-lg overflow-hidden shrink-0 flex items-center justify-center ${isLive ? 'border border-[#0df20d]/30 bg-[#121a12]' : 'bg-[#121a12] border border-slate-700'}`}>
+                                                {slide.type === 'image' && slide.mediaUrl && <img src={slide.mediaUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="slide" />}
+                                                {slide.type === 'youtube' && slide.videoId && <img src={`https://img.youtube.com/vi/${slide.videoId}/mqdefault.jpg`} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="youtube" />}
+                                                {slide.type === 'youtube' ? <Monitor size={16} className="text-slate-500 relative z-10" /> : slide.type === 'image' ? <ImageIcon size={16} className="text-slate-500 relative z-10" /> : <Type size={16} className={isLive ? 'text-[#0df20d]/80 relative z-10' : 'text-slate-600 relative z-10'} />}
                                             </div>
 
                                             <div className="flex-1 min-w-0 py-1 z-10">
@@ -271,6 +287,74 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         </div>
                     </div>
                 )}
+
+                {activeTab === 'add' && (
+                    <div className="animate-fade-in w-full max-w-md mx-auto h-full flex flex-col p-4">
+                        <div className="flex flex-col gap-6">
+                            <h3 className="text-slate-100 text-md font-bold tracking-tight mb-2">Agregar a Lista</h3>
+
+                            {/* Buscar Canción */}
+                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-center gap-2 text-slate-300">
+                                        <Music size={16} className="text-[#0df20d]" />
+                                        <span className="text-sm font-bold">Buscar Canción</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: Way Maker..."
+                                        className="w-full bg-[#121a12] border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-[#0df20d]/50"
+                                        id="remote-song-search"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            const val = (document.getElementById('remote-song-search') as HTMLInputElement).value;
+                                            if (val) sendCommand('add_song', { query: val, makeLive: true });
+                                        }}
+                                        className="bg-[#0df20d]/20 text-[#0df20d] hover:bg-[#0df20d]/30 py-2 rounded-lg text-xs font-bold transition-colors w-full uppercase tracking-wider">
+                                        Generar Canción
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Pasaje Bíblico */}
+                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-center gap-2 text-slate-300">
+                                        <Type size={16} className="text-[#0df20d]" />
+                                        <span className="text-sm font-bold">Pasaje Bíblico</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: Juan 3:16"
+                                        className="w-full bg-[#121a12] border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-[#0df20d]/50"
+                                        id="remote-bible-search"
+                                    />
+                                    <div className="flex gap-2">
+                                        <select
+                                            id="remote-bible-version"
+                                            className="flex-1 bg-[#121a12] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-[#0df20d]/50 max-w-fit">
+                                            <option value="RVR1960">RVR1960</option>
+                                            <option value="NVI">NVI</option>
+                                            <option value="TLA">TLA</option>
+                                            <option value="DHH">DHH</option>
+                                        </select>
+                                        <button
+                                            onClick={() => {
+                                                const val = (document.getElementById('remote-bible-search') as HTMLInputElement).value;
+                                                const version = (document.getElementById('remote-bible-version') as HTMLSelectElement).value;
+                                                if (val) sendCommand('add_bible', { query: val, version: version, makeLive: true });
+                                            }}
+                                            className="flex-1 bg-[#0df20d]/20 text-[#0df20d] hover:bg-[#0df20d]/30 py-2 rounded-lg text-xs font-bold transition-colors uppercase tracking-wider">
+                                            Generar Pasaje
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                )}
             </main>
 
             {/* Bottom Navigation Bar */}
@@ -298,6 +382,14 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                 >
                     <Folder size={22} className={activeTab === 'projects' ? 'fill-[#0df20d]/20' : ''} />
                     <p className={`text-[10px] ${activeTab === 'projects' ? 'font-bold' : 'font-medium'}`}>Stage</p>
+                </button>
+
+                <button
+                    onClick={() => setActiveTab('add')}
+                    className={`flex flex-col items-center gap-1 ${activeTab === 'add' ? 'text-[#0df20d]' : 'text-slate-500'}`}
+                >
+                    <Search size={22} className={activeTab === 'add' ? 'fill-[#0df20d]/20' : ''} />
+                    <p className={`text-[10px] ${activeTab === 'add' ? 'font-bold' : 'font-medium'}`}>Buscar</p>
                 </button>
             </div>
             {/* iOS Home Indicator spacer element equivalent */}
