@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PresentationItem, Slide } from '../types';
-import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette, Copy } from 'lucide-react';
+import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette, Copy, Play } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -236,8 +236,20 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
               onDeleteSlide();
             }}
             className="p-1.5 rounded text-white bg-red-600/80 hover:bg-red-500 transition-all"
+            title="Eliminar slide"
           >
             <Trash2 size={12} />
+          </button>
+          {/* Go Live Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSlideDoubleClick();
+            }}
+            className="p-1.5 rounded text-white bg-green-600/80 hover:bg-green-500 transition-all shadow-lg shadow-green-500/30"
+            title="Transmitir en vivo"
+          >
+            <Play size={12} />
           </button>
         </div>
       )}
@@ -439,7 +451,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
         {/* Actions */}
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           <button
-            onClick={() => onSlideDoubleClick(item.id, 0)}
+            onClick={() => onSlideDoubleClick(item.id, isItemActive ? activeSlideIndex : 0)}
             className={`p-1.5 rounded-lg transition-colors ${isItemLive ? 'text-red-400 bg-red-900/30' : 'text-gray-400 hover:text-green-400 hover:bg-green-900/20'}`}
             title="En Vivo"
           >

@@ -112,10 +112,14 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             <div className="mt-4 flex justify-center">
                                 <div className="flex gap-1">
                                     {liveState.activeItemSlides?.map((_, i) => (
-                                        <div
+                                        <button
                                             key={i}
-                                            className={`h-1 rounded-full transition-all ${i === liveState.liveSlideIndex ? 'w-4 bg-indigo-500' : 'w-1 bg-gray-700'}`}
-                                        />
+                                            onClick={() => sendCommand('jump_to_slide', { index: i })}
+                                            className={`h-6 rounded-full transition-all group relative flex items-center justify-center ${i === liveState.liveSlideIndex ? 'w-6 bg-indigo-500' : 'w-4 bg-gray-700 hover:bg-gray-600'}`}
+                                            title={`Ir a slide ${i + 1}`}
+                                        >
+                                            <span className="text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity absolute">{i + 1}</span>
+                                        </button>
                                     ))}
                                 </div>
                             </div>
