@@ -657,7 +657,7 @@ const App: React.FC = () => {
         currentProjectName: projects.find(p => p.id === currentProjectId)?.name,
       });
       lastStateStr.current = currentStateStr;
-    }, 800);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, [session, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, playlist, activeItem, projects, currentProjectId, backgroundAudioItem, isAudioPlaying]);
