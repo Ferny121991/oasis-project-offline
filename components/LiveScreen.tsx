@@ -395,10 +395,18 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                 <div className={`absolute inset-0 bg-white flex flex-col justify-center items-center gap-8 animate-fade-in`}>
                   <div className="relative">
                     <img
-                      src="/logo.svg"
+                      src="/logo.png"
                       alt="Logo Principal"
-                      className="relative z-10 max-h-[75cqh] max-w-[85%] object-contain drop-shadow-2xl animate-pulse"
+                      className="relative z-10 max-h-[60cqh] max-w-[85%] object-contain drop-shadow-xl animate-pulse"
                     />
+                  </div>
+                  <div className="z-10 text-center" style={{ fontFamily: theme.fontFamily }}>
+                    <div className="text-[6cqh] font-black tracking-[0.8cqw] uppercase text-gray-900">
+                      Iglesia De Oasis
+                    </div>
+                    <div className="text-[3cqh] font-bold tracking-[0.4cqw] uppercase text-indigo-900 opacity-70 mt-1">
+                      Betania A Sus Pies
+                    </div>
                   </div>
                 </div>
               )}
