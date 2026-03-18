@@ -1984,7 +1984,7 @@ const App: React.FC = () => {
         {/* Mobile Header - Compact with Live Status */}
         <div className="lg:hidden bg-gradient-to-r from-gray-900 via-gray-850 to-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
-            <img src="/header-logo.png" alt="Logo" className="w-10 h-10 object-contain brightness-110 contrast-125 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
+            <img src="/logo.svg" alt="Logo" className="w-10 h-10 object-contain brightness-110 contrast-125 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
             <h1 className="text-lg font-black tracking-tight text-indigo-400">Flujo<span className="text-white font-light">Eclesial</span></h1>
           </div>
           <div className="flex items-center gap-2">
@@ -2030,7 +2030,7 @@ const App: React.FC = () => {
         {/* Desktop Header */}
         <div className="hidden lg:flex bg-gray-900 px-6 py-4 border-b border-gray-800 justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
-            <img src="/header-logo.png" alt="Logo" className="w-12 h-12 object-contain brightness-110 contrast-125 drop-shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
+            <img src="/logo.svg" alt="Logo" className="w-12 h-12 object-contain brightness-110 contrast-125 drop-shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
             <div className="flex flex-col">
               <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
                 <span className="bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">FlujoEclesial</span>
