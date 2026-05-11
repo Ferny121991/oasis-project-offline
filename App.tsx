@@ -138,7 +138,7 @@ const App: React.FC = () => {
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [autoCloudSync, setAutoCloudSync] = useState(() => {
-    return localStorage.getItem('oasis_auto_cloud_sync') !== 'false';
+    return localStorage.getItem('oasis_auto_cloud_sync') === 'true';
   });
   const [syncError, setSyncError] = useState<string | null>(null);
   const dataLoaded = useRef(false);
