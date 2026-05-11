@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PresentationItem, Slide } from '../types';
 import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette, Copy, Play, Video } from 'lucide-react';
 import {
@@ -20,6 +20,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { isIdbMediaUrl, getSlideIdFromIdbUrl, getMediaBlobUrl } from '../services/mediaBlobStore';
 
 interface PlaylistProps {
   items: PresentationItem[];
@@ -71,7 +72,35 @@ interface SortableSlideProps {
   isRightSplit?: boolean;
   onUpdateLabel?: () => void;
   onOpenNotes?: () => void;
-}
+};
+
+// Tiny helper component to resolve idb: video URLs for thumbnails
+const VideoThumbnail: React.FC<{ mediaUrl: string }> = ({ mediaUrl }) => {
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(
+    isIdbMediaUrl(mediaUrl) ? null : mediaUrl
+  );
+  useEffect(() => {
+    if (isIdbMediaUrl(mediaUrl)) {
+      const slideId = getSlideIdFromIdbUrl(mediaUrl);
+      let cancelled = false;
+      getMediaBlobUrl(slideId).then(url => {
+        if (!cancelled) setResolvedUrl(url);
+      });
+      return () => { cancelled = true; };
+    } else {
+      setResolvedUrl(mediaUrl);
+    }
+  }, [mediaUrl]);
+
+  if (!resolvedUrl) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-800">
+        <Video size={18} className="text-gray-500 animate-pulse" />
+      </div>
+    );
+  }
+  return <video src={resolvedUrl} className="w-full h-full object-cover opacity-80" muted preload="metadata" />;
+};
 
 const SortableSlide: React.FC<SortableSlideProps> = ({
   slide,
@@ -263,7 +292,7 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
           </div>
         ) : slide.type === 'video' && slide.mediaUrl ? (
           <div className="absolute inset-0 top-5 rounded-b-lg overflow-hidden bg-black">
-            <video src={slide.mediaUrl} className="w-full h-full object-cover opacity-80" muted preload="metadata" />
+            <VideoThumbnail mediaUrl={slide.mediaUrl} />
             <div className="absolute inset-0 flex items-center justify-center">
               <Video size={18} className="text-white drop-shadow" />
             </div>

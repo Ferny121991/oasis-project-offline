@@ -20,6 +20,7 @@ import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
 import { createRealtimeSyncService, realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
 import { compressImage } from './services/imageService';
+import { storeMediaBlob, stripPlaylistMedia } from './services/mediaBlobStore';
 
 // Mobile Tab Type
 type MobileTab = 'control' | 'playlist' | 'preview';
@@ -384,14 +385,24 @@ const App: React.FC = () => {
       const projectorLiveItem = liveItem && liveSlideIndex >= 0
         ? { ...liveItem, slides: [liveItem.slides[liveSlideIndex]].filter(Boolean) }
         : liveItem;
+      // Strip large base64 video data — projector will load from IndexedDB via idb: reference
+      const safeLiveItem = projectorLiveItem ? {
+        ...projectorLiveItem,
+        slides: projectorLiveItem.slides.map(s => {
+          if (s.type === 'video' && s.mediaUrl && s.mediaUrl.startsWith('data:')) {
+            return { ...s, mediaUrl: undefined };
+          }
+          return s;
+        })
+      } : null;
       syncChannel.current.postMessage({
         type: 'SYNC_STATE',
         data: {
           liveItemId,
           activeItemId: liveItemId,
-          liveSlideIndex: projectorLiveItem ? 0 : -1,
-          activeSlideIndex: projectorLiveItem ? 0 : -1,
-          playlist: projectorLiveItem ? [projectorLiveItem] : [],
+          liveSlideIndex: safeLiveItem ? 0 : -1,
+          activeSlideIndex: safeLiveItem ? 0 : -1,
+          playlist: safeLiveItem ? [safeLiveItem] : [],
           stagedTheme,
           isPreviewHidden,
           isTextHidden,
@@ -403,7 +414,7 @@ const App: React.FC = () => {
           splitFontScale,
           isKaraokeActive,
           karaokeIndex,
-          frozenLiveItem: projectorLiveItem
+          frozenLiveItem: safeLiveItem
         }
       });
     }
@@ -832,19 +843,20 @@ const App: React.FC = () => {
 
     setIsSyncing(true);
     try {
+      const safePlaylist = stripPlaylistMedia(playlist);
       const finalProjects = currentProjectId
         ? projects.map(p =>
           p.id === currentProjectId
-            ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
-            : p
+            ? { ...p, playlist: safePlaylist, customThemes, updatedAt: new Date().toISOString() }
+            : { ...p, playlist: stripPlaylistMedia(p.playlist || []) }
         )
-        : projects;
+        : projects.map(p => ({ ...p, playlist: stripPlaylistMedia(p.playlist || []) }));
 
       const { error } = await supabase
         .from('user_settings')
         .upsert({
           id: session.user.id,
-          playlist,
+          playlist: safePlaylist,
           custom_themes: customThemes,
           projects: finalProjects,
           current_project_id: currentProjectId,
@@ -923,7 +935,9 @@ const App: React.FC = () => {
   // Persistence Effect: Local Storage (Immediate)
   useEffect(() => {
     try {
-      localStorage.setItem('flujo_playlist_v2', JSON.stringify(playlist));
+      // Strip large video blobs before saving to localStorage to avoid quota errors
+      const safePlaylist = stripPlaylistMedia(playlist);
+      localStorage.setItem('flujo_playlist_v2', JSON.stringify(safePlaylist));
       localStorage.setItem('oasis_custom_themes', JSON.stringify(customThemes));
     } catch (e) {
       console.warn("Local storage update failed", e);
@@ -957,12 +971,13 @@ const App: React.FC = () => {
     const timer = setTimeout(async () => {
       setIsSyncing(true);
       try {
-        let finalProjects = projects;
+        const safePlaylist = stripPlaylistMedia(playlist);
+        let finalProjects = projects.map(p => ({ ...p, playlist: stripPlaylistMedia(p.playlist || []) }));
 
         if (currentProjectId) {
-          finalProjects = projects.map(p =>
+          finalProjects = finalProjects.map(p =>
             p.id === currentProjectId
-              ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+              ? { ...p, playlist: safePlaylist, customThemes, updatedAt: new Date().toISOString() }
               : p
           );
         }
@@ -971,7 +986,7 @@ const App: React.FC = () => {
           .from('user_settings')
           .upsert({
             id: session.user.id,
-            playlist: playlist,
+            playlist: safePlaylist,
             custom_themes: customThemes,
             projects: finalProjects,
             current_project_id: currentProjectId,
@@ -1568,34 +1583,58 @@ const App: React.FC = () => {
       const isImage = file.type.startsWith('image/');
       if (!isImage && !isVideo) continue;
 
-      const reader = new FileReader();
-      const promise = new Promise<string>((resolve) => {
-        reader.onload = async (e) => {
-          const rawDataUrl = e.target?.result as string;
-          if (isVideo) {
-            resolve(rawDataUrl);
-            return;
-          }
-          try {
-            // Compress image to avoid database/storage limits
-            const compressed = await compressImage(rawDataUrl);
-            resolve(compressed);
-          } catch (err) {
-            console.error("Compression failed, using original", err);
-            resolve(rawDataUrl);
-          }
-        };
-      });
-      reader.readAsDataURL(file);
-      const dataUrl = await promise;
+      const slideId = Math.random().toString(36).substr(2, 9);
 
-      newSlides.push({
-        id: Math.random().toString(36).substr(2, 9),
-        type: isVideo ? 'video' : 'image',
-        content: '',
-        mediaUrl: dataUrl,
-        label: `${isVideo ? 'VIDEO' : 'IMAGEN'} - ${file.name.split('.')[0]}`.toUpperCase()
-      });
+      if (isVideo) {
+        // Store video blob in IndexedDB instead of converting to base64
+        // This prevents Out of Memory crashes on the projector
+        try {
+          const idbRef = await storeMediaBlob(slideId, file);
+          newSlides.push({
+            id: slideId,
+            type: 'video',
+            content: '',
+            mediaUrl: idbRef, // Lightweight reference like "idb:abc123"
+            label: `VIDEO - ${file.name.split('.')[0]}`.toUpperCase()
+          });
+        } catch (err) {
+          console.error('Failed to store video in IndexedDB:', err);
+          // Fallback: use Object URL (won't persist but won't crash)
+          const blobUrl = URL.createObjectURL(file);
+          newSlides.push({
+            id: slideId,
+            type: 'video',
+            content: '',
+            mediaUrl: blobUrl,
+            label: `VIDEO - ${file.name.split('.')[0]}`.toUpperCase()
+          });
+        }
+      } else {
+        // Images: compress and use data URL as before
+        const reader = new FileReader();
+        const promise = new Promise<string>((resolve) => {
+          reader.onload = async (e) => {
+            const rawDataUrl = e.target?.result as string;
+            try {
+              const compressed = await compressImage(rawDataUrl);
+              resolve(compressed);
+            } catch (err) {
+              console.error("Compression failed, using original", err);
+              resolve(rawDataUrl);
+            }
+          };
+        });
+        reader.readAsDataURL(file);
+        const dataUrl = await promise;
+
+        newSlides.push({
+          id: slideId,
+          type: 'image',
+          content: '',
+          mediaUrl: dataUrl,
+          label: `IMAGEN - ${file.name.split('.')[0]}`.toUpperCase()
+        });
+      }
     }
 
     if (newSlides.length === 0) return;

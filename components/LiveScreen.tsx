@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Slide, Theme } from '../types';
 import { Type, AlignLeft, AlignCenter, AlignRight, Image, Plus, Minus } from 'lucide-react';
 import AnimatedBackground from './AnimatedBackground';
+import { isIdbMediaUrl, getSlideIdFromIdbUrl, getMediaBlobUrl } from '../services/mediaBlobStore';
 
 interface LiveScreenProps {
   slide: Slide | null;
@@ -95,6 +96,26 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
     };
   }, [slide?.id, slide?.type]);
 
+  // Resolve idb: media URLs to real Object URLs from IndexedDB
+  const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (slide?.type !== 'video' || !slide.mediaUrl) {
+      setResolvedVideoUrl(null);
+      return;
+    }
+    if (isIdbMediaUrl(slide.mediaUrl)) {
+      const slideId = getSlideIdFromIdbUrl(slide.mediaUrl);
+      let cancelled = false;
+      getMediaBlobUrl(slideId).then(url => {
+        if (!cancelled) setResolvedVideoUrl(url);
+      });
+      return () => { cancelled = true; };
+    } else {
+      // Already a usable URL (blob: or data: or http:)
+      setResolvedVideoUrl(slide.mediaUrl);
+    }
+  }, [slide?.id, slide?.type, slide?.mediaUrl]);
+
   useEffect(() => {
     if (slide?.type !== 'video' || !videoRef.current) return;
 
@@ -105,7 +126,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
     } else {
       videoRef.current.pause();
     }
-  }, [slide?.id, slide?.type, autoPlay]);
+  }, [slide?.id, slide?.type, autoPlay, resolvedVideoUrl]);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseMove = () => {
@@ -254,12 +275,12 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                   )}
 
                   {/* LOCAL VIDEO SLIDE */}
-                  {slide.type === 'video' && slide.mediaUrl && (
+                  {slide.type === 'video' && (slide.mediaUrl || resolvedVideoUrl) && resolvedVideoUrl && (
                     <div className="absolute inset-0 flex justify-center items-center overflow-hidden bg-black">
                       <video
                         ref={videoRef}
-                        key={slide.id}
-                        src={slide.mediaUrl}
+                        key={slide.id + (resolvedVideoUrl || '')}
+                        src={resolvedVideoUrl}
                         className="w-full h-full"
                         style={{
                           objectFit: theme.imageContentFit || 'contain',
