@@ -601,6 +601,50 @@ const App: React.FC = () => {
         case 'change_project':
           if (commandData?.projectId) handleSelectProject(commandData.projectId);
           break;
+        case 'create_project':
+          if (commandData?.name) {
+            isSwitchingProject.current = true;
+            const newProject: Project = {
+              id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              name: commandData.name,
+              description: 'Creado desde control remoto',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              playlist: [],
+              customThemes: []
+            };
+            setProjects(prev => [...prev, newProject]);
+            setCurrentProjectId(newProject.id);
+            setPlaylist([]);
+            setCustomThemes([]);
+            setActiveItemId(null);
+            setActiveSlideIndex(-1);
+            setTimeout(() => {
+              isSwitchingProject.current = false;
+            }, 250);
+          }
+          break;
+        case 'add_media':
+          if (Array.isArray(commandData?.slides) && commandData.slides.length > 0) {
+            const newItem: PresentationItem = {
+              id: Math.random().toString(36).substr(2, 9),
+              title: commandData.title || `Media remota (${commandData.slides.length})`,
+              type: 'custom',
+              slides: commandData.slides,
+              theme: stagedTheme
+            };
+            setPlaylist(prev => [...prev, newItem]);
+            setActiveItemId(newItem.id);
+            setActiveSlideIndex(0);
+            if (commandData.makeLive) {
+              setLiveItemId(newItem.id);
+              setLiveSlideIndex(0);
+              setFrozenLiveItem(newItem);
+              setIsPreviewHidden(false);
+              setIsLogoActive(false);
+            }
+          }
+          break;
         case 'toggle_audio': toggleAudioPlayback(); break;
         case 'stop_live': stopLive(); break;
         case 'add_bible':

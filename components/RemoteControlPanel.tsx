@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
     AlertCircle,
     BookOpen,
@@ -13,16 +13,19 @@ import {
     Monitor,
     Music,
     PlayCircle,
+    Plus,
     Radio,
     Search,
     Smartphone,
     Sparkles,
     Square,
     Type,
+    Upload,
     Video,
     X
 } from 'lucide-react';
 import { LiveState } from '../services/realtimeService';
+import { compressImage } from '../services/imageService';
 
 interface RemoteControlPanelProps {
     liveState: LiveState | null;
@@ -41,6 +44,10 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const [songQuery, setSongQuery] = useState('');
     const [bibleQuery, setBibleQuery] = useState('');
     const [bibleVersion, setBibleVersion] = useState('RVR1960');
+    const [newProjectName, setNewProjectName] = useState('');
+    const [mediaTitle, setMediaTitle] = useState('');
+    const [uploadStatus, setUploadStatus] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const activeItem = liveState?.playlist?.find(p => p.id === liveState.liveItemId);
     const currentSlide = liveState?.activeItemSlides?.[liveState.liveSlideIndex];
@@ -52,6 +59,52 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     }, [liveState?.playlist, searchQuery]);
 
     const connectionLabel = isConnected ? (hasLiveItem ? 'EN VIVO' : 'ONLINE') : 'RECONECTANDO';
+
+    const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+
+    const handleImageUpload = async (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+
+        const images = Array.from(files).filter(file => file.type.startsWith('image/')).slice(0, 8);
+        if (images.length === 0) {
+            setUploadStatus('Selecciona imagenes validas.');
+            return;
+        }
+
+        setUploadStatus(`Preparando ${images.length} imagen${images.length === 1 ? '' : 'es'}...`);
+        try {
+            const slides = await Promise.all(images.map(async (file) => {
+                const raw = await readFileAsDataUrl(file);
+                const mediaUrl = await compressImage(raw, 1280, 720, 0.45);
+                return {
+                    id: Math.random().toString(36).slice(2, 11),
+                    type: 'image' as const,
+                    content: '',
+                    mediaUrl,
+                    label: file.name.replace(/\.[^.]+$/, '').toUpperCase()
+                };
+            }));
+
+            await sendCommand('add_media', {
+                title: mediaTitle.trim() || (slides.length === 1 ? slides[0].label : `Imagenes remoto (${slides.length})`),
+                slides,
+                makeLive: true
+            });
+            setUploadStatus('Imagenes enviadas al presentador.');
+            setMediaTitle('');
+        } catch (error) {
+            console.error(error);
+            setUploadStatus('No se pudo enviar la imagen.');
+        } finally {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            setTimeout(() => setUploadStatus(''), 3000);
+        }
+    };
 
     if (!liveState) {
         return (
@@ -251,7 +304,30 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 
                 {activeTab === 'projects' && (
                     <section className="p-4 max-w-md mx-auto space-y-4">
-                        <h2 className="text-sm font-black uppercase tracking-wider text-slate-400">Proyectos</h2>
+                        <div className="rounded-2xl border border-indigo-400/20 bg-indigo-500/10 p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-indigo-200 font-black">
+                                <Plus size={18} /> Crear set desde el celular
+                            </div>
+                            <input
+                                value={newProjectName}
+                                onChange={(e) => setNewProjectName(e.target.value)}
+                                placeholder="Nombre del set, ej: Domingo noche"
+                                className="w-full h-11 rounded-xl bg-slate-950 border border-white/10 px-3 text-sm outline-none focus:border-indigo-400"
+                            />
+                            <button
+                                onClick={() => {
+                                    const name = newProjectName.trim();
+                                    if (!name) return;
+                                    sendCommand('create_project', { name });
+                                    setNewProjectName('');
+                                }}
+                                className="w-full h-11 rounded-xl bg-indigo-600 text-white text-sm font-black active:scale-[0.99]"
+                            >
+                                Crear y abrir set
+                            </button>
+                        </div>
+
+                        <h2 className="text-sm font-black uppercase tracking-wider text-slate-400">Proyectos guardados</h2>
                         <div className="grid grid-cols-2 gap-3">
                             {liveState.projects?.map(project => {
                                 const selected = liveState.currentProjectName === project.name;
@@ -275,6 +351,40 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 
                 {activeTab === 'add' && (
                     <section className="p-4 max-w-md mx-auto space-y-4">
+                        <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-sky-200 font-black">
+                                <Upload size={18} /> Subir imagenes
+                            </div>
+                            <input
+                                value={mediaTitle}
+                                onChange={(e) => setMediaTitle(e.target.value)}
+                                placeholder="Titulo opcional para la galeria"
+                                className="w-full h-11 rounded-xl bg-slate-950 border border-white/10 px-3 text-sm outline-none focus:border-sky-400"
+                            />
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => handleImageUpload(e.target.files)}
+                            />
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full h-12 rounded-xl bg-sky-600 text-white text-sm font-black active:scale-[0.99] flex items-center justify-center gap-2"
+                            >
+                                <ImageIcon size={18} /> Elegir imagenes y enviar
+                            </button>
+                            <p className="text-[11px] text-slate-400 leading-relaxed">
+                                Se comprimen antes de enviarse para que el proyector no se bloquee. Maximo 8 por envio.
+                            </p>
+                            {uploadStatus && (
+                                <div className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-sky-200">
+                                    {uploadStatus}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 space-y-3">
                             <div className="flex items-center gap-2 text-indigo-200 font-black">
                                 <Sparkles size={18} /> Generar cancion
