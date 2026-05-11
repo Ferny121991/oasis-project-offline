@@ -111,10 +111,10 @@ export interface Theme {
 
 export interface Slide {
   id: string;
-  type: 'text' | 'image' | 'youtube';
+  type: 'text' | 'image' | 'youtube' | 'video';
   content: string; // The text lyrics or caption (fallback si no hay segments)
   segments?: TextSegment[]; // Para texto enriquecido con estilos por palabra
-  mediaUrl?: string; // URL/Base64 for image slides
+  mediaUrl?: string; // URL/Base64 for image and local video slides
   videoId?: string; // YouTube Video ID
   label?: string; // e.g., "Coro", "Verso 1"
   operatorNotes?: string; // Internal notes visible only to the operator, not on projector

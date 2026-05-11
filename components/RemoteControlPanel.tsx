@@ -14,7 +14,8 @@ import {
     Type,
     Music,
     AlertCircle,
-    PlayCircle
+    PlayCircle,
+    Video
 } from 'lucide-react';
 import { LiveState } from '../services/realtimeService';
 
@@ -90,6 +91,12 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                         <div className="absolute inset-0 bg-gradient-to-t from-[#080d08] via-transparent to-transparent"></div>
                                     </div>
                                 )}
+                                {hasLiveItem && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.type === 'video' && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.mediaUrl && (
+                                    <div className="absolute inset-0 z-0 bg-black">
+                                        <video src={liveState.activeItemSlides[liveState.liveSlideIndex].mediaUrl} className="w-full h-full object-cover opacity-60" muted preload="metadata" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-[#080d08] via-transparent to-transparent"></div>
+                                    </div>
+                                )}
 
                                 <p className="text-white text-xl md:text-2xl font-bold leading-tight drop-shadow-md text-center italic line-clamp-3 relative z-10">
                                     {hasLiveItem
@@ -161,8 +168,9 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 
                                             <div className={`relative w-24 aspect-video rounded-lg overflow-hidden shrink-0 flex items-center justify-center ${isLive ? 'border border-[#0df20d]/30 bg-[#121a12]' : 'bg-[#121a12] border border-slate-700'}`}>
                                                 {slide.type === 'image' && slide.mediaUrl && <img src={slide.mediaUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="slide" />}
+                                                {slide.type === 'video' && slide.mediaUrl && <video src={slide.mediaUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" muted preload="metadata" />}
                                                 {slide.type === 'youtube' && slide.videoId && <img src={`https://img.youtube.com/vi/${slide.videoId}/mqdefault.jpg`} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="youtube" />}
-                                                {slide.type === 'youtube' ? <Monitor size={16} className="text-slate-500 relative z-10" /> : slide.type === 'image' ? <ImageIcon size={16} className="text-slate-500 relative z-10" /> : <Type size={16} className={isLive ? 'text-[#0df20d]/80 relative z-10' : 'text-slate-600 relative z-10'} />}
+                                                {slide.type === 'youtube' ? <Monitor size={16} className="text-slate-500 relative z-10" /> : slide.type === 'video' ? <Video size={16} className="text-slate-500 relative z-10" /> : slide.type === 'image' ? <ImageIcon size={16} className="text-slate-500 relative z-10" /> : <Type size={16} className={isLive ? 'text-[#0df20d]/80 relative z-10' : 'text-slate-600 relative z-10'} />}
                                             </div>
 
                                             <div className="flex-1 min-w-0 py-1 z-10">

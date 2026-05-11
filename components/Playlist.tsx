@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PresentationItem, Slide } from '../types';
-import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette, Copy, Play } from 'lucide-react';
+import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette, Copy, Play, Video } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -259,7 +259,14 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
         {slide.type === 'youtube' ? (
           <div className="flex flex-col items-center justify-center gap-1 text-red-400 font-bold h-full">
             <Monitor size={16} />
-            <span className="text-[9px]">VIDEO</span>
+            <span className="text-[9px]">YOUTUBE</span>
+          </div>
+        ) : slide.type === 'video' && slide.mediaUrl ? (
+          <div className="absolute inset-0 top-5 rounded-b-lg overflow-hidden bg-black">
+            <video src={slide.mediaUrl} className="w-full h-full object-cover opacity-80" muted preload="metadata" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Video size={18} className="text-white drop-shadow" />
+            </div>
           </div>
         ) : slide.type === 'image' && slide.mediaUrl ? (
           <div className="absolute inset-0 top-5 rounded-b-lg overflow-hidden">
@@ -765,6 +772,18 @@ const Playlist: React.FC<PlaylistProps> = ({
   if (items.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative overflow-y-auto">
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*,video/*"
+          multiple
+          onChange={(e) => {
+            onUploadImages(e.target.files, activeUploadItemId);
+            setActiveUploadItemId(undefined);
+            if (e.target) e.target.value = '';
+          }}
+        />
         {/* Add Section Button even when empty */}
         <div className="w-full max-w-sm mb-8">
           <button
@@ -808,7 +827,7 @@ const Playlist: React.FC<PlaylistProps> = ({
         type="file"
         ref={fileInputRef}
         className="hidden"
-        accept="image/*"
+        accept="image/*,video/*"
         multiple
         onChange={(e) => {
           onUploadImages(e.target.files, activeUploadItemId);

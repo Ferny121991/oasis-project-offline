@@ -37,6 +37,7 @@ export interface RealtimeSyncService {
 
 let channel: RealtimeChannel | null = null;
 let isSubscribed = false;
+let lastKnownState: LiveState | null = null;
 
 export const createRealtimeSyncService = (): RealtimeSyncService => {
     return {
@@ -57,7 +58,8 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                     },
                     (payload) => {
                         if (payload.new && (payload.new as any).live_state) {
-                            onStateChange((payload.new as any).live_state as LiveState);
+                            lastKnownState = (payload.new as any).live_state as LiveState;
+                            onStateChange(lastKnownState);
                         }
                     }
                 )
@@ -65,18 +67,24 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                     isSubscribed = status === 'SUBSCRIBED';
                     console.log('Realtime sync status:', status);
                 });
+
+            supabase
+                .from('realtime_sync')
+                .select('live_state')
+                .eq('user_id', userId)
+                .single()
+                .then(({ data }) => {
+                    if (data?.live_state) {
+                        lastKnownState = data.live_state as LiveState;
+                        onStateChange(lastKnownState);
+                    }
+                })
+                .catch((error) => console.warn('Realtime initial state fetch failed:', error));
         },
 
         updateState: async (userId: string, state: Partial<LiveState>) => {
             try {
-                // First try to get existing state
-                const { data: existing } = await supabase
-                    .from('realtime_sync')
-                    .select('live_state')
-                    .eq('user_id', userId)
-                    .single();
-
-                const existingState = (existing?.live_state as LiveState) || {
+                const existingState = lastKnownState || {
                     liveItemId: null,
                     liveSlideIndex: -1,
                     activeItemId: null,
@@ -96,6 +104,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                     lastUpdated: new Date().toISOString(),
                     command: null // Clear any pending command after processing
                 };
+                lastKnownState = newState;
 
                 const { error } = await supabase
                     .from('realtime_sync')
@@ -115,13 +124,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
 
         sendCommand: async (userId: string, command: string | null, data?: any) => {
             try {
-                const { data: existing } = await supabase
-                    .from('realtime_sync')
-                    .select('live_state')
-                    .eq('user_id', userId)
-                    .single();
-
-                const existingState = (existing?.live_state as LiveState) || {
+                const existingState = lastKnownState || {
                     liveItemId: null,
                     liveSlideIndex: -1,
                     lastUpdated: new Date().toISOString()
@@ -133,6 +136,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                     commandData: data || null,
                     lastUpdated: new Date().toISOString()
                 };
+                lastKnownState = newState;
 
                 const { error } = await supabase
                     .from('realtime_sync')
@@ -155,6 +159,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 channel.unsubscribe();
                 channel = null;
                 isSubscribed = false;
+                lastKnownState = null;
             }
         },
 

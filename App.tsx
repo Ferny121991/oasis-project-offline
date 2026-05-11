@@ -119,6 +119,9 @@ const App: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTab>('playlist');
   const [session, setSession] = useState<Session | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [autoCloudSync, setAutoCloudSync] = useState(() => {
+    return localStorage.getItem('oasis_auto_cloud_sync') !== 'false';
+  });
   const [syncError, setSyncError] = useState<string | null>(null);
   const dataLoaded = useRef(false);
   const isSwitchingProject = useRef(false);
@@ -780,6 +783,61 @@ const App: React.FC = () => {
     await fetchUserData();
   };
 
+  const handleManualCloudSave = async () => {
+    if (!session?.user) {
+      alert("Debes iniciar sesion con Google para guardar manualmente.");
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const finalProjects = currentProjectId
+        ? projects.map(p =>
+          p.id === currentProjectId
+            ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+            : p
+        )
+        : projects;
+
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          id: session.user.id,
+          playlist,
+          custom_themes: customThemes,
+          projects: finalProjects,
+          current_project_id: currentProjectId,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error("Cloud save error:", error);
+        setSyncError("Error al guardar");
+        return;
+      }
+
+      setSyncError(null);
+      actionHistoryService.log(
+        session.user.id,
+        'cloud_sync_saved',
+        'Cambios guardados manualmente en la nube'
+      );
+    } catch (e) {
+      console.error("Critical save error", e);
+      setSyncError("Error al guardar");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleToggleAutoCloudSync = () => {
+    setAutoCloudSync(prev => {
+      const next = !prev;
+      localStorage.setItem('oasis_auto_cloud_sync', String(next));
+      return next;
+    });
+  };
+
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -837,7 +895,7 @@ const App: React.FC = () => {
   const lastCloudThemes = useRef<string>('');
 
   useEffect(() => {
-    if (!session?.user || !dataLoaded.current || isCloudLoading.current) return;
+    if (!autoCloudSync || !session?.user || !dataLoaded.current || isCloudLoading.current) return;
 
     // Skip if nothing changed according to string comparison (IGNORING volatile updatedAt field)
     const stripVolatile = (projs: any[]) => projs.map(p => {
@@ -896,7 +954,7 @@ const App: React.FC = () => {
     }, 5000); // 5 second debounce for stability
 
     return () => clearTimeout(timer);
-  }, [playlist, customThemes, projects, currentProjectId, session]);
+  }, [playlist, customThemes, projects, currentProjectId, session, autoCloudSync]);
 
 
 
@@ -1465,10 +1523,18 @@ const App: React.FC = () => {
     const newSlides: Slide[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      const isVideo = file.type.startsWith('video/');
+      const isImage = file.type.startsWith('image/');
+      if (!isImage && !isVideo) continue;
+
       const reader = new FileReader();
       const promise = new Promise<string>((resolve) => {
         reader.onload = async (e) => {
           const rawDataUrl = e.target?.result as string;
+          if (isVideo) {
+            resolve(rawDataUrl);
+            return;
+          }
           try {
             // Compress image to avoid database/storage limits
             const compressed = await compressImage(rawDataUrl);
@@ -1484,12 +1550,14 @@ const App: React.FC = () => {
 
       newSlides.push({
         id: Math.random().toString(36).substr(2, 9),
-        type: 'image',
+        type: isVideo ? 'video' : 'image',
         content: '',
         mediaUrl: dataUrl,
-        label: file.name.split('.')[0].toUpperCase()
+        label: `${isVideo ? 'VIDEO' : 'IMAGEN'} - ${file.name.split('.')[0]}`.toUpperCase()
       });
     }
+
+    if (newSlides.length === 0) return;
 
     if (itemId) {
       setPlaylist(prev => prev.map(item =>
@@ -2130,6 +2198,27 @@ const App: React.FC = () => {
               />
               {/* Export/Import Button */}
               <div className="px-3 py-2 border-b border-gray-800 flex gap-2">
+                {session && (
+                  <>
+                    <button
+                      onClick={handleManualCloudSave}
+                      disabled={isSyncing}
+                      className="flex-1 bg-emerald-700/80 hover:bg-emerald-600 disabled:opacity-50 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all"
+                      title="Guardar ahora en la nube"
+                    >
+                      <Check size={14} />
+                      <span className="hidden xl:inline">Guardar manual</span>
+                    </button>
+                    <button
+                      onClick={handleToggleAutoCloudSync}
+                      className={`px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all border ${autoCloudSync ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40' : 'bg-gray-800 text-gray-400 border-gray-700'}`}
+                      title={autoCloudSync ? 'Apagar guardado automatico' : 'Prender guardado automatico'}
+                    >
+                      <RefreshCw size={14} className={autoCloudSync ? 'text-indigo-300' : 'text-gray-500'} />
+                      <span className="hidden 2xl:inline">{autoCloudSync ? 'Auto ON' : 'Auto OFF'}</span>
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setShowExportImport(true)}
                   className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"

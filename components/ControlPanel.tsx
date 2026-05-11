@@ -15,7 +15,7 @@ interface ControlPanelProps {
   liveTheme: Theme;    // This is the ACTUAL theme on projector
   hasActiveItem: boolean;
   onAddSlide: (slide: Slide) => void;
-  activeSlideType?: 'text' | 'image' | 'youtube';
+  activeSlideType?: 'text' | 'image' | 'youtube' | 'video';
   activeSlide?: Slide | null;
   onUpdateSlideContent?: (slideId: string, newContent: string) => void;
   onUpdateSlideSegments?: (slideId: string, segments: TextSegment[]) => void;

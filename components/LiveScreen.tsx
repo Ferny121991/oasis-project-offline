@@ -36,6 +36,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 }) => {
   const [showTools, setShowTools] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const onVideoEndRef = useRef(onVideoEnd);
 
   // Keep the callback ref up to date without triggering re-renders
@@ -93,6 +94,18 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
       }
     };
   }, [slide?.id, slide?.type]);
+
+  useEffect(() => {
+    if (slide?.type !== 'video' || !videoRef.current) return;
+
+    if (autoPlay) {
+      videoRef.current.play().catch(() => {
+        // Browsers can block autoplay with audio; the controls remain available.
+      });
+    } else {
+      videoRef.current.pause();
+    }
+  }, [slide?.id, slide?.type, autoPlay]);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseMove = () => {
@@ -203,7 +216,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
         <div
           className="absolute inset-0 z-10 flex flex-col justify-center items-center overflow-hidden"
           style={{
-            padding: slide?.type === 'image' ? '0' : `${theme.padding || 4}cqh`,
+            padding: slide?.type === 'image' || slide?.type === 'video' ? '0' : `${theme.padding || 4}cqh`,
             '--font-size-multiplier': theme.fontSize === 'text-2xl' ? '0.3' :
               theme.fontSize === 'text-4xl' ? '0.5' :
                 theme.fontSize === 'text-6xl' ? '0.7' :
@@ -237,6 +250,44 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                         loading="eager"
                         referrerPolicy="no-referrer-when-downgrade"
                       ></iframe>
+                    </div>
+                  )}
+
+                  {/* LOCAL VIDEO SLIDE */}
+                  {slide.type === 'video' && slide.mediaUrl && (
+                    <div className="absolute inset-0 flex justify-center items-center overflow-hidden bg-black">
+                      <video
+                        ref={videoRef}
+                        key={slide.id}
+                        src={slide.mediaUrl}
+                        className="w-full h-full"
+                        style={{
+                          objectFit: theme.imageContentFit || 'contain',
+                          opacity: theme.imageContentOpacity ?? 1.0,
+                          filter: `
+                            brightness(${theme.imageContentBrightness ?? 1.0})
+                            contrast(${theme.imageContentContrast ?? 1.0})
+                            saturate(${theme.imageContentSaturate ?? 1.0})
+                            grayscale(${theme.imageContentGrayscale || 0})
+                            sepia(${theme.imageContentSepia || 0})
+                            hue-rotate(${theme.imageContentHueRotate || 0}deg)
+                            invert(${theme.imageContentInvert || 0})
+                            blur(${theme.imageContentBlur || 0}px)
+                          `,
+                          transform: `
+                            scale(${theme.imageContentScale || 1.0})
+                            rotate(${theme.imageContentRotation || 0}deg)
+                            scaleX(${theme.imageContentFlipH ? -1 : 1})
+                            scaleY(${theme.imageContentFlipV ? -1 : 1})
+                          `
+                        }}
+                        autoPlay={autoPlay}
+                        muted={mute}
+                        controls={!isFullscreen}
+                        playsInline
+                        preload="metadata"
+                        onEnded={onVideoEnd}
+                      />
                     </div>
                   )}
 
