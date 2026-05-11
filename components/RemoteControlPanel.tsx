@@ -1,21 +1,26 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+    AlertCircle,
+    BookOpen,
     ChevronLeft,
     ChevronRight,
     Eye,
     EyeOff,
-    Eraser,
-    Image as ImageIcon,
-    List,
     Folder,
+    Image as ImageIcon,
+    LayoutGrid,
+    List,
     Monitor,
-    Smartphone,
-    Search,
-    Type,
     Music,
-    AlertCircle,
     PlayCircle,
-    Video
+    Radio,
+    Search,
+    Smartphone,
+    Sparkles,
+    Square,
+    Type,
+    Video,
+    X
 } from 'lucide-react';
 import { LiveState } from '../services/realtimeService';
 
@@ -26,382 +31,324 @@ interface RemoteControlPanelProps {
     onClose?: () => void;
 }
 
+type RemoteTab = 'control' | 'playlist' | 'projects' | 'add';
+
+const stripHtml = (value?: string) => (value || '').replace(/<[^>]*>?/gm, '').trim();
+
 const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, sendCommand, isConnected, onClose }) => {
-    const [activeTab, setActiveTab] = useState<'control' | 'playlist' | 'projects' | 'add'>('control');
+    const [activeTab, setActiveTab] = useState<RemoteTab>('control');
     const [searchQuery, setSearchQuery] = useState('');
+    const [songQuery, setSongQuery] = useState('');
+    const [bibleQuery, setBibleQuery] = useState('');
+    const [bibleVersion, setBibleVersion] = useState('RVR1960');
+
+    const activeItem = liveState?.playlist?.find(p => p.id === liveState.liveItemId);
+    const currentSlide = liveState?.activeItemSlides?.[liveState.liveSlideIndex];
+    const hasLiveItem = !!liveState?.liveItemId;
+
+    const filteredPlaylist = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        return (liveState?.playlist || []).filter(item => item.title.toLowerCase().includes(query));
+    }, [liveState?.playlist, searchQuery]);
+
+    const connectionLabel = isConnected ? (hasLiveItem ? 'EN VIVO' : 'ONLINE') : 'RECONECTANDO';
 
     if (!liveState) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 text-center text-slate-500 bg-[#080d08] min-h-screen">
-                <Smartphone size={48} className="mb-4 opacity-20" />
-                <p className="text-sm font-medium">Esperando conexión...</p>
-                <p className="text-xs opacity-60 mt-2">Asegúrate de que el presentador esté activo.</p>
+            <div className="min-h-[100dvh] bg-[#070b16] text-white flex items-center justify-center p-6">
+                <div className="w-full max-w-sm text-center rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl">
+                    <div className="w-16 h-16 rounded-2xl bg-indigo-500/15 border border-indigo-400/20 mx-auto mb-5 flex items-center justify-center text-indigo-300">
+                        <Smartphone size={32} />
+                    </div>
+                    <h1 className="text-xl font-black">Conectando control</h1>
+                    <p className="text-sm text-slate-400 mt-2">Mantén abierta la pantalla principal del presentador para recibir comandos.</p>
+                    <div className="mt-6 h-2 rounded-full bg-slate-800 overflow-hidden">
+                        <div className="h-full w-1/2 bg-indigo-500 animate-pulse rounded-full" />
+                    </div>
+                </div>
             </div>
         );
     }
 
-    const filteredPlaylist = liveState.playlist?.filter(item =>
-        item.title.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    const renderSlideBackdrop = () => {
+        if (!currentSlide) return null;
+        if (currentSlide.type === 'image' && currentSlide.mediaUrl) {
+            return <img src={currentSlide.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-55" />;
+        }
+        if (currentSlide.type === 'video' && currentSlide.mediaUrl) {
+            return <video src={currentSlide.mediaUrl} className="absolute inset-0 w-full h-full object-cover opacity-55" muted preload="metadata" />;
+        }
+        if (currentSlide.type === 'youtube' && currentSlide.videoId) {
+            return <img src={`https://img.youtube.com/vi/${currentSlide.videoId}/hqdefault.jpg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-55" />;
+        }
+        return null;
+    };
 
-    const activeItem = liveState.playlist?.find(p => p.id === liveState.liveItemId);
-    const hasLiveItem = !!liveState.liveItemId;
+    const renderSlideIcon = (type?: string) => {
+        if (type === 'image') return <ImageIcon size={17} />;
+        if (type === 'video') return <Video size={17} />;
+        if (type === 'youtube') return <Monitor size={17} />;
+        return <Type size={17} />;
+    };
 
     return (
-        <div className="flex flex-col h-[100dvh] w-full bg-[#080d08] text-slate-100 overflow-hidden font-sans antialiased selection:bg-[#0df20d]/30">
-            {/* Top App Bar */}
-            <div className="flex items-center justify-between px-4 py-3 bg-[#080d08]/80 backdrop-blur-md border-b border-[#0df20d]/10 shrink-0 z-50">
-                <button
-                    onClick={onClose ? onClose : () => setActiveTab('playlist')}
-                    className="p-2 -ml-2 text-slate-300 hover:text-[#0df20d] transition-colors rounded-full hover:bg-[#0df20d]/10 flex items-center justify-center">
-                    <ChevronLeft size={24} />
-                </button>
-                <h1 className="text-sm font-bold text-center flex-1 mx-4 truncate text-slate-100">
-                    {activeItem ? activeItem.title : (liveState.currentProjectName || 'Control Remoto')}
-                </h1>
-
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full border ${isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
-                    <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                    <span className={`text-[10px] font-bold tracking-wider ${isConnected ? 'text-green-500' : 'text-red-500'}`}>
-                        {isConnected ? (hasLiveItem ? 'EN VIVO' : 'ONLINE') : 'OFFLINE'}
-                    </span>
+        <div className="flex flex-col h-[100dvh] w-full bg-[#070b16] text-slate-100 overflow-hidden font-sans antialiased">
+            <header className="shrink-0 px-4 pt-4 pb-3 bg-[#070b16]/95 border-b border-white/10">
+                <div className="flex items-center justify-between gap-3">
+                    <button
+                        onClick={onClose}
+                        className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 text-slate-300 flex items-center justify-center active:scale-95"
+                        title="Cerrar"
+                    >
+                        {onClose ? <X size={20} /> : <Smartphone size={20} />}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[10px] uppercase font-black tracking-wider text-indigo-300">Oasis Remote</p>
+                        <h1 className="text-sm font-black truncate">{activeItem?.title || liveState.currentProjectName || 'Control remoto'}</h1>
+                    </div>
+                    <div className={`px-2.5 py-1.5 rounded-full border flex items-center gap-1.5 ${isConnected ? 'bg-emerald-500/10 border-emerald-400/20 text-emerald-300' : 'bg-amber-500/10 border-amber-400/20 text-amber-300'}`}>
+                        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-300'}`} />
+                        <span className="text-[10px] font-black">{connectionLabel}</span>
+                    </div>
                 </div>
-            </div>
+            </header>
 
-            <main className="flex-1 overflow-y-auto pb-6 relative custom-scrollbar">
+            <main className="flex-1 overflow-y-auto pb-24">
                 {activeTab === 'control' && (
-                    <div className="animate-fade-in w-full max-w-md mx-auto">
-                        {/* Live Preview Area */}
-                        <div className="p-4">
-                            <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.3)] border border-[#0df20d]/20 bg-slate-900/50 flex flex-col justify-end p-5"
-                                style={{ background: 'radial-gradient(circle at center top, rgba(13,242,13,0.15) 0%, rgba(10,18,10,1) 80%)' }}>
-                                <div className="absolute top-3 left-3 z-10 bg-[#0df20d]/20 backdrop-blur-sm border border-[#0df20d]/30 px-2 py-1 rounded text-[10px] font-bold text-[#0df20d] uppercase tracking-wide shadow-sm">
-                                    {hasLiveItem ? 'Current Output' : 'Preview'}
-                                </div>
-
-                                {hasLiveItem && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.type === 'image' && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.mediaUrl && (
-                                    <div className="absolute inset-0 z-0">
-                                        <img src={liveState.activeItemSlides[liveState.liveSlideIndex].mediaUrl} alt="slide" className="w-full h-full object-cover opacity-60" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-[#080d08] via-transparent to-transparent"></div>
-                                    </div>
-                                )}
-                                {hasLiveItem && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.type === 'youtube' && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.videoId && (
-                                    <div className="absolute inset-0 z-0">
-                                        <img src={`https://img.youtube.com/vi/${liveState.activeItemSlides[liveState.liveSlideIndex].videoId}/0.jpg`} alt="video" className="w-full h-full object-cover opacity-60" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-[#080d08] via-transparent to-transparent"></div>
-                                    </div>
-                                )}
-                                {hasLiveItem && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.type === 'video' && liveState.activeItemSlides?.[liveState.liveSlideIndex]?.mediaUrl && (
-                                    <div className="absolute inset-0 z-0 bg-black">
-                                        <video src={liveState.activeItemSlides[liveState.liveSlideIndex].mediaUrl} className="w-full h-full object-cover opacity-60" muted preload="metadata" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-[#080d08] via-transparent to-transparent"></div>
-                                    </div>
-                                )}
-
-                                <p className="text-white text-xl md:text-2xl font-bold leading-tight drop-shadow-md text-center italic line-clamp-3 relative z-10">
-                                    {hasLiveItem
-                                        ? (liveState.activeItemSlides?.[liveState.liveSlideIndex]?.content.replace(/<[^>]*>?/gm, '') || '')
-                                        : 'Selecciona un item para comenzar'}
+                    <section className="p-4 max-w-md mx-auto space-y-4">
+                        <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-slate-900 shadow-2xl">
+                            {renderSlideBackdrop()}
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#070b16] via-[#070b16]/25 to-transparent" />
+                            <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-black/45 border border-white/10 px-2.5 py-1 text-[10px] font-black uppercase">
+                                <Radio size={12} className="text-emerald-300" />
+                                {hasLiveItem ? `Slide ${(liveState.liveSlideIndex ?? 0) + 1}` : 'Sin vivo'}
+                            </div>
+                            <div className="absolute inset-x-0 bottom-0 p-4">
+                                <p className="text-xs text-indigo-200/80 font-bold uppercase mb-1">{currentSlide?.label || currentSlide?.type || 'Vista previa'}</p>
+                                <p className="text-xl font-black leading-tight line-clamp-3">
+                                    {stripHtml(currentSlide?.content) || activeItem?.title || 'Selecciona un elemento para comenzar'}
                                 </p>
                             </div>
                         </div>
 
-                        {/* Quick Actions Toolbar */}
-                        <div className="px-4 pb-4">
-                            <div className="flex justify-around items-center rounded-lg p-2 border border-slate-700/50"
-                                style={{ background: 'rgba(18, 26, 18, 0.7)', backdropFilter: 'blur(12px)' }}>
-                                <button
-                                    onClick={() => sendCommand('blackout')}
-                                    className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all w-20 ${liveState.isPreviewHidden ? 'text-[#0df20d] bg-[#0df20d]/10' : 'text-slate-400 hover:bg-[#0df20d]/10 hover:text-[#0df20d]'}`}>
-                                    {liveState.isPreviewHidden ? <EyeOff size={24} /> : <Eye size={24} />}
-                                    <span className="text-[9px] font-medium uppercase tracking-wider">Blackout</span>
-                                </button>
-                                <div className="w-px h-8 bg-slate-700/50"></div>
-                                <button
-                                    onClick={() => sendCommand('clear')}
-                                    className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all w-20 ${liveState.isTextHidden ? 'text-[#0df20d] bg-[#0df20d]/10' : 'text-slate-400 hover:bg-[#0df20d]/10 hover:text-[#0df20d]'}`}>
-                                    <Eraser size={24} />
-                                    <span className="text-[9px] font-medium uppercase tracking-wider">Clear Text</span>
-                                </button>
-                                <div className="w-px h-8 bg-slate-700/50"></div>
-                                <button
-                                    onClick={() => sendCommand('logo')}
-                                    className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all w-20 ${liveState.isLogoActive ? 'text-[#0df20d] bg-[#0df20d]/10' : 'text-slate-400 hover:bg-[#0df20d]/10 hover:text-[#0df20d]'}`}>
-                                    <ImageIcon size={24} />
-                                    <span className="text-[9px] font-medium uppercase tracking-wider">Show Logo</span>
-                                </button>
-                            </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                onClick={() => sendCommand('blackout')}
+                                className={`rounded-2xl border p-3 flex flex-col items-center gap-2 active:scale-[0.98] ${liveState.isPreviewHidden ? 'bg-red-500/15 border-red-400/30 text-red-200' : 'bg-white/[0.05] border-white/10 text-slate-300'}`}
+                            >
+                                {liveState.isPreviewHidden ? <EyeOff size={22} /> : <Eye size={22} />}
+                                <span className="text-[10px] font-black uppercase">Blackout</span>
+                            </button>
+                            <button
+                                onClick={() => sendCommand('clear')}
+                                className={`rounded-2xl border p-3 flex flex-col items-center gap-2 active:scale-[0.98] ${liveState.isTextHidden ? 'bg-amber-500/15 border-amber-400/30 text-amber-200' : 'bg-white/[0.05] border-white/10 text-slate-300'}`}
+                            >
+                                <Square size={22} />
+                                <span className="text-[10px] font-black uppercase">Texto</span>
+                            </button>
+                            <button
+                                onClick={() => sendCommand('logo')}
+                                className={`rounded-2xl border p-3 flex flex-col items-center gap-2 active:scale-[0.98] ${liveState.isLogoActive ? 'bg-indigo-500/20 border-indigo-400/30 text-indigo-200' : 'bg-white/[0.05] border-white/10 text-slate-300'}`}
+                            >
+                                <ImageIcon size={22} />
+                                <span className="text-[10px] font-black uppercase">Logo</span>
+                            </button>
                         </div>
 
-                        {/* Navigation controls array */}
-                        <div className="px-4 pb-4 flex gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => sendCommand('prev')}
-                                className="flex-1 bg-[#121a12] active:bg-[#1a261a] border border-slate-800 py-3 rounded-xl flex items-center justify-center gap-2 text-slate-300 transition-colors shadow-sm"
+                                className="h-20 rounded-2xl bg-white/[0.06] border border-white/10 text-slate-100 flex items-center justify-center gap-2 font-black active:scale-[0.98]"
                             >
-                                <ChevronLeft size={20} /> <span className="text-xs font-bold uppercase tracking-wider">Anterior</span>
+                                <ChevronLeft size={24} /> Anterior
                             </button>
                             <button
                                 onClick={() => sendCommand('next')}
-                                className="flex-1 bg-[#121a12] active:bg-[#1a261a] border border-slate-800 py-3 rounded-xl flex items-center justify-center gap-2 text-slate-300 transition-colors shadow-sm"
+                                className="h-20 rounded-2xl bg-indigo-600 text-white flex items-center justify-center gap-2 font-black shadow-lg shadow-indigo-600/25 active:scale-[0.98]"
                             >
-                                <span className="text-xs font-bold uppercase tracking-wider">Siguiente</span> <ChevronRight size={20} />
+                                Siguiente <ChevronRight size={24} />
                             </button>
                         </div>
 
-                        {/* Slides List */}
                         {hasLiveItem && (
-                            <div className="px-4 space-y-3 pb-8">
-                                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">Setlist Slides</h2>
-
-                                {liveState.activeItemSlides?.map((slide, i) => {
-                                    const isLive = i === liveState.liveSlideIndex;
-                                    const previewText = slide.content.replace(/<[^>]*>?/gm, '');
-
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">Slides del item</h2>
+                                    <button onClick={() => sendCommand('stop_live')} className="text-[10px] font-black text-red-300 flex items-center gap-1">
+                                        <AlertCircle size={12} /> Detener
+                                    </button>
+                                </div>
+                                {liveState.activeItemSlides?.map((slide, index) => {
+                                    const isLive = index === liveState.liveSlideIndex;
                                     return (
-                                        <div
-                                            key={i}
-                                            onClick={() => sendCommand('jump_to_slide', { index: i })}
-                                            className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all ${isLive ? 'bg-[#0df20d]/10 border-2 border-[#0df20d] shadow-[0_0_15px_rgba(13,242,13,0.15)] relative overflow-hidden group' : 'bg-white/5 border border-slate-700/50 active:bg-slate-800/60 opacity-90'}`}
+                                        <button
+                                            key={slide.id || index}
+                                            onClick={() => sendCommand('jump_to_slide', { index })}
+                                            className={`w-full flex items-center gap-3 rounded-2xl border p-2 text-left active:scale-[0.99] ${isLive ? 'bg-indigo-500/15 border-indigo-400/40' : 'bg-white/[0.04] border-white/10'}`}
                                         >
-                                            {isLive && <div className="absolute inset-0 bg-gradient-to-r from-[#0df20d]/5 to-transparent opacity-50"></div>}
-
-                                            <div className={`relative w-24 aspect-video rounded-lg overflow-hidden shrink-0 flex items-center justify-center ${isLive ? 'border border-[#0df20d]/30 bg-[#121a12]' : 'bg-[#121a12] border border-slate-700'}`}>
-                                                {slide.type === 'image' && slide.mediaUrl && <img src={slide.mediaUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="slide" />}
-                                                {slide.type === 'video' && slide.mediaUrl && <video src={slide.mediaUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" muted preload="metadata" />}
-                                                {slide.type === 'youtube' && slide.videoId && <img src={`https://img.youtube.com/vi/${slide.videoId}/mqdefault.jpg`} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="youtube" />}
-                                                {slide.type === 'youtube' ? <Monitor size={16} className="text-slate-500 relative z-10" /> : slide.type === 'video' ? <Video size={16} className="text-slate-500 relative z-10" /> : slide.type === 'image' ? <ImageIcon size={16} className="text-slate-500 relative z-10" /> : <Type size={16} className={isLive ? 'text-[#0df20d]/80 relative z-10' : 'text-slate-600 relative z-10'} />}
+                                            <div className="w-20 aspect-video rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden text-slate-400 relative">
+                                                {slide.type === 'image' && slide.mediaUrl && <img src={slide.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
+                                                {slide.type === 'video' && slide.mediaUrl && <video src={slide.mediaUrl} className="absolute inset-0 w-full h-full object-cover opacity-60" muted preload="metadata" />}
+                                                {slide.type === 'youtube' && slide.videoId && <img src={`https://img.youtube.com/vi/${slide.videoId}/mqdefault.jpg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
+                                                <span className="relative z-10">{renderSlideIcon(slide.type)}</span>
                                             </div>
-
-                                            <div className="flex-1 min-w-0 py-1 z-10">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    {isLive ? (
-                                                        <span className="text-[9px] font-bold text-[#0df20d] bg-[#0df20d]/20 px-1.5 py-0.5 rounded uppercase tracking-wide">Live</span>
-                                                    ) : (
-                                                        <span className="text-[9px] font-semibold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded uppercase">{slide.type}</span>
-                                                    )}
-                                                    <span className="text-[10px] text-slate-400 font-medium">Slide {i + 1}</span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${isLive ? 'bg-indigo-400/20 text-indigo-200' : 'bg-white/10 text-slate-400'}`}>
+                                                        {isLive ? 'Actual' : `Slide ${index + 1}`}
+                                                    </span>
                                                 </div>
-                                                <p className={`text-xs md:text-sm font-medium truncate ${isLive ? 'text-slate-100' : 'text-slate-300'}`}>
-                                                    {previewText || <span className="italic text-slate-500">Vacío</span>}
-                                                </p>
+                                                <p className="text-sm font-bold truncate">{stripHtml(slide.content) || slide.label || slide.type}</p>
                                             </div>
-                                        </div>
+                                        </button>
                                     );
                                 })}
                             </div>
                         )}
-                    </div>
+                    </section>
                 )}
 
                 {activeTab === 'playlist' && (
-                    <div className="animate-fade-in w-full max-w-md mx-auto h-full flex flex-col">
-                        <div className="flex items-center justify-between px-6 pt-4 pb-2">
-                            <h2 className="text-slate-100 text-lg font-bold leading-tight flex-1 text-center tracking-tight">Library</h2>
-                        </div>
-
-                        <div className="px-4 py-3">
-                            <label className="flex flex-col min-w-40 h-11 w-full relative">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10">
-                                    <Search size={18} />
-                                </div>
-                                <input
-                                    className="flex w-full flex-1 rounded-xl text-slate-100 border-none placeholder:text-slate-500 pl-10 pr-4 text-sm font-normal focus:outline-none focus:ring-1 focus:ring-[#0df20d]/50"
-                                    placeholder="Buscar canciones o items..."
-                                    style={{ background: 'rgba(18, 26, 18, 0.7)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </label>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-6 pb-20">
-                            {/* Playlists Menu */}
-                            <section>
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-slate-100 text-md font-bold tracking-tight">Active Presentation</h3>
-                                    {liveState.liveItemId && (
-                                        <button
-                                            onClick={() => sendCommand('stop_live')}
-                                            className="text-red-400 text-[10px] uppercase font-bold flex items-center gap-1">
-                                            <AlertCircle size={12} /> Stop Live
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="flex flex-col gap-3">
-                                    {filteredPlaylist.map((item) => {
-                                        const isLive = liveState.liveItemId === item.id;
-                                        return (
-                                            <div
-                                                key={item.id}
-                                                onClick={() => sendCommand('jump_to_item', { itemId: item.id, makeLive: true })}
-                                                className="flex items-center p-3 rounded-xl border border-[#1c2e1c] cursor-pointer transition-colors active:bg-[#1a261a]"
-                                                style={{ background: isLive ? 'rgba(13,242,13,0.05)' : 'rgba(18, 26, 18, 0.7)', backdropFilter: 'blur(12px)', borderColor: isLive ? 'rgba(13,242,13,0.3)' : 'rgba(255, 255, 255, 0.05)' }}
-                                            >
-                                                <div className={`size-10 rounded-lg flex items-center justify-center mr-4 shrink-0 transition-colors ${isLive ? 'bg-[#0df20d]/10 text-[#0df20d]' : 'bg-[#0a120a] text-slate-400'}`}>
-                                                    {item.type === 'song' ? <Music size={18} /> : item.type === 'bible' ? <Type size={18} /> : <List size={18} />}
-                                                </div>
-                                                <div className="flex-1 min-w-0 pr-2">
-                                                    <p className={`text-sm font-bold truncate ${isLive ? 'text-slate-100' : 'text-slate-300'}`}>{item.title}</p>
-                                                    <p className="text-xs text-slate-500">{item.slides?.length || 0} Slides • {item.type.toUpperCase()}</p>
-                                                </div>
-                                                {isLive ? (
-                                                    <div className="size-2 bg-[#0df20d] rounded-full animate-pulse shadow-[0_0_8px_#0df20d]"></div>
-                                                ) : (
-                                                    <PlayCircle size={18} className="text-slate-600 opacity-50 transition-opacity group-hover:opacity-100" />
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-
-                                    {filteredPlaylist.length === 0 && (
-                                        <div className="p-8 text-center border border-dashed border-slate-800 rounded-xl">
-                                            <p className="text-slate-500 text-sm">No items found</p>
+                    <section className="p-4 max-w-md mx-auto space-y-4">
+                        <label className="relative block">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                            <input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Buscar canciones, lecturas o media"
+                                className="w-full h-12 rounded-2xl bg-white/[0.06] border border-white/10 pl-10 pr-4 text-sm outline-none focus:border-indigo-400"
+                            />
+                        </label>
+                        <div className="space-y-2">
+                            {filteredPlaylist.map(item => {
+                                const isLive = liveState.liveItemId === item.id;
+                                const ItemIcon = item.type === 'song' ? Music : item.type === 'scripture' ? BookOpen : LayoutGrid;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => sendCommand('jump_to_item', { itemId: item.id, makeLive: true })}
+                                        className={`w-full flex items-center gap-3 rounded-2xl border p-3 text-left active:scale-[0.99] ${isLive ? 'bg-emerald-500/10 border-emerald-400/30' : 'bg-white/[0.04] border-white/10'}`}
+                                    >
+                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${isLive ? 'bg-emerald-400/15 text-emerald-300' : 'bg-slate-900 text-slate-400'}`}>
+                                            <ItemIcon size={20} />
                                         </div>
-                                    )}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-black truncate">{item.title}</p>
+                                            <p className="text-xs text-slate-500">{item.slides?.length || 0} slides · {item.type}</p>
+                                        </div>
+                                        {isLive ? <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" /> : <PlayCircle size={18} className="text-slate-500" />}
+                                    </button>
+                                );
+                            })}
+                            {filteredPlaylist.length === 0 && (
+                                <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">
+                                    No hay resultados.
                                 </div>
-                            </section>
+                            )}
                         </div>
-                    </div>
+                    </section>
                 )}
 
                 {activeTab === 'projects' && (
-                    <div className="animate-fade-in w-full max-w-md mx-auto h-full flex flex-col p-4">
-                        <div className="flex flex-col gap-4">
-                            <h3 className="text-slate-100 text-md font-bold tracking-tight mb-2">Mis Proyectos (Sets)</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                {liveState.projects?.map((project) => (
-                                    <div
+                    <section className="p-4 max-w-md mx-auto space-y-4">
+                        <h2 className="text-sm font-black uppercase tracking-wider text-slate-400">Proyectos</h2>
+                        <div className="grid grid-cols-2 gap-3">
+                            {liveState.projects?.map(project => {
+                                const selected = liveState.currentProjectName === project.name;
+                                return (
+                                    <button
                                         key={project.id}
                                         onClick={() => sendCommand('change_project', { projectId: project.id })}
-                                        className="flex flex-col gap-2 cursor-pointer group"
+                                        className={`aspect-square rounded-2xl border p-3 text-left flex flex-col justify-between active:scale-[0.98] ${selected ? 'bg-indigo-500/15 border-indigo-400/40' : 'bg-white/[0.04] border-white/10'}`}
                                     >
-                                        <div className="relative aspect-square rounded-xl overflow-hidden border transition-all shadow-[0_4px_20px_rgba(0,0,0,0.2)]"
-                                            style={{ background: liveState.currentProjectName === project.name ? 'rgba(13,242,13,0.05)' : 'rgba(18, 26, 18, 0.7)', backdropFilter: 'blur(12px)', borderColor: liveState.currentProjectName === project.name ? 'rgba(13,242,13,0.3)' : 'rgba(255, 255, 255, 0.05)' }}>
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <Folder size={40} className={liveState.currentProjectName === project.name ? 'text-[#0df20d]' : 'text-slate-500 group-hover:scale-105 transition-transform'} />
-                                            </div>
-                                        </div>
+                                        <Folder size={32} className={selected ? 'text-indigo-300' : 'text-slate-500'} />
                                         <div>
-                                            <p className={`text-sm font-bold truncate ${liveState.currentProjectName === project.name ? 'text-[#0df20d]' : 'text-slate-200'}`}>{project.name}</p>
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Proyecto Guardado</p>
+                                            <p className="text-sm font-black line-clamp-2">{project.name}</p>
+                                            <p className="text-[10px] text-slate-500 uppercase mt-1">Proyecto</p>
                                         </div>
-                                    </div>
-                                ))}
-                                {(!liveState.projects || liveState.projects.length === 0) && (
-                                    <p className="text-slate-500 text-xs col-span-2 text-center py-4">No projects available</p>
-                                )}
-                            </div>
+                                    </button>
+                                );
+                            })}
                         </div>
-                    </div>
+                    </section>
                 )}
 
                 {activeTab === 'add' && (
-                    <div className="animate-fade-in w-full max-w-md mx-auto h-full flex flex-col p-4">
-                        <div className="flex flex-col gap-6">
-                            <h3 className="text-slate-100 text-md font-bold tracking-tight mb-2">Agregar a Lista</h3>
-
-                            {/* Buscar Canción */}
-                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex items-center gap-2 text-slate-300">
-                                        <Music size={16} className="text-[#0df20d]" />
-                                        <span className="text-sm font-bold">Buscar Canción</span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Ej: Way Maker..."
-                                        className="w-full bg-[#121a12] border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-[#0df20d]/50"
-                                        id="remote-song-search"
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            const val = (document.getElementById('remote-song-search') as HTMLInputElement).value;
-                                            if (val) sendCommand('add_song', { query: val, makeLive: true });
-                                        }}
-                                        className="bg-[#0df20d]/20 text-[#0df20d] hover:bg-[#0df20d]/30 py-2 rounded-lg text-xs font-bold transition-colors w-full uppercase tracking-wider">
-                                        Generar Canción
-                                    </button>
-                                </div>
+                    <section className="p-4 max-w-md mx-auto space-y-4">
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-indigo-200 font-black">
+                                <Sparkles size={18} /> Generar cancion
                             </div>
-
-                            {/* Pasaje Bíblico */}
-                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex items-center gap-2 text-slate-300">
-                                        <Type size={16} className="text-[#0df20d]" />
-                                        <span className="text-sm font-bold">Pasaje Bíblico</span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Ej: Juan 3:16"
-                                        className="w-full bg-[#121a12] border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-[#0df20d]/50"
-                                        id="remote-bible-search"
-                                    />
-                                    <div className="flex gap-2">
-                                        <select
-                                            id="remote-bible-version"
-                                            className="flex-1 bg-[#121a12] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-[#0df20d]/50 max-w-fit">
-                                            <option value="RVR1960">RVR1960</option>
-                                            <option value="NVI">NVI</option>
-                                            <option value="TLA">TLA</option>
-                                            <option value="DHH">DHH</option>
-                                        </select>
-                                        <button
-                                            onClick={() => {
-                                                const val = (document.getElementById('remote-bible-search') as HTMLInputElement).value;
-                                                const version = (document.getElementById('remote-bible-version') as HTMLSelectElement).value;
-                                                if (val) sendCommand('add_bible', { query: val, version: version, makeLive: true });
-                                            }}
-                                            className="flex-1 bg-[#0df20d]/20 text-[#0df20d] hover:bg-[#0df20d]/30 py-2 rounded-lg text-xs font-bold transition-colors uppercase tracking-wider">
-                                            Generar Pasaje
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
+                            <input
+                                value={songQuery}
+                                onChange={(e) => setSongQuery(e.target.value)}
+                                placeholder="Ej: Way Maker"
+                                className="w-full h-11 rounded-xl bg-slate-950 border border-white/10 px-3 text-sm outline-none focus:border-indigo-400"
+                            />
+                            <button
+                                onClick={() => songQuery.trim() && sendCommand('add_song', { query: songQuery.trim(), makeLive: true })}
+                                className="w-full h-11 rounded-xl bg-indigo-600 text-white text-sm font-black active:scale-[0.99]"
+                            >
+                                Agregar y poner en vivo
+                            </button>
                         </div>
-                    </div>
+
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-emerald-200 font-black">
+                                <BookOpen size={18} /> Pasaje biblico
+                            </div>
+                            <input
+                                value={bibleQuery}
+                                onChange={(e) => setBibleQuery(e.target.value)}
+                                placeholder="Ej: Juan 3:16"
+                                className="w-full h-11 rounded-xl bg-slate-950 border border-white/10 px-3 text-sm outline-none focus:border-emerald-400"
+                            />
+                            <div className="flex gap-2">
+                                <select
+                                    value={bibleVersion}
+                                    onChange={(e) => setBibleVersion(e.target.value)}
+                                    className="w-28 h-11 rounded-xl bg-slate-950 border border-white/10 px-2 text-xs outline-none"
+                                >
+                                    <option value="RVR1960">RVR1960</option>
+                                    <option value="NVI">NVI</option>
+                                    <option value="TLA">TLA</option>
+                                    <option value="DHH">DHH</option>
+                                </select>
+                                <button
+                                    onClick={() => bibleQuery.trim() && sendCommand('add_bible', { query: bibleQuery.trim(), version: bibleVersion, makeLive: true })}
+                                    className="flex-1 h-11 rounded-xl bg-emerald-600 text-white text-sm font-black active:scale-[0.99]"
+                                >
+                                    Generar pasaje
+                                </button>
+                            </div>
+                        </div>
+                    </section>
                 )}
             </main>
 
-            {/* Bottom Navigation Bar */}
-            <div className="border-t border-[#1c2e1c] px-6 pb-6 pt-3 flex items-center justify-between shrink-0"
-                style={{ background: 'rgba(18, 26, 18, 0.85)', backdropFilter: 'blur(12px)' }}>
-                <button
-                    onClick={() => setActiveTab('control')}
-                    className={`flex flex-col items-center gap-1 ${activeTab === 'control' ? 'text-[#0df20d]' : 'text-slate-500'}`}
-                >
-                    <Monitor size={22} className={activeTab === 'control' ? 'fill-[#0df20d]/20' : ''} />
-                    <p className={`text-[10px] ${activeTab === 'control' ? 'font-bold' : 'font-medium'}`}>Remote</p>
-                </button>
-
-                <button
-                    onClick={() => setActiveTab('playlist')}
-                    className={`flex flex-col items-center gap-1 ${activeTab === 'playlist' ? 'text-[#0df20d]' : 'text-slate-500'}`}
-                >
-                    <List size={22} className={activeTab === 'playlist' ? 'fill-[#0df20d]/20' : ''} />
-                    <p className={`text-[10px] ${activeTab === 'playlist' ? 'font-bold' : 'font-medium'}`}>Library</p>
-                </button>
-
-                <button
-                    onClick={() => setActiveTab('projects')}
-                    className={`flex flex-col items-center gap-1 ${activeTab === 'projects' ? 'text-[#0df20d]' : 'text-slate-500'}`}
-                >
-                    <Folder size={22} className={activeTab === 'projects' ? 'fill-[#0df20d]/20' : ''} />
-                    <p className={`text-[10px] ${activeTab === 'projects' ? 'font-bold' : 'font-medium'}`}>Stage</p>
-                </button>
-
-                <button
-                    onClick={() => setActiveTab('add')}
-                    className={`flex flex-col items-center gap-1 ${activeTab === 'add' ? 'text-[#0df20d]' : 'text-slate-500'}`}
-                >
-                    <Search size={22} className={activeTab === 'add' ? 'fill-[#0df20d]/20' : ''} />
-                    <p className={`text-[10px] ${activeTab === 'add' ? 'font-bold' : 'font-medium'}`}>Buscar</p>
-                </button>
-            </div>
-            {/* iOS Home Indicator spacer element equivalent */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-700/50 rounded-full z-50"></div>
+            <nav className="absolute bottom-0 inset-x-0 border-t border-white/10 bg-[#0b1020]/95 backdrop-blur-xl px-4 pt-2 pb-5">
+                <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+                    {[
+                        { id: 'control' as const, label: 'Control', icon: Monitor },
+                        { id: 'playlist' as const, label: 'Lista', icon: List },
+                        { id: 'projects' as const, label: 'Sets', icon: Folder },
+                        { id: 'add' as const, label: 'Agregar', icon: Search },
+                    ].map(item => {
+                        const Icon = item.icon;
+                        const selected = activeTab === item.id;
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all ${selected ? 'bg-indigo-500/15 text-indigo-200' : 'text-slate-500'}`}
+                            >
+                                <Icon size={20} />
+                                <span className="text-[10px] font-black">{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </nav>
         </div>
     );
 };

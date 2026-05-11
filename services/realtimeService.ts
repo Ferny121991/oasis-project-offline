@@ -24,6 +24,7 @@ export interface LiveState {
     lastUpdated: string;
     // Command from mobile to main
     command?: string | null;
+    commandId?: string | null;
     commandData?: any;
 }
 
@@ -35,11 +36,11 @@ export interface RealtimeSyncService {
     isConnected: () => boolean;
 }
 
-let channel: RealtimeChannel | null = null;
-let isSubscribed = false;
-let lastKnownState: LiveState | null = null;
-
 export const createRealtimeSyncService = (): RealtimeSyncService => {
+    let channel: RealtimeChannel | null = null;
+    let isSubscribed = false;
+    let lastKnownState: LiveState | null = null;
+
     return {
         subscribe: (userId: string, onStateChange: (state: LiveState) => void) => {
             if (channel) {
@@ -133,6 +134,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 const newState: LiveState = {
                     ...existingState,
                     command,
+                    commandId: command ? `${Date.now()}_${Math.random().toString(36).slice(2, 8)}` : null,
                     commandData: data || null,
                     lastUpdated: new Date().toISOString()
                 };

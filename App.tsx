@@ -5,6 +5,7 @@ import Playlist from './components/Playlist';
 import LiveScreen from './components/LiveScreen';
 import Onboarding from './components/Onboarding';
 import MobileConnectModal from './components/MobileConnectModal';
+import RemoteControlPanel from './components/RemoteControlPanel';
 import TimerWidget from './components/TimerWidget';
 import SplitScreen from './components/SplitScreen';
 import ProjectManager from './components/ProjectManager';
@@ -17,7 +18,7 @@ import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, Align
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
-import { realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
+import { createRealtimeSyncService, realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
 import { compressImage } from './services/imageService';
 
 // Mobile Tab Type
@@ -118,6 +119,18 @@ const App: React.FC = () => {
   // Mobile & Sync State
   const [mobileTab, setMobileTab] = useState<MobileTab>('playlist');
   const [session, setSession] = useState<Session | null>(null);
+  const [remoteLiveState, setRemoteLiveState] = useState<LiveState | null>(null);
+  const remotePanelSyncService = useRef(createRealtimeSyncService());
+  const remoteParams = new URLSearchParams(window.location.search);
+  const isRemoteControlMode = remoteParams.get('remote') === '1';
+  const remoteControlIdFromUrl = remoteParams.get('uid');
+  const [localRemoteControlId] = useState(() => {
+    const existing = localStorage.getItem('oasis_remote_control_id');
+    if (existing) return existing;
+    const generated = `local_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    localStorage.setItem('oasis_remote_control_id', generated);
+    return generated;
+  });
   const [isSyncing, setIsSyncing] = useState(false);
   const [autoCloudSync, setAutoCloudSync] = useState(() => {
     return localStorage.getItem('oasis_auto_cloud_sync') !== 'false';
@@ -125,6 +138,8 @@ const App: React.FC = () => {
   const [syncError, setSyncError] = useState<string | null>(null);
   const dataLoaded = useRef(false);
   const isSwitchingProject = useRef(false);
+  const lastProcessedCommandId = useRef<string | null>(null);
+  const remoteControlId = session?.user?.id || localRemoteControlId;
 
   // --- Derived State ---
   const activeItem = playlist.find(i => i.id === activeItemId);
@@ -509,13 +524,15 @@ const App: React.FC = () => {
 
   // Realtime Sync for Mobile Control
   useEffect(() => {
-    if (!session?.user) return;
+    if (!remoteControlId || isRemoteControlMode) return;
 
     // Subscribe to realtime changes
-    realtimeSyncService.subscribe(session.user.id, (state: LiveState) => {
+    realtimeSyncService.subscribe(remoteControlId, (state: LiveState) => {
       // Process commands from mobile
-      const { command, commandData } = state;
+      const { command, commandData, commandId } = state;
       if (!command) return;
+      if (commandId && commandId === lastProcessedCommandId.current) return;
+      if (commandId) lastProcessedCommandId.current = commandId;
 
       switch (command) {
         case 'next':
@@ -612,18 +629,18 @@ const App: React.FC = () => {
           break;
       }
       // Clear the command after processing
-      realtimeSyncService.updateState(session.user.id, { command: null, commandData: null });
+      realtimeSyncService.updateState(remoteControlId, { command: null, commandId: null, commandData: null });
     });
 
     return () => {
       realtimeSyncService.unsubscribe();
     };
-  }, [session, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, stopLive, isAudioPlaying]);
+  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, stopLive, isAudioPlaying]);
 
   // Broadcast live state (debounced)
   const lastStateStr = useRef<string>('');
   useEffect(() => {
-    if (!session?.user || isProjectorMode) return;
+    if (!remoteControlId || isProjectorMode || isRemoteControlMode) return;
 
     const stateToBroadcast = {
       liveItemId,
@@ -644,7 +661,7 @@ const App: React.FC = () => {
     if (currentStateStr === lastStateStr.current) return;
 
     const timer = setTimeout(async () => {
-      await realtimeSyncService.updateState(session.user.id, {
+      await realtimeSyncService.updateState(remoteControlId, {
         ...stateToBroadcast,
         playlist: playlist.map(p => ({ id: p.id, title: p.title, type: p.type, slides: p.slides })),
         activeItemSlides: activeItem?.slides.map(s => ({
@@ -663,7 +680,20 @@ const App: React.FC = () => {
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [session, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, playlist, activeItem, projects, currentProjectId, backgroundAudioItem, isAudioPlaying]);
+  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, isRemoteControlMode, playlist, activeItem, projects, currentProjectId, backgroundAudioItem, isAudioPlaying]);
+
+  useEffect(() => {
+    if (!isRemoteControlMode || !remoteControlIdFromUrl) return;
+
+    const remoteService = remotePanelSyncService.current;
+    remoteService.subscribe(remoteControlIdFromUrl, (state: LiveState) => {
+      setRemoteLiveState(state);
+    });
+
+    return () => {
+      remoteService.unsubscribe();
+    };
+  }, [isRemoteControlMode, remoteControlIdFromUrl]);
 
   // Sync from Supabase on Login
   const isCloudLoading = useRef(false);
@@ -1936,12 +1966,34 @@ const App: React.FC = () => {
     );
   }
 
+  if (isRemoteControlMode) {
+    if (!remoteControlIdFromUrl) {
+      return (
+        <div className="min-h-[100dvh] bg-slate-950 text-white flex items-center justify-center p-6">
+          <div className="w-full max-w-sm rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center shadow-2xl">
+            <Smartphone size={40} className="mx-auto mb-4 text-red-300" />
+            <h1 className="text-lg font-black">Enlace remoto incompleto</h1>
+            <p className="text-sm text-red-100/80 mt-2">Vuelve a generar el QR desde el panel del presentador.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <RemoteControlPanel
+        liveState={remoteLiveState}
+        isConnected={remotePanelSyncService.current.isConnected()}
+        sendCommand={(cmd, data) => remotePanelSyncService.current.sendCommand(remoteControlIdFromUrl, cmd, data)}
+      />
+    );
+  }
+
   if (!isAuthenticated && !isProjectorMode) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen w-screen bg-gray-950 text-white p-4">
-        <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-6">
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[radial-gradient(circle_at_top,#1e1b4b_0%,#020617_48%,#000_100%)] text-white p-4">
+        <div className="w-full max-w-md bg-slate-950/85 border border-indigo-400/20 rounded-3xl shadow-2xl shadow-indigo-950/40 p-8 flex flex-col items-center gap-6 backdrop-blur">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-20 h-20 bg-indigo-600/20 rounded-full flex items-center justify-center text-indigo-500 mb-2 ring-4 ring-indigo-500/10">
+            <div className="w-20 h-20 bg-indigo-500/15 rounded-3xl flex items-center justify-center text-indigo-400 mb-2 ring-4 ring-indigo-500/10 border border-indigo-400/20">
               <Lock size={40} />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-center">Acceso Restringido</h2>
@@ -1987,9 +2039,9 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-[100dvh] bg-black text-white font-sans overflow-hidden select-none">
+    <div className="flex flex-col lg:flex-row h-[100dvh] bg-[radial-gradient(circle_at_top_left,#111827_0%,#020617_42%,#000_100%)] text-white font-sans overflow-hidden select-none">
       {/* LEFT: Control Center (30%) */}
-      <div id="control-panel" className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[30%] flex-shrink-0 scrollbar-hide overflow-hidden bg-gray-950 border-r border-gray-800 flex-col`}>
+      <div id="control-panel" className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[30%] flex-shrink-0 scrollbar-hide overflow-hidden bg-slate-950/90 border-r border-white/10 flex-col`}>
         <ControlPanel
           onAddItem={handleAddItem}
           onUpdateTheme={handleUpdateActiveItemTheme}
@@ -2048,7 +2100,7 @@ const App: React.FC = () => {
       </div>
 
       {/* MIDDLE: Playlist & Management (45%) */}
-      <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-gray-800 min-w-0 lg:min-w-[300px] overflow-hidden`}>
+      <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-white/10 min-w-0 lg:min-w-[300px] overflow-hidden bg-slate-950/55`}>
         {/* Mobile Header - Compact with Live Status */}
         <div className="lg:hidden bg-gradient-to-r from-gray-900 via-gray-850 to-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
@@ -2096,15 +2148,17 @@ const App: React.FC = () => {
           )}
         </div>
         {/* Desktop Header */}
-        <div className="hidden lg:flex bg-gray-900 px-6 py-4 border-b border-gray-800 justify-between items-center shrink-0">
+        <div className="hidden lg:flex bg-slate-950/80 backdrop-blur-xl px-6 py-4 border-b border-white/10 justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="Logo" className="w-12 h-12 object-contain brightness-110 contrast-125 drop-shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
+            <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-lg">
+              <img src="/logo.svg" alt="Logo" className="w-11 h-11 object-contain brightness-110 contrast-125 drop-shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
+            </div>
             <div className="flex flex-col">
               <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
                 <span className="bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">FlujoEclesial</span>
-                <span className="font-light text-gray-400">Studio</span>
+                <span className="font-light text-slate-400">Studio</span>
               </h1>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Centro de Control Proyectores</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Centro de control para proyeccion en vivo</p>
             </div>
           </div>
 
@@ -2197,7 +2251,7 @@ const App: React.FC = () => {
                 onDuplicateProject={handleDuplicateProject}
               />
               {/* Export/Import Button */}
-              <div className="px-3 py-2 border-b border-gray-800 flex gap-2">
+              <div className="px-3 py-2 border-b border-white/10 flex gap-2 bg-slate-950/70">
                 {session && (
                   <>
                     <button
@@ -2221,7 +2275,7 @@ const App: React.FC = () => {
                 )}
                 <button
                   onClick={() => setShowExportImport(true)}
-                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
+                  className="flex-1 bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
                 >
                   <Download size={14} />
                   <Upload size={14} />
@@ -2229,7 +2283,7 @@ const App: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setShowActionHistory(true)}
-                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
+                  className="bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
                   title="Historial de Acciones"
                 >
                   <History size={14} />
@@ -2237,7 +2291,7 @@ const App: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setShowMobileConnect(true)}
-                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
+                  className="bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-300 border border-emerald-400/20 px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all"
                   title="Control Móvil"
                 >
                   <Smartphone size={14} />
@@ -2663,6 +2717,7 @@ const App: React.FC = () => {
       <MobileConnectModal
         isOpen={showMobileConnect}
         onClose={() => setShowMobileConnect(false)}
+        controlId={remoteControlId}
       />
 
       {/* Action History Panel */}
