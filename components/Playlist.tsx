@@ -388,15 +388,15 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-xl border-2 overflow-hidden transition-all duration-300 ${isDragging ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' :
-        isItemLive ? 'border-red-500/60 bg-red-950/30' :
-          isItemActive ? 'border-indigo-500/60 bg-indigo-950/30' :
-            'border-gray-700/60 bg-gray-800/50 hover:border-gray-500'
+      className={`rounded-2xl border overflow-hidden transition-all duration-300 shadow-xl ${isDragging ? 'border-indigo-400 shadow-indigo-500/20' :
+        isItemLive ? 'border-red-400/70 bg-gradient-to-br from-red-950/70 to-slate-950 shadow-red-950/30' :
+          isItemActive ? 'border-indigo-400/60 bg-gradient-to-br from-indigo-950/70 to-slate-950 shadow-indigo-950/30' :
+            'border-white/10 bg-white/[0.04] hover:border-indigo-400/30 hover:bg-white/[0.06]'
         }`}
     >
       {/* Collapsible Header */}
       <div
-        className={`px-4 py-3.5 flex items-center gap-3 cursor-pointer transition-colors ${isItemLive ? 'bg-red-900/40' : isItemActive ? 'bg-indigo-900/40' : 'bg-gray-800/90 hover:bg-gray-700/80'
+        className={`px-4 py-3.5 flex items-center gap-3 cursor-pointer transition-colors ${isItemLive ? 'bg-red-500/10' : isItemActive ? 'bg-indigo-500/10' : 'bg-slate-900/80 hover:bg-slate-800/90'
           }`}
         onClick={onToggleExpand}
       >
@@ -444,13 +444,13 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
         </div>
 
         {/* Slide Count Badge */}
-        <span className="text-xs bg-gray-700 text-gray-200 px-2 py-1 rounded-lg font-bold">
+        <span className="text-xs bg-white/10 text-slate-200 px-2 py-1 rounded-lg font-bold border border-white/10">
           {item.slides.length}
         </span>
 
         {/* Live Badge */}
         {isItemLive && (
-          <span className="flex items-center gap-1.5 text-xs bg-red-600 text-white px-2.5 py-1 rounded-lg font-bold animate-pulse">
+          <span className="flex items-center gap-1.5 text-xs bg-red-600 text-white px-2.5 py-1 rounded-full font-bold animate-pulse shadow-lg shadow-red-600/20">
             <div className="w-2 h-2 bg-white rounded-full" /> LIVE
           </span>
         )}
@@ -490,7 +490,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
 
       {/* Collapsible Slides (Horizontal Scroll with Drag & Drop) */}
       {isExpanded && (
-        <div className="p-4 bg-gray-900/60">
+        <div className="p-4 bg-slate-950/70 border-t border-white/10">
           <DndContext sensors={slideSensors} collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
             <SortableContext items={item.slides.map(s => s.id)} strategy={rectSortingStrategy}>
               <div className="flex flex-wrap gap-2.5">

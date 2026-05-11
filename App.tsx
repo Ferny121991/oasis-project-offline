@@ -25,6 +25,10 @@ import { compressImage } from './services/imageService';
 type MobileTab = 'control' | 'playlist' | 'preview';
 
 const App: React.FC = () => {
+  const bootParams = new URLSearchParams(window.location.search);
+  const initialIsProjectorMode = bootParams.get('projector') === 'true';
+  const initialIsRemoteControlMode = bootParams.get('remote') === '1';
+
   // Security State
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem('oasis_authenticated') === 'true';
@@ -46,6 +50,7 @@ const App: React.FC = () => {
 
   // Initialize state from LocalStorage if available
   const [playlist, setPlaylist] = useState<PresentationItem[]>(() => {
+    if (initialIsProjectorMode || initialIsRemoteControlMode) return [];
     try {
       const saved = localStorage.getItem('flujo_playlist_v2');
       return saved ? JSON.parse(saved) : [];
@@ -80,13 +85,14 @@ const App: React.FC = () => {
 
   // State for External Projector Window
   const [externalWindow, setExternalWindow] = useState<Window | null>(null);
-  const [isProjectorMode, setIsProjectorMode] = useState(false);
+  const [isProjectorMode, setIsProjectorMode] = useState(initialIsProjectorMode);
 
   // Staged Theme for previewing changes before applying to projector (Hoisted for Sync)
   const [stagedTheme, setStagedTheme] = useState<Theme>(DEFAULT_THEME);
 
   // Custom Themes (Cloud Synced)
   const [customThemes, setCustomThemes] = useState<Theme[]>(() => {
+    if (initialIsProjectorMode || initialIsRemoteControlMode) return [];
     try {
       const saved = localStorage.getItem('oasis_custom_themes');
       return saved ? JSON.parse(saved) : [];
@@ -121,9 +127,8 @@ const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [remoteLiveState, setRemoteLiveState] = useState<LiveState | null>(null);
   const remotePanelSyncService = useRef(createRealtimeSyncService());
-  const remoteParams = new URLSearchParams(window.location.search);
-  const isRemoteControlMode = remoteParams.get('remote') === '1';
-  const remoteControlIdFromUrl = remoteParams.get('uid');
+  const isRemoteControlMode = initialIsRemoteControlMode;
+  const remoteControlIdFromUrl = bootParams.get('uid');
   const [localRemoteControlId] = useState(() => {
     const existing = localStorage.getItem('oasis_remote_control_id');
     if (existing) return existing;
@@ -376,14 +381,17 @@ const App: React.FC = () => {
 
   const sendSyncState = useCallback(() => {
     if (syncChannel.current) {
+      const projectorLiveItem = liveItem && liveSlideIndex >= 0
+        ? { ...liveItem, slides: [liveItem.slides[liveSlideIndex]].filter(Boolean) }
+        : liveItem;
       syncChannel.current.postMessage({
         type: 'SYNC_STATE',
         data: {
           liveItemId,
-          activeItemId,
-          liveSlideIndex,
-          activeSlideIndex,
-          playlist,
+          activeItemId: liveItemId,
+          liveSlideIndex: projectorLiveItem ? 0 : -1,
+          activeSlideIndex: projectorLiveItem ? 0 : -1,
+          playlist: projectorLiveItem ? [projectorLiveItem] : [],
           stagedTheme,
           isPreviewHidden,
           isTextHidden,
@@ -395,13 +403,11 @@ const App: React.FC = () => {
           splitFontScale,
           isKaraokeActive,
           karaokeIndex,
-          frozenLiveItem: (frozenLiveItem && playlist.some(i => i.id === frozenLiveItem.id))
-            ? { id: frozenLiveItem.id }
-            : frozenLiveItem
+          frozenLiveItem: projectorLiveItem
         }
       });
     }
-  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, frozenLiveItem]);
+  }, [liveItemId, liveSlideIndex, liveItem, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, isKaraokeActive, karaokeIndex]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -663,14 +669,19 @@ const App: React.FC = () => {
     const timer = setTimeout(async () => {
       await realtimeSyncService.updateState(remoteControlId, {
         ...stateToBroadcast,
-        playlist: playlist.map(p => ({ id: p.id, title: p.title, type: p.type, slides: p.slides })),
+        playlist: playlist.map(p => ({
+          id: p.id,
+          title: p.title,
+          type: p.type,
+          slides: p.slides.map(s => ({ id: s.id, type: s.type, label: s.label }))
+        })),
         activeItemSlides: activeItem?.slides.map(s => ({
           id: s.id,
           label: s.label,
           type: s.type,
           content: s.content,
           operatorNotes: s.operatorNotes,
-          mediaUrl: s.mediaUrl,
+          mediaUrl: s.mediaUrl && s.mediaUrl.length < 50000 ? s.mediaUrl : undefined,
           videoId: s.videoId
         })),
         projects: projects.map(p => ({ id: p.id, name: p.name })),
@@ -2410,7 +2421,7 @@ const App: React.FC = () => {
       </div>
 
       {/* RIGHT: Live Preview & Presenter Tools (35%) */}
-      <div id="live-preview-panel" className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[35%] flex-shrink-0 flex-col bg-gray-950 relative border-l border-gray-800 overflow-hidden`}>
+      <div id="live-preview-panel" className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[35%] flex-shrink-0 flex-col bg-slate-950 relative border-l border-white/10 overflow-hidden`}>
 
         {/* TOP BAR: Clock and Status - Responsive */}
         <div className="h-11 lg:h-12 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-3 lg:px-4 shrink-0">
@@ -2539,7 +2550,7 @@ const App: React.FC = () => {
         </div>
 
         {/* PRESENTER CONTROLS & MINI GRID */}
-        <div className="bg-gray-900 border-t border-gray-800 flex flex-col shadow-[0_-5px_15px_rgba(0,0,0,0.3)] z-30 shrink-0">
+        <div className="bg-slate-950/95 border-t border-white/10 flex flex-col shadow-[0_-5px_24px_rgba(0,0,0,0.35)] z-30 shrink-0 backdrop-blur">
 
           {/* Mobile Navigation Arrows */}
           <div className="lg:hidden flex items-center justify-center gap-6 py-3 border-b border-gray-800 bg-gray-950">
@@ -2566,7 +2577,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Row 1: Quick Actions - Larger on Mobile */}
-          <div id="live-action-controls" className="grid grid-cols-5 gap-1 p-2 border-b border-gray-800">
+          <div id="live-action-controls" className="grid grid-cols-5 gap-1.5 p-2 border-b border-white/10">
             <button onClick={() => setIsPreviewHidden(!isPreviewHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isPreviewHidden ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
               {isPreviewHidden ? <EyeOff size={20} className="lg:w-4 lg:h-4" /> : <Eye size={20} className="lg:w-4 lg:h-4" />}
               <span className="text-[8px] lg:text-[9px] font-bold mt-1">BLACK</span>
@@ -2618,7 +2629,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Row 3: Active Slide Grid (Mini) */}
-          <div id="slide-grid" className="h-20 lg:h-24 bg-gray-900 overflow-x-auto no-scrollbar whitespace-nowrap p-2 flex gap-2 items-center" ref={miniGridRef}>
+          <div id="slide-grid" className="h-20 lg:h-24 bg-slate-950 overflow-x-auto no-scrollbar whitespace-nowrap p-2 flex gap-2 items-center" ref={miniGridRef}>
             {activeItem ? activeItem.slides.map((slide, idx) => (
               <button
                 key={slide.id}

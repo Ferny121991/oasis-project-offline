@@ -40,15 +40,39 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
     let channel: RealtimeChannel | null = null;
     let isSubscribed = false;
     let lastKnownState: LiveState | null = null;
+    let currentUserId: string | null = null;
 
     return {
         subscribe: (userId: string, onStateChange: (state: LiveState) => void) => {
             if (channel) {
                 channel.unsubscribe();
             }
+            currentUserId = userId;
 
             channel = supabase
                 .channel(`realtime_sync:${userId}`)
+                .on('broadcast', { event: 'state' }, (payload) => {
+                    if (payload.payload?.state) {
+                        lastKnownState = payload.payload.state as LiveState;
+                        onStateChange(lastKnownState);
+                    }
+                })
+                .on('broadcast', { event: 'command' }, (payload) => {
+                    if (payload.payload?.state) {
+                        const commandState = payload.payload.state as LiveState;
+                        lastKnownState = { ...(lastKnownState || commandState), ...commandState };
+                        onStateChange(commandState);
+                    }
+                })
+                .on('broadcast', { event: 'request_state' }, () => {
+                    if (lastKnownState && channel) {
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'state',
+                            payload: { state: lastKnownState }
+                        });
+                    }
+                })
                 .on(
                     'postgres_changes',
                     {
@@ -67,6 +91,13 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 .subscribe((status) => {
                     isSubscribed = status === 'SUBSCRIBED';
                     console.log('Realtime sync status:', status);
+                    if (status === 'SUBSCRIBED') {
+                        channel?.send({
+                            type: 'broadcast',
+                            event: 'request_state',
+                            payload: { userId }
+                        });
+                    }
                 });
 
             supabase
@@ -107,6 +138,14 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 };
                 lastKnownState = newState;
 
+                if (channel && isSubscribed) {
+                    await channel.send({
+                        type: 'broadcast',
+                        event: 'state',
+                        payload: { state: newState }
+                    });
+                }
+
                 const { error } = await supabase
                     .from('realtime_sync')
                     .upsert({
@@ -140,6 +179,14 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 };
                 lastKnownState = newState;
 
+                if (channel && isSubscribed) {
+                    await channel.send({
+                        type: 'broadcast',
+                        event: 'command',
+                        payload: { state: newState }
+                    });
+                }
+
                 const { error } = await supabase
                     .from('realtime_sync')
                     .upsert({
@@ -162,6 +209,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 channel = null;
                 isSubscribed = false;
                 lastKnownState = null;
+                currentUserId = null;
             }
         },
 
