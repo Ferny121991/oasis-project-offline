@@ -7,6 +7,8 @@
  */
 
 import JSZip from 'jszip';
+import { init as initPptxPreview } from 'pptx-preview';
+import { toJpeg } from 'html-to-image';
 import { Slide } from '../types';
 import { compressImage } from './imageService';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -40,6 +42,19 @@ export async function parsePptxFile(file: File): Promise<Slide[]> {
 
   // Sort by slide number
   slideFiles.sort((a, b) => a.index - b.index);
+
+  const slideTextByIndex = new Map<number, string>();
+  for (const slideFile of slideFiles) {
+    const xmlFile = zip.file(slideFile.name);
+    if (!xmlFile) continue;
+    slideTextByIndex.set(slideFile.index, extractTextFromSlideXml(await xmlFile.async('text')));
+  }
+
+  try {
+    return await renderPptxWithPreviewer(file, slideFiles, slideTextByIndex);
+  } catch (e) {
+    console.warn('PPTX preview render failed, falling back to simplified renderer:', e);
+  }
 
   // Extract all media files (images) from ppt/media/
   const mediaMap = new Map<string, string>(); // rId -> dataUrl
@@ -100,7 +115,7 @@ export async function parsePptxFile(file: File): Promise<Slide[]> {
       slides.push({
         id: Math.random().toString(36).substr(2, 9),
         type: 'image',
-        content: textContent.trim(),
+        content: '',
         mediaUrl: slideImage,
         label: `SLIDE ${slideFile.index}`
       });
@@ -158,6 +173,102 @@ function extractImageRIdFromSlideXml(xml: string): string | null {
   // Look for blip references (embedded images)
   const blipMatch = xml.match(/<a:blip[^>]*r:embed="([^"]+)"/);
   return blipMatch ? blipMatch[1] : null;
+}
+
+async function renderPptxWithPreviewer(
+  file: File,
+  slideFiles: { name: string; index: number }[],
+  _slideTextByIndex: Map<number, string>
+): Promise<Slide[]> {
+  const host = document.createElement('div');
+  host.style.position = 'fixed';
+  host.style.left = '-10000px';
+  host.style.top = '0';
+  host.style.width = `${PPTX_CANVAS_WIDTH}px`;
+  host.style.height = `${PPTX_CANVAS_HEIGHT}px`;
+  host.style.pointerEvents = 'none';
+  host.style.opacity = '1';
+  host.style.zIndex = '-1';
+  document.body.appendChild(host);
+
+  try {
+    const previewer = initPptxPreview(host, {
+      width: PPTX_CANVAS_WIDTH,
+      height: PPTX_CANVAS_HEIGHT,
+      mode: 'list',
+    });
+
+    await previewer.preview(await file.arrayBuffer());
+    await waitForPptxPreviewAssets(host);
+
+    const renderedSlides = Array.from(host.querySelectorAll<HTMLElement>('.pptx-preview-slide-wrapper'));
+    if (!renderedSlides.length) {
+      throw new Error('No PPTX slides rendered');
+    }
+
+    const importedSlides: Slide[] = [];
+    for (let i = 0; i < renderedSlides.length; i++) {
+      const slideNode = renderedSlides[i];
+      slideNode.style.margin = '0';
+      slideNode.style.boxShadow = 'none';
+
+      const slideIndex = slideFiles[i]?.index ?? i + 1;
+      let dataUrl = await toJpeg(slideNode, {
+        quality: 0.92,
+        pixelRatio: 1,
+        cacheBust: true,
+        backgroundColor: '#ffffff',
+        width: PPTX_CANVAS_WIDTH,
+        height: PPTX_CANVAS_HEIGHT,
+        style: {
+          margin: '0',
+          transform: 'none',
+        },
+      });
+
+      try {
+        dataUrl = await compressImage(dataUrl, PPTX_CANVAS_WIDTH, PPTX_CANVAS_HEIGHT, 0.88);
+      } catch (e) {
+        // Keep the captured slide if compression fails.
+      }
+
+      importedSlides.push({
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'image',
+        content: '',
+        mediaUrl: dataUrl,
+        label: `SLIDE ${slideIndex}`,
+      });
+    }
+
+    previewer.destroy?.();
+    return importedSlides;
+  } finally {
+    host.remove();
+  }
+}
+
+async function waitForPptxPreviewAssets(host: HTMLElement): Promise<void> {
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  const images = Array.from(host.querySelectorAll<HTMLImageElement>('img'));
+  await Promise.all(images.map(image => {
+    if (image.complete) return Promise.resolve();
+    return new Promise<void>(resolve => {
+      image.onload = () => resolve();
+      image.onerror = () => resolve();
+    });
+  }));
+
+  if ('fonts' in document) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {
+      // Font readiness is best effort.
+    }
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 250));
 }
 
 async function getPresentationSlideSize(zip: JSZip): Promise<{ width: number; height: number }> {
