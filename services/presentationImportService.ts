@@ -9,6 +9,12 @@
 import JSZip from 'jszip';
 import { Slide } from '../types';
 import { compressImage } from './imageService';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+const PPTX_SLIDE_WIDTH_EMU = 9144000;
+const PPTX_SLIDE_HEIGHT_EMU = 5143500;
+const PPTX_CANVAS_WIDTH = 1920;
+const PPTX_CANVAS_HEIGHT = 1080;
 
 // ─────────────────────────────────────────────
 // PPTX PARSING
@@ -20,6 +26,8 @@ import { compressImage } from './imageService';
 export async function parsePptxFile(file: File): Promise<Slide[]> {
   const zip = await JSZip.loadAsync(file);
   const slides: Slide[] = [];
+  const parser = new DOMParser();
+  const slideSize = await getPresentationSlideSize(zip);
 
   // Find all slide XML files (ppt/slides/slide1.xml, slide2.xml, etc.)
   const slideFiles: { name: string; index: number }[] = [];
@@ -72,58 +80,36 @@ export async function parsePptxFile(file: File): Promise<Slide[]> {
     }
   }
 
-  // Process each slide
+  // Process each slide as a visual image. This preserves mixed image/text slides
+  // much better than importing only raw text.
   for (const slideFile of slideFiles) {
     const xmlFile = zip.file(slideFile.name);
     if (!xmlFile) continue;
 
     const xmlContent = await xmlFile.async('text');
-    
-    // Extract text content from slide XML
     const textContent = extractTextFromSlideXml(xmlContent);
-    
-    // Extract the first image reference from the slide
-    let imageDataUrl: string | undefined;
-    const imageRId = extractImageRIdFromSlideXml(xmlContent);
-    
-    if (imageRId) {
-      const slideRels = relMap.get(slideFile.index);
-      if (slideRels) {
-        const mediaPath = slideRels.get(imageRId);
-        if (mediaPath) {
-          const mediaFile = mediaFiles.find(m => m.path === mediaPath);
-          if (mediaFile) {
-            try {
-              const rawDataUrl = await blobToDataUrl(mediaFile.blob);
-              imageDataUrl = await compressImage(rawDataUrl);
-            } catch (e) {
-              console.warn('Failed to compress PPTX image:', e);
-            }
-          }
-        }
-      }
-    }
 
-    // If no text and no image, try to render the slide as an image fallback
-    // For now, create a slide with what we have
-    const slideId = Math.random().toString(36).substr(2, 9);
-    
-    if (imageDataUrl && !textContent.trim()) {
-      // Image-only slide
+    try {
+      const slideImage = await renderPptxSlideToImage(
+        parser.parseFromString(xmlContent, 'application/xml'),
+        relMap.get(slideFile.index) || new Map<string, string>(),
+        mediaFiles,
+        slideSize
+      );
+
       slides.push({
-        id: slideId,
+        id: Math.random().toString(36).substr(2, 9),
         type: 'image',
-        content: '',
-        mediaUrl: imageDataUrl,
+        content: textContent.trim(),
+        mediaUrl: slideImage,
         label: `SLIDE ${slideFile.index}`
       });
-    } else {
-      // Text slide (possibly with background image)
+    } catch (e) {
+      console.warn('PPTX visual render failed, falling back to text:', e);
       slides.push({
-        id: slideId,
-        type: textContent.trim() ? 'text' : 'image',
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'text',
         content: textContent.trim() || `Diapositiva ${slideFile.index}`,
-        mediaUrl: imageDataUrl,
         label: `SLIDE ${slideFile.index}`
       });
     }
@@ -174,6 +160,287 @@ function extractImageRIdFromSlideXml(xml: string): string | null {
   return blipMatch ? blipMatch[1] : null;
 }
 
+async function getPresentationSlideSize(zip: JSZip): Promise<{ width: number; height: number }> {
+  const presentationXml = await zip.file('ppt/presentation.xml')?.async('text');
+  if (!presentationXml) {
+    return { width: PPTX_SLIDE_WIDTH_EMU, height: PPTX_SLIDE_HEIGHT_EMU };
+  }
+
+  const sizeMatch = presentationXml.match(/<p:sldSz[^>]*cx="(\d+)"[^>]*cy="(\d+)"/);
+  if (!sizeMatch) {
+    return { width: PPTX_SLIDE_WIDTH_EMU, height: PPTX_SLIDE_HEIGHT_EMU };
+  }
+
+  return {
+    width: Number(sizeMatch[1]) || PPTX_SLIDE_WIDTH_EMU,
+    height: Number(sizeMatch[2]) || PPTX_SLIDE_HEIGHT_EMU,
+  };
+}
+
+async function renderPptxSlideToImage(
+  doc: Document,
+  relationships: Map<string, string>,
+  mediaFiles: { path: string; blob: Blob }[],
+  slideSize: { width: number; height: number }
+): Promise<string> {
+  const canvas = document.createElement('canvas');
+  canvas.width = PPTX_CANVAS_WIDTH;
+  canvas.height = PPTX_CANVAS_HEIGHT;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context unavailable');
+
+  const scaleX = canvas.width / slideSize.width;
+  const scaleY = canvas.height / slideSize.height;
+
+  ctx.fillStyle = readSlideBackground(doc) || '#050711';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const tree = doc.getElementsByTagName('p:spTree')[0];
+  const children = tree ? Array.from(tree.children) : [];
+
+  for (const child of children) {
+    if (child.tagName === 'p:pic') {
+      await drawPptxPicture(ctx, child, relationships, mediaFiles, scaleX, scaleY, canvas);
+    } else if (child.tagName === 'p:sp') {
+      drawPptxShapeText(ctx, child, scaleX, scaleY, canvas);
+    }
+  }
+
+  let dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+  try {
+    dataUrl = await compressImage(dataUrl, PPTX_CANVAS_WIDTH, PPTX_CANVAS_HEIGHT, 0.86);
+  } catch (e) {
+    // Keep the rendered slide if compression fails.
+  }
+
+  canvas.width = 0;
+  canvas.height = 0;
+  return dataUrl;
+}
+
+function readSlideBackground(doc: Document): string | null {
+  const bgPr = doc.getElementsByTagName('p:bgPr')[0];
+  if (!bgPr) return null;
+  return readColor(bgPr, null);
+}
+
+function getShapeRect(
+  node: Element,
+  scaleX: number,
+  scaleY: number,
+  canvas: HTMLCanvasElement
+): { x: number; y: number; width: number; height: number } {
+  const xfrm = node.getElementsByTagName('a:xfrm')[0];
+  const off = xfrm?.getElementsByTagName('a:off')[0];
+  const ext = xfrm?.getElementsByTagName('a:ext')[0];
+
+  return {
+    x: Number(off?.getAttribute('x') || 0) * scaleX,
+    y: Number(off?.getAttribute('y') || 0) * scaleY,
+    width: Math.max(1, Number(ext?.getAttribute('cx') || canvas.width / scaleX) * scaleX),
+    height: Math.max(1, Number(ext?.getAttribute('cy') || canvas.height / scaleY) * scaleY),
+  };
+}
+
+async function drawPptxPicture(
+  ctx: CanvasRenderingContext2D,
+  node: Element,
+  relationships: Map<string, string>,
+  mediaFiles: { path: string; blob: Blob }[],
+  scaleX: number,
+  scaleY: number,
+  canvas: HTMLCanvasElement
+) {
+  const blip = node.getElementsByTagName('a:blip')[0];
+  const rId = blip?.getAttribute('r:embed');
+  if (!rId) return;
+
+  const mediaPath = normalizePptPath(relationships.get(rId) || '');
+  const media = mediaFiles.find((item) => normalizePptPath(item.path) === mediaPath);
+  if (!media) return;
+
+  const rect = getShapeRect(node, scaleX, scaleY, canvas);
+  const dataUrl = await blobToDataUrl(media.blob);
+  const image = await loadImage(dataUrl);
+  ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
+}
+
+function drawPptxShapeText(
+  ctx: CanvasRenderingContext2D,
+  node: Element,
+  scaleX: number,
+  scaleY: number,
+  canvas: HTMLCanvasElement
+) {
+  const rect = getShapeRect(node, scaleX, scaleY, canvas);
+  const fill = readShapeFill(node);
+
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+  }
+
+  const paragraphs = Array.from(node.getElementsByTagName('a:p'));
+  if (!paragraphs.length) return;
+
+  let cursorY = rect.y + Math.max(18, rect.height * 0.08);
+  const paddingX = Math.max(16, rect.width * 0.04);
+  const maxWidth = Math.max(20, rect.width - paddingX * 2);
+
+  for (const paragraph of paragraphs) {
+    const runs = Array.from(paragraph.getElementsByTagName('a:r'));
+    const pPr = paragraph.getElementsByTagName('a:pPr')[0];
+    const align = pPr?.getAttribute('algn') || 'l';
+
+    if (!runs.length) {
+      cursorY += 20;
+      continue;
+    }
+
+    const text = runs
+      .map((run) =>
+        Array.from(run.getElementsByTagName('a:t'))
+          .map((t) => decodeXml(t.textContent || ''))
+          .join('')
+      )
+      .join('');
+    if (!text.trim()) {
+      cursorY += 20;
+      continue;
+    }
+
+    const styleSource = runs.find((run) => run.getElementsByTagName('a:t').length > 0) || runs[0];
+    const style = readRunStyle(styleSource.getElementsByTagName('a:rPr')[0]);
+    const fontPx = pptFontPx(style.fontSize);
+    const weight = style.bold ? '700' : '500';
+    const italic = style.italic ? 'italic ' : '';
+    ctx.font = `${italic}${weight} ${fontPx}px "${style.fontFamily}", Arial, sans-serif`;
+    ctx.fillStyle = style.color;
+    ctx.textBaseline = 'top';
+
+    const lines = wrapCanvasText(ctx, text, maxWidth);
+    const lineHeight = Math.round(fontPx * 1.18);
+
+    for (const line of lines) {
+      if (cursorY + lineHeight > rect.y + rect.height) return;
+      const textWidth = ctx.measureText(line).width;
+      const x =
+        align === 'ctr'
+          ? rect.x + (rect.width - textWidth) / 2
+          : align === 'r'
+            ? rect.x + rect.width - paddingX - textWidth
+            : rect.x + paddingX;
+      ctx.fillText(line, x, cursorY);
+      cursorY += lineHeight;
+    }
+
+    cursorY += 12;
+  }
+}
+
+function readShapeFill(node: Element): string | null {
+  const spPr = node.getElementsByTagName('p:spPr')[0];
+  if (!spPr) return null;
+  return readColor(spPr, null);
+}
+
+function readRunStyle(rPr?: Element): {
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+} {
+  const latin = rPr?.getElementsByTagName('a:latin')[0];
+  return {
+    fontSize: Number(rPr?.getAttribute('sz') || 3200) / 100,
+    fontFamily: latin?.getAttribute('typeface') || 'Montserrat',
+    color: rPr ? readColor(rPr, '#ffffff') || '#ffffff' : '#ffffff',
+    bold: rPr?.getAttribute('b') === '1',
+    italic: rPr?.getAttribute('i') === '1',
+  };
+}
+
+function readColor(node: Element, fallback: string | null): string | null {
+  const solidFill = node.getElementsByTagName('a:solidFill')[0];
+  if (!solidFill) return fallback;
+
+  const srgb = solidFill.getElementsByTagName('a:srgbClr')[0];
+  if (srgb?.getAttribute('val')) {
+    const alpha = Number(srgb.getElementsByTagName('a:alpha')[0]?.getAttribute('val') || 100000) / 100000;
+    return hexToRgba(srgb.getAttribute('val') || '', alpha);
+  }
+
+  const scheme = solidFill.getElementsByTagName('a:schemeClr')[0]?.getAttribute('val');
+  const schemeMap: Record<string, string> = {
+    bg1: '#ffffff',
+    tx1: '#111827',
+    bg2: '#050711',
+    tx2: '#ffffff',
+    accent1: '#6d5dfc',
+    accent2: '#12b981',
+    accent3: '#f97316',
+    accent4: '#38bdf8',
+    accent5: '#ec4899',
+    accent6: '#facc15',
+  };
+  return scheme ? schemeMap[scheme] || fallback : fallback;
+}
+
+function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.replace(/\s+/g, ' ').trim().split(' ');
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (ctx.measureText(candidate).width <= maxWidth || !current) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+
+  if (current) lines.push(current);
+  return lines;
+}
+
+function pptFontPx(points: number): number {
+  return Math.max(18, Math.round(points * 2.15));
+}
+
+function normalizePptPath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/\.\//g, '/');
+}
+
+function decodeXml(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const safeHex = hex.replace('#', '').padStart(6, '0').slice(0, 6);
+  const r = parseInt(safeHex.slice(0, 2), 16);
+  const g = parseInt(safeHex.slice(2, 4), 16);
+  const b = parseInt(safeHex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
 // ─────────────────────────────────────────────
 // PDF PARSING
 // ─────────────────────────────────────────────
@@ -185,11 +452,15 @@ export async function parsePdfFile(file: File): Promise<Slide[]> {
   // Dynamically import pdf.js to keep initial bundle small
   const pdfjsLib = await import('pdfjs-dist');
   
-  // Set worker source - use CDN for the worker
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  // Use the bundled worker so PDF import works in offline/production builds.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
   
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf = await pdfjsLib.getDocument({
+    data: arrayBuffer,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+  }).promise;
   
   const slides: Slide[] = [];
   const totalPages = pdf.numPages;
