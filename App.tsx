@@ -21,6 +21,7 @@ import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/gemi
 import { createRealtimeSyncService, realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
 import { compressImage } from './services/imageService';
 import { storeMediaBlob, stripPlaylistMedia } from './services/mediaBlobStore';
+import { isPresentationFile, parsePptxFile, parsePdfFile, getPresentationTypeName } from './services/presentationImportService';
 
 // Mobile Tab Type
 type MobileTab = 'control' | 'playlist' | 'preview';
@@ -1621,11 +1622,38 @@ const App: React.FC = () => {
     if (!files || files.length === 0) return;
 
     const newSlides: Slide[] = [];
+    let presentationTitle = '';
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const isVideo = file.type.startsWith('video/');
       const isImage = file.type.startsWith('image/');
-      if (!isImage && !isVideo) continue;
+      const isPresentation = isPresentationFile(file);
+
+      if (!isImage && !isVideo && !isPresentation) continue;
+
+      // ── POWERPOINT / PDF ──────────────────────────────────
+      if (isPresentation) {
+        const typeName = getPresentationTypeName(file);
+        presentationTitle = file.name.replace(/\.[^.]+$/, '');
+        setIsSyncing(true); // Show loading indicator
+        try {
+          let importedSlides: Slide[];
+          if (file.name.toLowerCase().endsWith('.pptx')) {
+            importedSlides = await parsePptxFile(file);
+          } else {
+            importedSlides = await parsePdfFile(file);
+          }
+          newSlides.push(...importedSlides);
+          console.log(`✅ Imported ${importedSlides.length} slides from ${typeName}`);
+        } catch (err) {
+          console.error(`Failed to parse ${typeName}:`, err);
+          alert(`Error al importar ${typeName}: ${(err as Error).message}`);
+        } finally {
+          setIsSyncing(false);
+        }
+        continue;
+      }
 
       const slideId = Math.random().toString(36).substr(2, 9);
 
@@ -1688,9 +1716,11 @@ const App: React.FC = () => {
         item.id === itemId ? { ...item, slides: [...item.slides, ...newSlides] } : item
       ));
     } else {
+      const title = presentationTitle 
+        || (files.length === 1 ? files[0].name : `Galería (${files.length} fotos)`);
       const newItem: PresentationItem = {
         id: Math.random().toString(36).substr(2, 9),
-        title: files.length === 1 ? files[0].name : `Galería (${files.length} fotos)`,
+        title,
         type: 'custom',
         slides: newSlides,
         theme: stagedTheme

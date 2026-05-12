@@ -805,7 +805,7 @@ const Playlist: React.FC<PlaylistProps> = ({
           type="file"
           ref={fileInputRef}
           className="hidden"
-          accept="image/*,video/*"
+          accept="image/*,video/*,.pptx,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
           multiple
           onChange={(e) => {
             onUploadImages(e.target.files, activeUploadItemId);
@@ -834,7 +834,7 @@ const Playlist: React.FC<PlaylistProps> = ({
           <Music className="opacity-20" size={32} />
         </div>
         <p className="text-sm text-gray-500">Tu lista está vacía.</p>
-        <p className="text-xs text-gray-600 mt-1 mb-6">Usa el panel izquierdo o sube imágenes directamente.</p>
+        <p className="text-xs text-gray-600 mt-1 mb-6">Usa el panel izquierdo o sube imágenes, videos, PowerPoint o PDF.</p>
 
         <button
           onClick={() => {
@@ -843,7 +843,7 @@ const Playlist: React.FC<PlaylistProps> = ({
           }}
           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95"
         >
-          <Upload size={18} /> SUBIR IMÁGENES
+          <Upload size={18} /> SUBIR ARCHIVOS
         </button>
       </div>
     );
@@ -856,7 +856,7 @@ const Playlist: React.FC<PlaylistProps> = ({
         type="file"
         ref={fileInputRef}
         className="hidden"
-        accept="image/*,video/*"
+        accept="image/*,video/*,.pptx,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf"
         multiple
         onChange={(e) => {
           onUploadImages(e.target.files, activeUploadItemId);
