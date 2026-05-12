@@ -471,7 +471,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                 <div className={`absolute inset-0 bg-white flex flex-col justify-center items-center gap-8 animate-fade-in`}>
                   <div className="relative">
                     <img
-                      src="/logo.png"
+                      src="/logo.svg"
                       alt="Logo Principal"
                       className="relative z-10 max-h-[60cqh] max-w-[85%] object-contain drop-shadow-xl animate-pulse"
                     />
