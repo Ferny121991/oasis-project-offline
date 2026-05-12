@@ -22,7 +22,14 @@ import {
     Type,
     Upload,
     Video,
-    X
+    X,
+    ZoomIn,
+    ZoomOut,
+    RotateCcw,
+    ArrowUp,
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight
 } from 'lucide-react';
 import { LiveState } from '../services/realtimeService';
 import { compressImage } from '../services/imageService';
@@ -41,6 +48,7 @@ const stripHtml = (value?: string) => (value || '').replace(/<[^>]*>?/gm, '').tr
 const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, sendCommand, isConnected, onClose }) => {
     const [activeTab, setActiveTab] = useState<RemoteTab>('control');
     const [searchQuery, setSearchQuery] = useState('');
+    const [zoomState, setZoomState] = useState({ scale: 1, x: 0, y: 0 });
     const [songQuery, setSongQuery] = useState('');
     const [bibleQuery, setBibleQuery] = useState('');
     const [bibleVersion, setBibleVersion] = useState('RVR1960');
@@ -48,6 +56,24 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const [mediaTitle, setMediaTitle] = useState('');
     const [uploadStatus, setUploadStatus] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleZoom = (action: 'in' | 'out' | 'up' | 'down' | 'left' | 'right' | 'reset') => {
+        setZoomState(prev => {
+            let newZoom = { ...prev };
+            if (action === 'in') newZoom.scale = Math.min(prev.scale + 0.2, 5);
+            if (action === 'out') newZoom.scale = Math.max(prev.scale - 0.2, 1);
+            if (action === 'reset') newZoom = { scale: 1, x: 0, y: 0 };
+            
+            const step = 50 / newZoom.scale; // Adjust step based on scale
+            if (action === 'up') newZoom.y += step;
+            if (action === 'down') newZoom.y -= step;
+            if (action === 'left') newZoom.x += step;
+            if (action === 'right') newZoom.x -= step;
+
+            sendCommand('zoom_update', newZoom);
+            return newZoom;
+        });
+    };
 
     const activeItem = liveState?.playlist?.find(p => p.id === liveState.liveItemId);
     const currentSlide = liveState?.activeItemSlides?.[liveState.liveSlideIndex];
@@ -222,6 +248,37 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                 Siguiente <ChevronRight size={24} />
                             </button>
                         </div>
+
+                        {/* ZOOM CONTROLS */}
+                        {currentSlide?.type === 'image' && (
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">Control de Zoom</h2>
+                                    <button onClick={() => handleZoom('reset')} className="text-[10px] font-black text-indigo-300 flex items-center gap-1 active:scale-95">
+                                        <RotateCcw size={12} /> Reset
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-2 bg-black/20 rounded-full p-1 border border-white/5">
+                                        <button onClick={() => handleZoom('out')} className="w-10 h-10 rounded-full flex items-center justify-center text-slate-300 active:bg-white/10">
+                                            <ZoomOut size={18} />
+                                        </button>
+                                        <span className="text-xs font-black w-8 text-center">{Math.round(zoomState.scale * 100)}%</span>
+                                        <button onClick={() => handleZoom('in')} className="w-10 h-10 rounded-full flex items-center justify-center text-slate-300 active:bg-white/10">
+                                            <ZoomIn size={18} />
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-1 p-1 bg-black/20 rounded-xl border border-white/5">
+                                        <div />
+                                        <button onClick={() => handleZoom('up')} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 active:bg-white/10"><ArrowUp size={16} /></button>
+                                        <div />
+                                        <button onClick={() => handleZoom('left')} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 active:bg-white/10"><ArrowLeft size={16} /></button>
+                                        <button onClick={() => handleZoom('down')} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 active:bg-white/10"><ArrowDown size={16} /></button>
+                                        <button onClick={() => handleZoom('right')} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 active:bg-white/10"><ArrowRight size={16} /></button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {hasLiveItem && (
                             <div className="space-y-2">

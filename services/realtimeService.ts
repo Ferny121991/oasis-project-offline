@@ -26,6 +26,7 @@ export interface LiveState {
     command?: string | null;
     commandId?: string | null;
     commandData?: any;
+    zoomState?: { scale: number, x: number, y: number } | null;
 }
 
 export interface RealtimeSyncService {

@@ -124,6 +124,9 @@ const App: React.FC = () => {
   const [splitRatio, setSplitRatio] = useState(50);
   const [splitFontScale, setSplitFontScale] = useState(0.5);
 
+  // Zoom State
+  const [zoomState, setZoomState] = useState<{ scale: number, x: number, y: number } | null>(null);
+
   // Mobile & Sync State
   const [mobileTab, setMobileTab] = useState<MobileTab>('playlist');
   const [session, setSession] = useState<Session | null>(null);
@@ -648,6 +651,13 @@ const App: React.FC = () => {
           break;
         case 'toggle_audio': toggleAudioPlayback(); break;
         case 'stop_live': stopLive(); break;
+        case 'zoom_update':
+          if (commandData) {
+            setZoomState(commandData);
+          } else {
+            setZoomState(null);
+          }
+          break;
         case 'add_bible':
           if (commandData?.query) {
             import('./services/geminiService').then(({ fetchBiblePassage }) => {
@@ -716,7 +726,8 @@ const App: React.FC = () => {
       isKaraokeActive,
       karaokeIndex,
       backgroundAudioTitle: backgroundAudioItem?.title,
-      isAudioPlaying: isAudioPlaying
+      isAudioPlaying: isAudioPlaying,
+      zoomState
     };
 
     const currentStateStr = JSON.stringify(stateToBroadcast);

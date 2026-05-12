@@ -18,6 +18,7 @@ interface LiveScreenProps {
   karaokeActive?: boolean;
   karaokeIndex?: number;
   onVideoEnd?: () => void;
+  zoomState?: { scale: number, x: number, y: number } | null;
 }
 
 const LiveScreen: React.FC<LiveScreenProps> = ({
@@ -33,7 +34,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   mute = false,      // Default to false
   karaokeActive = false,
   karaokeIndex = -1,
-  onVideoEnd
+  onVideoEnd,
+  zoomState
 }) => {
   const [showTools, setShowTools] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -300,6 +302,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                             rotate(${theme.imageContentRotation || 0}deg)
                             scaleX(${theme.imageContentFlipH ? -1 : 1})
                             scaleY(${theme.imageContentFlipV ? -1 : 1})
+                            ${zoomState ? `scale(${zoomState.scale}) translate(${zoomState.x}px, ${zoomState.y}px)` : ''}
                           `
                         }}
                         autoPlay={autoPlay}
@@ -337,6 +340,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                             rotate(${theme.imageContentRotation || 0}deg)
                             scaleX(${theme.imageContentFlipH ? -1 : 1})
                             scaleY(${theme.imageContentFlipV ? -1 : 1})
+                            ${zoomState ? `scale(${zoomState.scale}) translate(${zoomState.x}px, ${zoomState.y}px)` : ''}
                           `
                         }}
                       />
