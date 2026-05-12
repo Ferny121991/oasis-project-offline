@@ -26,6 +26,20 @@ import { isPresentationFile, parsePptxFile, parsePdfFile, getPresentationTypeNam
 // Mobile Tab Type
 type MobileTab = 'control' | 'playlist' | 'preview';
 
+const LOCAL_PLAYLIST_KEY = 'flujo_playlist_v2';
+const LOCAL_THEMES_KEY = 'oasis_custom_themes';
+const LOCAL_PROJECTS_KEY = 'oasis_projects_v2';
+const LOCAL_CURRENT_PROJECT_KEY = 'oasis_current_project_id';
+
+function readLocalJson<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 const App: React.FC = () => {
   const bootParams = new URLSearchParams(window.location.search);
   const initialIsProjectorMode = bootParams.get('projector') === 'true';
@@ -53,18 +67,18 @@ const App: React.FC = () => {
   // Initialize state from LocalStorage if available
   const [playlist, setPlaylist] = useState<PresentationItem[]>(() => {
     if (initialIsProjectorMode || initialIsRemoteControlMode) return [];
-    try {
-      const saved = localStorage.getItem('flujo_playlist_v2');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error("Failed to load playlist", e);
-      return [];
-    }
+    return readLocalJson<PresentationItem[]>(LOCAL_PLAYLIST_KEY, []);
   });
 
-  // Projects/Portfolio System (Cloud-only, no localStorage)
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  // Projects/Portfolio System. Cloud is primary when signed in, localStorage is the safety backup.
+  const [projects, setProjects] = useState<Project[]>(() => {
+    if (initialIsProjectorMode || initialIsRemoteControlMode) return [];
+    return readLocalJson<Project[]>(LOCAL_PROJECTS_KEY, []);
+  });
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(() => {
+    if (initialIsProjectorMode || initialIsRemoteControlMode) return null;
+    return localStorage.getItem(LOCAL_CURRENT_PROJECT_KEY);
+  });
 
 
   const [activeView, setActiveView] = useState<'main' | 'lyrics-search'>('main');
@@ -95,12 +109,7 @@ const App: React.FC = () => {
   // Custom Themes (Cloud Synced)
   const [customThemes, setCustomThemes] = useState<Theme[]>(() => {
     if (initialIsProjectorMode || initialIsRemoteControlMode) return [];
-    try {
-      const saved = localStorage.getItem('oasis_custom_themes');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    return readLocalJson<Theme[]>(LOCAL_THEMES_KEY, []);
   });
 
   // Onboarding & Timer states
@@ -146,7 +155,8 @@ const App: React.FC = () => {
     return localStorage.getItem('oasis_auto_cloud_sync') === 'true';
   });
   const [syncError, setSyncError] = useState<string | null>(null);
-  const dataLoaded = useRef(false);
+  const dataLoaded = useRef(!initialIsProjectorMode && !initialIsRemoteControlMode);
+  const lastAuthUserId = useRef<string | null>(null);
   const isSwitchingProject = useRef(false);
   const lastProcessedCommandId = useRef<string | null>(null);
   const remoteControlId = session?.user?.id || localRemoteControlId;
@@ -163,6 +173,23 @@ const App: React.FC = () => {
 
   // Sync Channel for Multi-window Projector
   const syncChannel = useRef<BroadcastChannel | null>(null);
+
+  const saveCurrentProjectInto = useCallback((sourceProjects: Project[]) => {
+    if (!currentProjectId) return sourceProjects;
+
+    return sourceProjects.map(p =>
+      p.id === currentProjectId
+        ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+        : p
+    );
+  }, [currentProjectId, playlist, customThemes]);
+
+  const stripProjectsForStorage = useCallback((sourceProjects: Project[]) => {
+    return sourceProjects.map(p => ({
+      ...p,
+      playlist: stripPlaylistMedia(p.playlist || [])
+    }));
+  }, []);
 
   const navigateLiveNext = useCallback(() => {
     if (!liveItemId) return;
@@ -253,15 +280,12 @@ const App: React.FC = () => {
       } catch (e) { }
     }
 
-    // 3. FORCE SAVE current project state synchronously
-    if (currentProjectId) {
-      setProjects(prev => prev.map(p =>
-        p.id === currentProjectId ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() } : p
-      ));
-    }
+    // 3. FORCE SAVE current project state before loading another project
+    const nextProjects = saveCurrentProjectInto(projects);
+    setProjects(nextProjects);
 
     // 4. LOAD new project data
-    const project = projects.find(p => p.id === projectId);
+    const project = nextProjects.find(p => p.id === projectId);
     if (project) {
       setCurrentProjectId(projectId);
       setPlaylist(project.playlist || []);
@@ -271,7 +295,7 @@ const App: React.FC = () => {
 
     // 5. UNBLOCK auto-saves after delay
     setTimeout(() => { isSwitchingProject.current = false; }, 500);
-  }, [currentProjectId, projects, playlist, customThemes]);
+  }, [currentProjectId, customThemes, playlist, projects, saveCurrentProjectInto]);
 
   const toggleAudioPlayback = useCallback(() => {
     if (!audioIframeRef.current) return;
@@ -530,14 +554,23 @@ const App: React.FC = () => {
 
   // Auth Effect
   useEffect(() => {
+    const applySession = (nextSession: Session | null) => {
+      const nextUserId = nextSession?.user?.id || null;
+      if (nextUserId !== lastAuthUserId.current) {
+        dataLoaded.current = !nextUserId;
+        lastAuthUserId.current = nextUserId;
+      }
+      setSession(nextSession);
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+      applySession(session);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+      applySession(session);
     });
 
     return () => subscription.unsubscribe();
@@ -627,7 +660,7 @@ const App: React.FC = () => {
               playlist: [],
               customThemes: []
             };
-            setProjects(prev => [...prev, newProject]);
+            setProjects(prev => [...saveCurrentProjectInto(prev), newProject]);
             setCurrentProjectId(newProject.id);
             setPlaylist([]);
             setCustomThemes([]);
@@ -740,7 +773,7 @@ const App: React.FC = () => {
     return () => {
       realtimeSyncService.unsubscribe();
     };
-  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, stopLive, isAudioPlaying]);
+  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, stopLive, isAudioPlaying, saveCurrentProjectInto]);
 
   // Broadcast live state (debounced)
   const lastStateStr = useRef<string>('');
@@ -823,27 +856,16 @@ const App: React.FC = () => {
     setSyncError(null);
 
     try {
-      const { data, error } = await supabase
+      const { data: settings, error } = await supabase
         .from('user_settings')
         .select('playlist, custom_themes, projects, current_project_id')
-        .eq('id', session.user.id);
+        .eq('id', session.user.id)
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116' || error.message?.includes('0 rows')) {
-          const { error: insertError } = await supabase.from('user_settings').insert([
-            { id: session.user.id, playlist: [], custom_themes: [], projects: [], current_project_id: null }
-          ]);
-          if (insertError) {
-            setSyncError("Error al inicializar datos en la nube.");
-          } else {
-            dataLoaded.current = true;
-          }
-        } else {
-          console.error("Cloud fetch error:", error);
-          setSyncError("Error al descargar datos de la nube.");
-        }
-      } else if (data && data.length > 0) {
-        const settings = data[0] as any;
+        console.error("Cloud fetch error:", error);
+        setSyncError("Error al descargar datos de la nube.");
+      } else if (settings) {
 
         // Migration Helper: Ensure items have correct types (Fix for 'transforming' dividers)
         const migratePlaylist = (items: any[]) => (items || []).map(item => ({
@@ -856,6 +878,34 @@ const App: React.FC = () => {
           ...p,
           playlist: migratePlaylist(p.playlist)
         }));
+
+        const localProjects = readLocalJson<Project[]>(LOCAL_PROJECTS_KEY, []);
+        const localPlaylist = readLocalJson<PresentationItem[]>(LOCAL_PLAYLIST_KEY, []);
+        const localThemes = readLocalJson<Theme[]>(LOCAL_THEMES_KEY, []);
+        const cloudHasData =
+          migratedProjects.length > 0 ||
+          (settings.playlist || []).length > 0 ||
+          (settings.custom_themes || []).length > 0;
+        const localHasData = localProjects.length > 0 || localPlaylist.length > 0 || localThemes.length > 0;
+
+        if (!cloudHasData && localHasData) {
+          await supabase.from('user_settings').upsert({
+            id: session.user.id,
+            playlist: stripPlaylistMedia(localPlaylist),
+            custom_themes: localThemes,
+            projects: stripProjectsForStorage(localProjects),
+            current_project_id: localStorage.getItem(LOCAL_CURRENT_PROJECT_KEY),
+            updated_at: new Date().toISOString()
+          });
+
+          setProjects(localProjects);
+          setCurrentProjectId(localStorage.getItem(LOCAL_CURRENT_PROJECT_KEY));
+          setPlaylist(localPlaylist);
+          setCustomThemes(localThemes);
+          dataLoaded.current = true;
+          return;
+        }
+
         setProjects(migratedProjects);
 
         // 2. Load and migrate active playlist/project
@@ -878,6 +928,31 @@ const App: React.FC = () => {
 
         // 3. Mark as loaded
         dataLoaded.current = true;
+      } else {
+        // New cloud profile: initialize it from the local backup instead of creating empty data.
+        const localProjects = readLocalJson<Project[]>(LOCAL_PROJECTS_KEY, []);
+        const localPlaylist = readLocalJson<PresentationItem[]>(LOCAL_PLAYLIST_KEY, []);
+        const localThemes = readLocalJson<Theme[]>(LOCAL_THEMES_KEY, []);
+        const localCurrentProjectId = localStorage.getItem(LOCAL_CURRENT_PROJECT_KEY);
+
+        const { error: insertError } = await supabase.from('user_settings').upsert({
+          id: session.user.id,
+          playlist: stripPlaylistMedia(localPlaylist),
+          custom_themes: localThemes,
+          projects: stripProjectsForStorage(localProjects),
+          current_project_id: localCurrentProjectId,
+          updated_at: new Date().toISOString()
+        });
+
+        if (insertError) {
+          setSyncError("Error al inicializar datos en la nube.");
+        } else {
+          setProjects(localProjects);
+          setCurrentProjectId(localCurrentProjectId);
+          setPlaylist(localPlaylist);
+          setCustomThemes(localThemes);
+          dataLoaded.current = true;
+        }
       }
 
     } catch (e) {
@@ -891,14 +966,14 @@ const App: React.FC = () => {
         isSwitchingProject.current = false;
       }, 1000);
     }
-  }, [session]);
+  }, [session, stripProjectsForStorage]);
 
 
   useEffect(() => {
     if (session?.user && !dataLoaded.current) {
       fetchUserData();
     } else if (!session?.user) {
-      dataLoaded.current = false;
+      dataLoaded.current = true;
     }
   }, [session, fetchUserData]);
 
@@ -936,13 +1011,7 @@ const App: React.FC = () => {
     setIsSyncing(true);
     try {
       const safePlaylist = stripPlaylistMedia(playlist);
-      const finalProjects = currentProjectId
-        ? projects.map(p =>
-          p.id === currentProjectId
-            ? { ...p, playlist: safePlaylist, customThemes, updatedAt: new Date().toISOString() }
-            : { ...p, playlist: stripPlaylistMedia(p.playlist || []) }
-        )
-        : projects.map(p => ({ ...p, playlist: stripPlaylistMedia(p.playlist || []) }));
+      const finalProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
 
       const { error } = await supabase
         .from('user_settings')
@@ -967,6 +1036,8 @@ const App: React.FC = () => {
         'cloud_sync_saved',
         'Cambios guardados manualmente en la nube'
       );
+      localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(finalProjects));
+      if (currentProjectId) localStorage.setItem(LOCAL_CURRENT_PROJECT_KEY, currentProjectId);
     } catch (e) {
       console.error("Critical save error", e);
       setSyncError("Error al guardar");
@@ -1008,8 +1079,8 @@ const App: React.FC = () => {
       // We use scope: 'global' to sign out from all tabs
       await supabase.auth.signOut({ scope: 'global' });
 
-      // 4. Wipe ALL persistent storage to be absolutely sure
-      localStorage.clear();
+      // 4. Clear only auth/session markers. Keep local project backups intact.
+      localStorage.removeItem('oasis_authenticated');
       sessionStorage.clear();
 
       // 5. Hard reload to ensure all listeners and refs are destroyed
@@ -1017,7 +1088,7 @@ const App: React.FC = () => {
       window.location.href = window.location.origin + window.location.pathname;
     } catch (e) {
       console.error("Critical logout error", e);
-      localStorage.clear();
+      localStorage.removeItem('oasis_authenticated');
       window.location.reload();
     }
   };
@@ -1026,15 +1097,24 @@ const App: React.FC = () => {
   // Persistence Effect
   // Persistence Effect: Local Storage (Immediate)
   useEffect(() => {
+    if (initialIsProjectorMode || initialIsRemoteControlMode || isCloudLoading.current) return;
+
     try {
       // Strip large video blobs before saving to localStorage to avoid quota errors
       const safePlaylist = stripPlaylistMedia(playlist);
-      localStorage.setItem('flujo_playlist_v2', JSON.stringify(safePlaylist));
-      localStorage.setItem('oasis_custom_themes', JSON.stringify(customThemes));
+      const safeProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
+      localStorage.setItem(LOCAL_PLAYLIST_KEY, JSON.stringify(safePlaylist));
+      localStorage.setItem(LOCAL_THEMES_KEY, JSON.stringify(customThemes));
+      localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(safeProjects));
+      if (currentProjectId) {
+        localStorage.setItem(LOCAL_CURRENT_PROJECT_KEY, currentProjectId);
+      } else {
+        localStorage.removeItem(LOCAL_CURRENT_PROJECT_KEY);
+      }
     } catch (e) {
       console.warn("Local storage update failed", e);
     }
-  }, [playlist, customThemes]);
+  }, [playlist, customThemes, projects, currentProjectId, saveCurrentProjectInto, stripProjectsForStorage, initialIsProjectorMode, initialIsRemoteControlMode]);
 
   // Persistence Effect: Cloud SYNC (Debounced with Deep Comparison)
   const lastCloudPlaylist = useRef<string>('');
@@ -1042,7 +1122,7 @@ const App: React.FC = () => {
   const lastCloudThemes = useRef<string>('');
 
   useEffect(() => {
-    if (!autoCloudSync || !session?.user || !dataLoaded.current || isCloudLoading.current) return;
+    if (!autoCloudSync || !session?.user || !dataLoaded.current || isCloudLoading.current || isSwitchingProject.current) return;
 
     // Skip if nothing changed according to string comparison (IGNORING volatile updatedAt field)
     const stripVolatile = (projs: any[]) => projs.map(p => {
@@ -1064,15 +1144,7 @@ const App: React.FC = () => {
       setIsSyncing(true);
       try {
         const safePlaylist = stripPlaylistMedia(playlist);
-        let finalProjects = projects.map(p => ({ ...p, playlist: stripPlaylistMedia(p.playlist || []) }));
-
-        if (currentProjectId) {
-          finalProjects = finalProjects.map(p =>
-            p.id === currentProjectId
-              ? { ...p, playlist: safePlaylist, customThemes, updatedAt: new Date().toISOString() }
-              : p
-          );
-        }
+        const finalProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
 
         const { error } = await supabase
           .from('user_settings')
@@ -1102,7 +1174,7 @@ const App: React.FC = () => {
     }, 5000); // 5 second debounce for stability
 
     return () => clearTimeout(timer);
-  }, [playlist, customThemes, projects, currentProjectId, session, autoCloudSync]);
+  }, [playlist, customThemes, projects, currentProjectId, session, autoCloudSync, saveCurrentProjectInto, stripProjectsForStorage]);
 
 
 
@@ -1113,7 +1185,7 @@ const App: React.FC = () => {
     // GUARD: Do not auto-save if we are currently switching projects
     if (isSwitchingProject.current) return;
 
-    if (!dataLoaded.current || !currentProjectId || projects.length === 0) return;
+    if (isCloudLoading.current || !currentProjectId || projects.length === 0) return;
 
     // Use a functional update to avoid stale state and race conditions
     // We removed the isUpdatingProjectRef guard because it was skipping valid updates
@@ -1138,7 +1210,7 @@ const App: React.FC = () => {
       }
       return prev;
     });
-  }, [playlist, customThemes, currentProjectId]);
+  }, [playlist, customThemes, currentProjectId, projects.length]);
 
   // Keep frozenLiveItem in sync with changes in the active playlist
   useEffect(() => {
@@ -1165,8 +1237,8 @@ const App: React.FC = () => {
       customThemes: []
     };
 
-    // Update all relevant states
-    setProjects(prev => [...prev, newProject]);
+    // Update all relevant states after preserving the current project.
+    setProjects(prev => [...saveCurrentProjectInto(prev), newProject]);
     setCurrentProjectId(newProject.id);
     setPlaylist([]);
     setCustomThemes([]);
@@ -1184,7 +1256,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       isSwitchingProject.current = false;
     }, 250);
-  }, [session?.user?.id]);
+  }, [saveCurrentProjectInto, session?.user?.id]);
 
 
 
@@ -1281,7 +1353,7 @@ const App: React.FC = () => {
       playlist: []
     };
 
-    setProjects(prev => [newProject, ...prev]);
+    setProjects(prev => [newProject, ...saveCurrentProjectInto(prev)]);
     setCurrentProjectId(newProject.id);
     setPlaylist([]); // Start empty for the new project
     setShowCalendar(false); // Switch to editor
