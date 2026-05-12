@@ -2336,6 +2336,7 @@ const App: React.FC = () => {
           // Custom Themes
           customThemes={customThemes}
           onUpdateCustomThemes={setCustomThemes}
+          onUploadImages={handleUploadImages}
           // History
           history={history}
           onRestore={handleRestoreHistory}

@@ -44,6 +44,7 @@ interface ControlPanelProps {
   // Custom Themes (cloud synced)
   customThemes?: Theme[];
   onUpdateCustomThemes?: (themes: Theme[]) => void;
+  onUploadImages?: (files: FileList | null, itemId?: string) => Promise<void>;
 }
 
 // Updated Bible Versions as requested
@@ -237,6 +238,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onToggleKaraoke,
   customThemes: propCustomThemes,
   onUpdateCustomThemes,
+  onUploadImages,
 }) => {
   const [activeTab, setActiveTab] = useState<'content' | 'theme'>('content');
   const [bgMode, setBgMode] = useState<'image' | 'solid' | 'gradient'>('image');
@@ -409,6 +411,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const slideFileInputRef = useRef<HTMLInputElement>(null);
+  const presentationFileInputRef = useRef<HTMLInputElement>(null);
 
   // No secondary preview effect for audio, it stays in the list.
 
@@ -623,6 +626,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     }
   };
 
+  const handlePresentationUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onUploadImages) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setLoading(true);
+    try {
+      await onUploadImages(files);
+    } finally {
+      e.target.value = '';
+      setLoading(false);
+    }
+  };
+
   const getCurrentFontSizeIndex = () => {
     const idx = FONT_SIZES.findIndex(f => f.val === currentTheme.fontSize);
     return idx === -1 ? 4 : idx;
@@ -683,6 +700,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
       {/* Hidden File Inputs moved to top level to be accessible from any tab */}
       <input type="file" accept="image/*" ref={slideFileInputRef} className="hidden" onChange={handleSlideImageUpload} />
+      <input type="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" ref={presentationFileInputRef} className="hidden" onChange={handlePresentationUpload} />
       <input type="file" accept="image/*" ref={bgFileInputRef} className="hidden" onChange={handleBgUpload} />
       <input type="file" accept="image/*" ref={logoFileInputRef} className="hidden" onChange={handleLogoUpload} />
 
@@ -692,7 +710,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/30">
               <label className="text-[10px] uppercase text-gray-500 font-bold tracking-widest mb-3 block">📺 Seleccionar Origen</label>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-5 gap-3">
                 <button
                   onClick={() => { setInputType('youtube'); setSongResults([]); }}
                   className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${inputType === 'youtube' ? 'bg-gradient-to-br from-red-600/30 to-rose-600/30 border-red-500/50 shadow-lg shadow-red-500/10' : 'bg-gray-900/50 border-gray-700/50 hover:border-gray-500'}`}
@@ -737,6 +755,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <Plus size={18} className="text-white" />
                   </div>
                   <span className="text-[10px] font-bold uppercase text-gray-400 group-hover/nv:text-emerald-300">NV</span>
+                </button>
+                <button
+                  onClick={() => presentationFileInputRef.current?.click()}
+                  disabled={loading || !onUploadImages}
+                  className="p-4 rounded-xl border transition-all flex flex-col items-center gap-2 bg-gray-900/50 border-gray-700/50 hover:border-cyan-500/60 hover:bg-cyan-950/30 disabled:opacity-50 disabled:cursor-not-allowed group/ppt"
+                  title="Agregar PDF o PowerPoint"
+                >
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-700 group-hover/ppt:bg-cyan-600 transition-colors">
+                    {loading ? <Loader2 size={18} className="text-white animate-spin" /> : <FileText size={18} className="text-white" />}
+                  </div>
+                  <span className="text-[10px] font-bold uppercase text-gray-400 group-hover/ppt:text-cyan-300">PDF/PPT</span>
                 </button>
               </div>
             </div>
