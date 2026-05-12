@@ -25,7 +25,8 @@ import {
     Video,
     X,
     ZoomIn,
-    ZoomOut
+    ZoomOut,
+    Maximize
 } from 'lucide-react';
 import { LiveState } from '../services/realtimeService';
 import { compressImage } from '../services/imageService';
@@ -50,6 +51,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const [newProjectName, setNewProjectName] = useState('');
     const [mediaTitle, setMediaTitle] = useState('');
     const [uploadStatus, setUploadStatus] = useState('');
+    const [isZoomExpanded, setIsZoomExpanded] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageGestureRef = useRef({
         lastX: 0,
@@ -317,6 +319,15 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                         <p className="text-sm font-black text-white">Toca y mueve la imagen</p>
                                         <p className="text-xs text-slate-300 mt-1">Doble toque para reiniciar</p>
                                     </div>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsZoomExpanded(true);
+                                        }}
+                                        className="absolute right-2 bottom-2 p-2 rounded-xl bg-black/40 text-white backdrop-blur-md active:scale-95 border border-white/10"
+                                    >
+                                        <Maximize size={18} />
+                                    </button>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
@@ -571,6 +582,57 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                     })}
                 </div>
             </nav>
+
+            {/* Expanded Zoom Modal */}
+            {isZoomExpanded && currentSlide?.type === 'image' && (
+                <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+                    <header className="absolute top-0 inset-x-0 z-10 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-center pointer-events-none">
+                        <div className="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 pointer-events-auto">
+                            <p className="text-xs font-bold text-white tracking-wider">MODO ZOOM FULLSCREEN</p>
+                        </div>
+                        <button
+                            onClick={() => setIsZoomExpanded(false)}
+                            className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white pointer-events-auto active:scale-95"
+                        >
+                            <X size={20} />
+                        </button>
+                    </header>
+                    <div
+                        className="flex-1 w-full h-full touch-none select-none relative bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.22),rgba(15,23,42,0.8)_58%,rgba(2,6,23,0.95))]"
+                        onTouchStart={handleImagePadTouchStart}
+                        onTouchMove={handleImagePadTouchMove}
+                        onTouchEnd={handleImagePadTouchEnd}
+                        onDoubleClick={() => sendImageGestureCommand('image_reset', {}, true)}
+                    >
+                        {renderSlideBackdrop()}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                            <ZoomIn size={60} className="text-white drop-shadow-2xl" />
+                        </div>
+                    </div>
+                    <div className="absolute bottom-8 inset-x-4 flex items-center justify-between pointer-events-none max-w-md mx-auto">
+                        <button
+                            onClick={() => sendImageGestureCommand('image_reset', {}, true)}
+                            className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white pointer-events-auto active:scale-95 shadow-xl"
+                        >
+                            <RotateCcw size={22} />
+                        </button>
+                        <div className="flex gap-2 pointer-events-auto shadow-xl bg-black/60 p-2 rounded-[2rem] border border-white/10 backdrop-blur-md">
+                            <button
+                                onClick={() => sendImageGestureCommand('image_zoom', { factor: 0.85 }, true)}
+                                className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95"
+                            >
+                                <ZoomOut size={22} />
+                            </button>
+                            <button
+                                onClick={() => sendImageGestureCommand('image_zoom', { factor: 1.18 }, true)}
+                                className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white active:scale-95"
+                            >
+                                <ZoomIn size={22} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
