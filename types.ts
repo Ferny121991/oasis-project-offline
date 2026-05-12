@@ -87,6 +87,8 @@ export interface Theme {
   // Image Slide Specifics
   imageContentFit: 'contain' | 'cover' | 'fill';
   imageContentScale: number;
+  imageContentOffsetX: number;
+  imageContentOffsetY: number;
   imageContentOpacity: number;
   imageContentBrightness: number;
   imageContentContrast: number;

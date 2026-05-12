@@ -555,6 +555,16 @@ const App: React.FC = () => {
       if (commandId && commandId === lastProcessedCommandId.current) return;
       if (commandId) lastProcessedCommandId.current = commandId;
 
+      const clampImageScale = (value: number) => Math.min(5, Math.max(0.25, value));
+      const clampImageOffset = (value: number) => Math.min(150, Math.max(-150, value));
+      const updateLiveItemTheme = (updater: (theme: Theme) => Theme) => {
+        if (!liveItemId) return;
+        setPlaylist(prev => prev.map(item =>
+          item.id === liveItemId ? { ...item, theme: updater(item.theme) } : item
+        ));
+        setFrozenLiveItem(prev => prev && prev.id === liveItemId ? { ...prev, theme: updater(prev.theme) } : prev);
+      };
+
       switch (command) {
         case 'next':
           if (isKaraokeActive && liveItemId) {
@@ -649,6 +659,27 @@ const App: React.FC = () => {
             }
           }
           break;
+        case 'image_zoom':
+          updateLiveItemTheme(itemTheme => ({
+            ...itemTheme,
+            imageContentScale: clampImageScale((itemTheme.imageContentScale || 1) * (Number(commandData?.factor) || 1))
+          }));
+          break;
+        case 'image_pan':
+          updateLiveItemTheme(itemTheme => ({
+            ...itemTheme,
+            imageContentOffsetX: clampImageOffset((itemTheme.imageContentOffsetX || 0) + (Number(commandData?.deltaX) || 0)),
+            imageContentOffsetY: clampImageOffset((itemTheme.imageContentOffsetY || 0) + (Number(commandData?.deltaY) || 0))
+          }));
+          break;
+        case 'image_reset':
+          updateLiveItemTheme(itemTheme => ({
+            ...itemTheme,
+            imageContentScale: 1,
+            imageContentOffsetX: 0,
+            imageContentOffsetY: 0
+          }));
+          break;
         case 'toggle_audio': toggleAudioPlayback(); break;
         case 'stop_live': stopLive(); break;
         case 'zoom_update':
@@ -701,7 +732,9 @@ const App: React.FC = () => {
           break;
       }
       // Clear the command after processing
-      realtimeSyncService.updateState(remoteControlId, { command: null, commandId: null, commandData: null });
+      if (!commandData?.transient) {
+        realtimeSyncService.updateState(remoteControlId, { command: null, commandId: null, commandData: null });
+      }
     });
 
     return () => {
@@ -727,7 +760,10 @@ const App: React.FC = () => {
       karaokeIndex,
       backgroundAudioTitle: backgroundAudioItem?.title,
       isAudioPlaying: isAudioPlaying,
-      zoomState
+      zoomState,
+      imageContentScale: liveItem?.theme?.imageContentScale ?? 1,
+      imageContentOffsetX: liveItem?.theme?.imageContentOffsetX ?? 0,
+      imageContentOffsetY: liveItem?.theme?.imageContentOffsetY ?? 0
     };
 
     const currentStateStr = JSON.stringify(stateToBroadcast);
@@ -758,7 +794,7 @@ const App: React.FC = () => {
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, isRemoteControlMode, playlist, activeItem, projects, currentProjectId, backgroundAudioItem, isAudioPlaying]);
+  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, isRemoteControlMode, playlist, activeItem, liveItem, projects, currentProjectId, backgroundAudioItem, isAudioPlaying]);
 
   useEffect(() => {
     if (!isRemoteControlMode || !remoteControlIdFromUrl) return;

@@ -17,6 +17,9 @@ export interface LiveState {
     activeItemSlides?: { id: string, label?: string, content: string, operatorNotes?: string, type?: string, mediaUrl?: string, videoId?: string }[];
     backgroundAudioTitle?: string;
     isAudioPlaying?: boolean;
+    imageContentScale?: number;
+    imageContentOffsetX?: number;
+    imageContentOffsetY?: number;
     videoProgress?: number;
     videoDuration?: number;
     projects?: { id: string, name: string }[];
@@ -165,6 +168,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
 
         sendCommand: async (userId: string, command: string | null, data?: any) => {
             try {
+                const isTransientCommand = data?.transient === true;
                 const existingState = lastKnownState || {
                     liveItemId: null,
                     liveSlideIndex: -1,
@@ -187,6 +191,8 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                         payload: { state: newState }
                     });
                 }
+
+                if (isTransientCommand) return;
 
                 const { error } = await supabase
                     .from('realtime_sync')

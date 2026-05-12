@@ -44,6 +44,8 @@ export const DEFAULT_THEME: Theme = {
   // Default Image Content Styling
   imageContentFit: 'contain',
   imageContentScale: 1.0,
+  imageContentOffsetX: 0,
+  imageContentOffsetY: 0,
   imageContentOpacity: 1.0,
   imageContentBrightness: 1.0,
   imageContentContrast: 1.0,

@@ -15,6 +15,7 @@ import {
     PlayCircle,
     Plus,
     Radio,
+    RotateCcw,
     Search,
     Smartphone,
     Sparkles,
@@ -24,12 +25,7 @@ import {
     Video,
     X,
     ZoomIn,
-    ZoomOut,
-    RotateCcw,
-    ArrowUp,
-    ArrowDown,
-    ArrowLeft,
-    ArrowRight
+    ZoomOut
 } from 'lucide-react';
 import { LiveState } from '../services/realtimeService';
 import { compressImage } from '../services/imageService';
@@ -48,7 +44,6 @@ const stripHtml = (value?: string) => (value || '').replace(/<[^>]*>?/gm, '').tr
 const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, sendCommand, isConnected, onClose }) => {
     const [activeTab, setActiveTab] = useState<RemoteTab>('control');
     const [searchQuery, setSearchQuery] = useState('');
-    const [zoomState, setZoomState] = useState({ scale: 1, x: 0, y: 0 });
     const [songQuery, setSongQuery] = useState('');
     const [bibleQuery, setBibleQuery] = useState('');
     const [bibleVersion, setBibleVersion] = useState('RVR1960');
@@ -56,24 +51,12 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const [mediaTitle, setMediaTitle] = useState('');
     const [uploadStatus, setUploadStatus] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const handleZoom = (action: 'in' | 'out' | 'up' | 'down' | 'left' | 'right' | 'reset') => {
-        setZoomState(prev => {
-            let newZoom = { ...prev };
-            if (action === 'in') newZoom.scale = Math.min(prev.scale + 0.2, 5);
-            if (action === 'out') newZoom.scale = Math.max(prev.scale - 0.2, 1);
-            if (action === 'reset') newZoom = { scale: 1, x: 0, y: 0 };
-            
-            const step = 50 / newZoom.scale; // Adjust step based on scale
-            if (action === 'up') newZoom.y += step;
-            if (action === 'down') newZoom.y -= step;
-            if (action === 'left') newZoom.x += step;
-            if (action === 'right') newZoom.x -= step;
-
-            sendCommand('zoom_update', newZoom);
-            return newZoom;
-        });
-    };
+    const imageGestureRef = useRef({
+        lastX: 0,
+        lastY: 0,
+        lastDistance: 0,
+        lastSentAt: 0
+    });
 
     const activeItem = liveState?.playlist?.find(p => p.id === liveState.liveItemId);
     const currentSlide = liveState?.activeItemSlides?.[liveState.liveSlideIndex];
@@ -85,6 +68,61 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     }, [liveState?.playlist, searchQuery]);
 
     const connectionLabel = isConnected ? (hasLiveItem ? 'EN VIVO' : 'ONLINE') : 'RECONECTANDO';
+
+    const sendImageGestureCommand = (command: string, data: Record<string, any> = {}, force = false) => {
+        const now = Date.now();
+        if (!force && now - imageGestureRef.current.lastSentAt < 45) return;
+        imageGestureRef.current.lastSentAt = now;
+        sendCommand(command, { ...data, transient: !force });
+    };
+
+    const getTouchDistance = (touches: TouchList) => {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.hypot(dx, dy);
+    };
+
+    const handleImagePadTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+        if (event.touches.length === 1) {
+            imageGestureRef.current.lastX = event.touches[0].clientX;
+            imageGestureRef.current.lastY = event.touches[0].clientY;
+        }
+
+        if (event.touches.length === 2) {
+            imageGestureRef.current.lastDistance = getTouchDistance(event.touches);
+        }
+    };
+
+    const handleImagePadTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+
+        if (event.touches.length === 2) {
+            const distance = getTouchDistance(event.touches);
+            const lastDistance = imageGestureRef.current.lastDistance || distance;
+            const factor = distance / lastDistance;
+            if (Math.abs(factor - 1) > 0.01) {
+                sendImageGestureCommand('image_zoom', { factor });
+            }
+            imageGestureRef.current.lastDistance = distance;
+            return;
+        }
+
+        if (event.touches.length === 1) {
+            const touch = event.touches[0];
+            const deltaX = ((touch.clientX - imageGestureRef.current.lastX) / rect.width) * 100;
+            const deltaY = ((touch.clientY - imageGestureRef.current.lastY) / rect.height) * 100;
+            if (Math.abs(deltaX) > 0.18 || Math.abs(deltaY) > 0.18) {
+                sendImageGestureCommand('image_pan', { deltaX, deltaY });
+            }
+            imageGestureRef.current.lastX = touch.clientX;
+            imageGestureRef.current.lastY = touch.clientY;
+        }
+    };
+
+    const handleImagePadTouchEnd = () => {
+        imageGestureRef.current.lastDistance = 0;
+    };
 
     const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -249,33 +287,50 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             </button>
                         </div>
 
-                        {/* ZOOM CONTROLS */}
                         {currentSlide?.type === 'image' && (
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">Control de Zoom</h2>
-                                    <button onClick={() => handleZoom('reset')} className="text-[10px] font-black text-indigo-300 flex items-center gap-1 active:scale-95">
-                                        <RotateCcw size={12} /> Reset
+                            <div className="rounded-3xl border border-indigo-400/20 bg-indigo-500/[0.07] p-3 space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h2 className="text-xs font-black uppercase tracking-wider text-indigo-200">Zoom de imagen</h2>
+                                        <p className="text-[11px] text-slate-400">Arrastra con un dedo. Pellizca con dos dedos para acercar.</p>
+                                    </div>
+                                    <button
+                                        onClick={() => sendImageGestureCommand('image_reset', {}, true)}
+                                        className="w-11 h-11 rounded-2xl bg-white/[0.06] border border-white/10 text-slate-200 flex items-center justify-center active:scale-95"
+                                        title="Restablecer imagen"
+                                    >
+                                        <RotateCcw size={18} />
                                     </button>
                                 </div>
-                                <div className="flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-2 bg-black/20 rounded-full p-1 border border-white/5">
-                                        <button onClick={() => handleZoom('out')} className="w-10 h-10 rounded-full flex items-center justify-center text-slate-300 active:bg-white/10">
-                                            <ZoomOut size={18} />
-                                        </button>
-                                        <span className="text-xs font-black w-8 text-center">{Math.round(zoomState.scale * 100)}%</span>
-                                        <button onClick={() => handleZoom('in')} className="w-10 h-10 rounded-full flex items-center justify-center text-slate-300 active:bg-white/10">
-                                            <ZoomIn size={18} />
-                                        </button>
+                                <div
+                                    className="relative h-44 rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.22),rgba(15,23,42,0.8)_58%,rgba(2,6,23,0.95))] overflow-hidden touch-none select-none"
+                                    onTouchStart={handleImagePadTouchStart}
+                                    onTouchMove={handleImagePadTouchMove}
+                                    onTouchEnd={handleImagePadTouchEnd}
+                                    onDoubleClick={() => sendImageGestureCommand('image_reset', {}, true)}
+                                >
+                                    {renderSlideBackdrop()}
+                                    <div className="absolute inset-0 bg-slate-950/50" />
+                                    <div className="absolute inset-4 rounded-3xl border border-dashed border-indigo-200/25" />
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8 pointer-events-none">
+                                        <ZoomIn size={30} className="text-indigo-200 mb-2" />
+                                        <p className="text-sm font-black text-white">Toca y mueve la imagen</p>
+                                        <p className="text-xs text-slate-300 mt-1">Doble toque para reiniciar</p>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-1 p-1 bg-black/20 rounded-xl border border-white/5">
-                                        <div />
-                                        <button onClick={() => handleZoom('up')} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 active:bg-white/10"><ArrowUp size={16} /></button>
-                                        <div />
-                                        <button onClick={() => handleZoom('left')} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 active:bg-white/10"><ArrowLeft size={16} /></button>
-                                        <button onClick={() => handleZoom('down')} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 active:bg-white/10"><ArrowDown size={16} /></button>
-                                        <button onClick={() => handleZoom('right')} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 active:bg-white/10"><ArrowRight size={16} /></button>
-                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={() => sendImageGestureCommand('image_zoom', { factor: 0.85 }, true)}
+                                        className="h-12 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center gap-2 font-black active:scale-[0.98]"
+                                    >
+                                        <ZoomOut size={19} /> Alejar
+                                    </button>
+                                    <button
+                                        onClick={() => sendImageGestureCommand('image_zoom', { factor: 1.18 }, true)}
+                                        className="h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center gap-2 font-black active:scale-[0.98]"
+                                    >
+                                        <ZoomIn size={19} /> Acercar
+                                    </button>
                                 </div>
                             </div>
                         )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Slide, Theme } from '../types';
-import { Type, AlignLeft, AlignCenter, AlignRight, Image, Plus, Minus } from 'lucide-react';
+import { Type, AlignLeft, AlignCenter, AlignRight, Plus, Minus, RotateCcw, Move } from 'lucide-react';
 import AnimatedBackground from './AnimatedBackground';
 import { isIdbMediaUrl, getSlideIdFromIdbUrl, getMediaBlobUrl } from '../services/mediaBlobStore';
 
@@ -41,6 +41,13 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const onVideoEndRef = useRef(onVideoEnd);
+  const imageGestureRef = useRef({
+    lastX: 0,
+    lastY: 0,
+    lastDistance: 0,
+    moved: false,
+    lastTapAt: 0
+  });
 
   // Keep the callback ref up to date without triggering re-renders
   useEffect(() => {
@@ -185,6 +192,109 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
     onUpdateTheme({ ...theme, fontSize: sizes[nextIndex] });
   };
 
+  const clampImageScale = (value: number) => Math.min(5, Math.max(0.25, value));
+  const clampImageOffset = (value: number) => Math.min(150, Math.max(-150, value));
+
+  const updateImageTransform = (scale: number, offsetX: number, offsetY: number) => {
+    if (!onUpdateTheme) return;
+    onUpdateTheme({
+      ...theme,
+      imageContentScale: clampImageScale(scale),
+      imageContentOffsetX: clampImageOffset(offsetX),
+      imageContentOffsetY: clampImageOffset(offsetY)
+    });
+  };
+
+  const resetImageTransform = () => {
+    if (!onUpdateTheme) return;
+    onUpdateTheme({
+      ...theme,
+      imageContentScale: 1,
+      imageContentOffsetX: 0,
+      imageContentOffsetY: 0
+    });
+  };
+
+  const getTouchDistance = (touches: TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  const handleImageTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!onUpdateTheme || slide?.type !== 'image') return;
+
+    imageGestureRef.current.moved = false;
+    if (event.touches.length === 1) {
+      imageGestureRef.current.lastX = event.touches[0].clientX;
+      imageGestureRef.current.lastY = event.touches[0].clientY;
+    }
+
+    if (event.touches.length === 2) {
+      imageGestureRef.current.lastDistance = getTouchDistance(event.touches);
+    }
+  };
+
+  const handleImageTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!onUpdateTheme || slide?.type !== 'image') return;
+    event.preventDefault();
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const currentScale = theme.imageContentScale || 1;
+    const currentOffsetX = theme.imageContentOffsetX || 0;
+    const currentOffsetY = theme.imageContentOffsetY || 0;
+
+    if (event.touches.length === 2) {
+      const nextDistance = getTouchDistance(event.touches);
+      const lastDistance = imageGestureRef.current.lastDistance || nextDistance;
+      const factor = nextDistance / lastDistance;
+      if (Math.abs(factor - 1) > 0.01) {
+        updateImageTransform(currentScale * factor, currentOffsetX, currentOffsetY);
+        imageGestureRef.current.moved = true;
+      }
+      imageGestureRef.current.lastDistance = nextDistance;
+      return;
+    }
+
+    if (event.touches.length === 1) {
+      const touch = event.touches[0];
+      const deltaX = ((touch.clientX - imageGestureRef.current.lastX) / rect.width) * 100;
+      const deltaY = ((touch.clientY - imageGestureRef.current.lastY) / rect.height) * 100;
+      if (Math.abs(deltaX) > 0.15 || Math.abs(deltaY) > 0.15) {
+        updateImageTransform(currentScale, currentOffsetX + deltaX, currentOffsetY + deltaY);
+        imageGestureRef.current.moved = true;
+      }
+      imageGestureRef.current.lastX = touch.clientX;
+      imageGestureRef.current.lastY = touch.clientY;
+    }
+  };
+
+  const handleImageTouchEnd = () => {
+    if (!onUpdateTheme || slide?.type !== 'image') return;
+    const now = Date.now();
+    if (!imageGestureRef.current.moved && now - imageGestureRef.current.lastTapAt < 320) {
+      const currentScale = theme.imageContentScale || 1;
+      if (currentScale > 1.05) {
+        resetImageTransform();
+      } else {
+        updateImageTransform(2, theme.imageContentOffsetX || 0, theme.imageContentOffsetY || 0);
+      }
+    }
+    imageGestureRef.current.lastTapAt = now;
+    imageGestureRef.current.lastDistance = 0;
+  };
+
+  const handleImageWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!onUpdateTheme || slide?.type !== 'image') return;
+    event.preventDefault();
+    const direction = event.deltaY > 0 ? 0.92 : 1.08;
+    updateImageTransform(
+      (theme.imageContentScale || 1) * direction,
+      theme.imageContentOffsetX || 0,
+      theme.imageContentOffsetY || 0
+    );
+  };
+
   const textShadowStyle = theme.shadow ? `${theme.shadowOffsetX}px ${theme.shadowOffsetY}px ${theme.shadowBlur}px ${theme.shadowColor}` : 'none';
   const textStrokeStyle = theme.textStrokeWidth > 0 ? `${theme.textStrokeWidth}px ${theme.textStrokeColor}` : 'none';
 
@@ -317,11 +427,23 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
                   {/* IMAGE SLIDE */}
                   {slide.type === 'image' && slide.mediaUrl && !hideText && (
-                    <div className="absolute inset-0 flex justify-center items-center overflow-hidden bg-black">
+                    <div
+                      className="absolute inset-0 flex justify-center items-center overflow-hidden bg-black select-none"
+                      style={{
+                        touchAction: onUpdateTheme ? 'none' : 'auto',
+                        cursor: onUpdateTheme ? ((theme.imageContentScale || 1) > 1.05 ? 'grab' : 'zoom-in') : 'default'
+                      }}
+                      onTouchStart={handleImageTouchStart}
+                      onTouchMove={handleImageTouchMove}
+                      onTouchEnd={handleImageTouchEnd}
+                      onWheel={handleImageWheel}
+                      onDoubleClick={() => ((theme.imageContentScale || 1) > 1.05 ? resetImageTransform() : updateImageTransform(2, theme.imageContentOffsetX || 0, theme.imageContentOffsetY || 0))}
+                    >
                       <img
                         src={slide.mediaUrl}
                         alt="Slide Content"
                         className="w-full h-full transition-all duration-300"
+                        draggable={false}
                         style={{
                           objectFit: theme.imageContentFit || 'cover',
                           opacity: theme.imageContentOpacity ?? 1.0,
@@ -336,14 +458,45 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                             blur(${theme.imageContentBlur || 0}px)
                           `,
                           transform: `
+                            translate(${theme.imageContentOffsetX || 0}%, ${theme.imageContentOffsetY || 0}%)
                             scale(${theme.imageContentScale || 1.0}) 
                             rotate(${theme.imageContentRotation || 0}deg)
                             scaleX(${theme.imageContentFlipH ? -1 : 1})
                             scaleY(${theme.imageContentFlipV ? -1 : 1})
-                            ${zoomState ? `scale(${zoomState.scale}) translate(${zoomState.x}px, ${zoomState.y}px)` : ''}
-                          `
+                          `,
+                          willChange: 'transform'
                         }}
                       />
+                      {onUpdateTheme && (
+                        <div className="absolute left-3 bottom-3 flex items-center gap-2 rounded-2xl bg-black/55 border border-white/15 px-2 py-2 text-white backdrop-blur-md">
+                          <Move size={16} className="text-indigo-200" />
+                          <button
+                            type="button"
+                            onClick={() => updateImageTransform((theme.imageContentScale || 1) * 0.88, theme.imageContentOffsetX || 0, theme.imageContentOffsetY || 0)}
+                            className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                            title="Alejar imagen"
+                          >
+                            <Minus size={16} />
+                          </button>
+                          <span className="min-w-12 text-center text-xs font-black">{Math.round((theme.imageContentScale || 1) * 100)}%</span>
+                          <button
+                            type="button"
+                            onClick={() => updateImageTransform((theme.imageContentScale || 1) * 1.12, theme.imageContentOffsetX || 0, theme.imageContentOffsetY || 0)}
+                            className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                            title="Acercar imagen"
+                          >
+                            <Plus size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={resetImageTransform}
+                            className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                            title="Restablecer zoom"
+                          >
+                            <RotateCcw size={15} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 
