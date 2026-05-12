@@ -1914,7 +1914,7 @@ const App: React.FC = () => {
 
   // The projector ONLY shows the already saved theme of the live item.
   // Staging changes will NOT appear here until they are saved/applied.
-  const projectorTheme = liveItem ? liveItem.theme : DEFAULT_THEME;
+  const projectorTheme = liveItem ? liveItem.theme : stagedTheme;
 
   // Reference for ControlPanel comparison
   const liveTheme = activeItem ? activeItem.theme : DEFAULT_THEME;
@@ -2218,7 +2218,7 @@ const App: React.FC = () => {
           onUpdateTheme={handleUpdateActiveItemTheme}
           onUpdatePendingTheme={handleUpdateStagedTheme}
           currentTheme={stagedTheme}
-          liveTheme={activeItem ? activeItem.theme : DEFAULT_THEME}
+          liveTheme={activeItem ? activeItem.theme : stagedTheme}
           hasActiveItem={!!activeItemId}
           onAddSlide={handleAddSlideToActiveItem}
           activeSlideType={activeItem?.slides[activeSlideIndex]?.type || 'text'}

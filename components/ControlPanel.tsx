@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, DensityMode, SongSearchResult, searchYouTube, YouTubeSearchResult } from '../services/geminiService';
 import { compressImage } from '../services/imageService';
-import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry } from '../types';
+import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry, BackgroundAnimationConfig, BackgroundAnimationType } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
 import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw } from 'lucide-react';
 import RichTextEditor, { textToSegments, segmentsToText } from './RichTextEditor';
@@ -153,6 +153,35 @@ const GRADIENT_PRESETS = [
   { name: 'Ocean', value: 'linear-gradient(to top, #209cff 0%, #68e0cf 100%)' },
 ];
 
+const BG_ANIMATION_PRESETS: { name: string; value: BackgroundAnimationType }[] = [
+  { name: 'Ninguna', value: 'none' },
+  { name: 'Particulas suaves', value: 'particles' },
+  { name: 'Estrellas', value: 'stars' },
+  { name: 'Ondas', value: 'waves' },
+  { name: 'Pulso glow', value: 'gradient-pulse' },
+  { name: 'Luciernagas', value: 'fireflies' },
+  { name: 'Aurora', value: 'aurora' },
+  { name: 'Rayos de luz', value: 'rays' },
+  { name: 'Burbujas', value: 'bubbles' },
+  { name: 'Confeti', value: 'confetti' },
+  { name: 'Lluvia', value: 'rain' },
+  { name: 'Nieve', value: 'snow' },
+  { name: 'Espiral', value: 'spiral' },
+  { name: 'Cruces de luz', value: 'cross-light' },
+  { name: 'Personalizada', value: 'custom' },
+];
+
+const DEFAULT_BG_ANIMATION: BackgroundAnimationConfig = {
+  type: 'particles',
+  speed: 1,
+  color: '#ffffff',
+  color2: '#6366f1',
+  intensity: 50,
+  size: 10,
+  direction: 'random',
+  shape: 'circle'
+};
+
 // Complete list of Bible books in Spanish
 const BIBLE_BOOKS = [
   // Antiguo Testamento
@@ -233,6 +262,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     transformation: false,
     filters: false,
     background: false,
+    logo: false,
     effects: false,
     imageFit: true,
     imageEffects: false
@@ -377,6 +407,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   // Refs for file inputs
   const bgFileInputRef = useRef<HTMLInputElement>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
   const slideFileInputRef = useRef<HTMLInputElement>(null);
 
   // No secondary preview effect for audio, it stays in the list.
@@ -459,6 +490,110 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      if (!ev.target?.result) return;
+      try {
+        const compressedBase64 = await compressImage(ev.target.result as string, 1400, 1400, 0.86);
+        updatePendingTheme({ ...currentTheme, logoUrl: compressedBase64 });
+        e.target.value = '';
+      } catch (err) {
+        console.error("Logo compression failed", err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const updateAnimationType = (animation: BackgroundAnimationConfig | undefined, type: BackgroundAnimationType): BackgroundAnimationConfig => ({
+    ...DEFAULT_BG_ANIMATION,
+    ...(animation || {}),
+    type
+  });
+
+  const renderBackgroundAnimationEditor = (
+    animation: BackgroundAnimationConfig | undefined,
+    onChange: (animation: BackgroundAnimationConfig) => void,
+    accentClass = 'accent-indigo-500'
+  ) => {
+    const current = { ...DEFAULT_BG_ANIMATION, ...(animation || {}) };
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[9px] text-gray-400 font-bold uppercase">Animacion</span>
+          <select
+            value={current.type}
+            onChange={(e) => onChange(updateAnimationType(animation, e.target.value as BackgroundAnimationType))}
+            className="bg-gray-800 border border-gray-700 text-[10px] text-white rounded px-2 py-1 outline-none max-w-[150px]"
+          >
+            {BG_ANIMATION_PRESETS.map(option => (
+              <option key={option.value} value={option.value}>{option.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {current.type !== 'none' && (
+          <div className="space-y-2 pt-2 border-t border-gray-700/30">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <div className="flex justify-between text-[8px] text-gray-500 font-bold uppercase"><span>Velocidad</span><span>{current.speed}</span></div>
+                <input type="range" min="0.1" max="5" step="0.1" value={current.speed} onChange={(e) => onChange({ ...current, speed: parseFloat(e.target.value) })} className={`w-full h-1 bg-gray-700 rounded ${accentClass}`} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-[8px] text-gray-500 font-bold uppercase"><span>Cantidad</span><span>{current.intensity}</span></div>
+                <input type="range" min="10" max="200" step="5" value={current.intensity} onChange={(e) => onChange({ ...current, intensity: parseInt(e.target.value) })} className={`w-full h-1 bg-gray-700 rounded ${accentClass}`} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[8px] text-gray-500 uppercase font-bold">Color 1</label>
+                <input type="color" value={current.color} onChange={(e) => onChange({ ...current, color: e.target.value })} className="w-full h-8 rounded bg-gray-800 border border-gray-700" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[8px] text-gray-500 uppercase font-bold">Color 2</label>
+                <input type="color" value={current.color2} onChange={(e) => onChange({ ...current, color2: e.target.value })} className="w-full h-8 rounded bg-gray-800 border border-gray-700" />
+              </div>
+            </div>
+
+            {(current.type === 'custom' || current.type === 'confetti' || current.type === 'rain' || current.type === 'snow') && (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[8px] text-gray-500 uppercase font-bold">Tamano</label>
+                  <input type="range" min="2" max="32" step="1" value={current.size} onChange={(e) => onChange({ ...current, size: parseInt(e.target.value) })} className={`w-full h-1 bg-gray-700 rounded ${accentClass}`} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[8px] text-gray-500 uppercase font-bold">Direccion</label>
+                  <select value={current.direction} onChange={(e) => onChange({ ...current, direction: e.target.value as any })} className="w-full bg-gray-800 text-[10px] text-white p-1 rounded border border-gray-700">
+                    <option value="random">Libre</option>
+                    <option value="up">Sube</option>
+                    <option value="down">Baja</option>
+                    <option value="left">Izquierda</option>
+                    <option value="right">Derecha</option>
+                    <option value="center">Centro</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[8px] text-gray-500 uppercase font-bold">Forma</label>
+                  <select value={current.shape} onChange={(e) => onChange({ ...current, shape: e.target.value as any })} className="w-full bg-gray-800 text-[10px] text-white p-1 rounded border border-gray-700">
+                    <option value="circle">Circulo</option>
+                    <option value="square">Cuadro</option>
+                    <option value="diamond">Diamante</option>
+                    <option value="line">Linea</option>
+                    <option value="cross">Cruz</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleSlideImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -549,6 +684,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       {/* Hidden File Inputs moved to top level to be accessible from any tab */}
       <input type="file" accept="image/*" ref={slideFileInputRef} className="hidden" onChange={handleSlideImageUpload} />
       <input type="file" accept="image/*" ref={bgFileInputRef} className="hidden" onChange={handleBgUpload} />
+      <input type="file" accept="image/*" ref={logoFileInputRef} className="hidden" onChange={handleLogoUpload} />
 
       <div className="flex-1 overflow-y-auto no-scrollbar bg-gradient-to-b from-gray-800 to-gray-900">
         {activeTab === 'content' && (
@@ -1509,6 +1645,84 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 {/* --- SHARED SECTIONS --- */}
                 <div className="mt-6 space-y-4">
+                  {/* ACCORDION: Projector Logo */}
+                  <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 border border-blue-500/30 rounded-xl overflow-hidden shadow-xl transition-all duration-300">
+                    <button onClick={() => toggleSection('logo')} className="w-full text-[10px] uppercase text-blue-300 font-bold tracking-widest p-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors">
+                      <div className="flex items-center gap-2"><ImageIcon size={14} /> Logo del Proyector</div>
+                      <ChevronDown size={14} className={`transition-transform duration-300 ${expandedSections.logo ? 'rotate-180' : ''}`} />
+                    </button>
+                    {expandedSections.logo && (
+                      <div className="p-4 pt-0 space-y-4 animate-fade-in border-t border-gray-700/30">
+                        <div className="mt-4 grid grid-cols-[96px_1fr] gap-3 items-stretch">
+                          <div
+                            className="rounded-xl border border-white/10 bg-white overflow-hidden flex items-center justify-center p-2"
+                            style={{ background: currentTheme.logoBackground || '#ffffff' }}
+                          >
+                            <img src={currentTheme.logoUrl || '/logo.png'} alt="Logo" className="max-w-full max-h-full object-contain drop-shadow-lg" />
+                          </div>
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => logoFileInputRef.current?.click()}
+                              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-blue-600/20 border border-blue-400/30 text-blue-100 hover:bg-blue-600/30 transition-all"
+                            >
+                              <Upload size={15} /> Cambiar logo
+                            </button>
+                            <input
+                              type="text"
+                              placeholder="URL del logo..."
+                              className="w-full bg-gray-900 rounded p-2 text-[10px] text-white border border-gray-700 outline-none"
+                              onChange={(e) => { if (e.target.value) updatePendingTheme({ ...currentTheme, logoUrl: e.target.value }); }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[8px] text-gray-500 font-bold uppercase"><span>Tamano logo</span><span>{currentTheme.logoSize || 78}%</span></div>
+                            <input type="range" min="20" max="100" value={currentTheme.logoSize || 78} onChange={(e) => updatePendingTheme({ ...currentTheme, logoSize: parseInt(e.target.value) })} className="w-full h-1 bg-gray-700 rounded accent-blue-500" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[8px] text-gray-500 font-bold uppercase"><span>Opacidad</span><span>{Math.round((currentTheme.logoOpacity ?? 1) * 100)}%</span></div>
+                            <input type="range" min="0.2" max="1" step="0.05" value={currentTheme.logoOpacity ?? 1} onChange={(e) => updatePendingTheme({ ...currentTheme, logoOpacity: parseFloat(e.target.value) })} className="w-full h-1 bg-gray-700 rounded accent-blue-500" />
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-900/40 p-3 rounded-lg border border-gray-700/30 space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[9px] text-gray-400 font-bold uppercase">Fondo del logo</span>
+                            <input type="color" value={currentTheme.logoBackground?.startsWith('#') ? currentTheme.logoBackground : '#ffffff'} onChange={(e) => updatePendingTheme({ ...currentTheme, logoBackground: e.target.value })} className="w-7 h-7 rounded bg-gray-800 border border-gray-700" />
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)',
+                              'radial-gradient(circle at center, #020617 0%, #111827 55%, #000000 100%)',
+                              'linear-gradient(135deg, #111827 0%, #1e3a8a 50%, #f59e0b 100%)',
+                              'linear-gradient(180deg, #f8fafc 0%, #bfdbfe 100%)',
+                              'radial-gradient(circle at center, #fef3c7 0%, #92400e 100%)',
+                              'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)'
+                            ].map(bg => (
+                              <button key={bg} onClick={() => updatePendingTheme({ ...currentTheme, logoBackground: bg })} className="h-9 rounded-lg border border-gray-700 hover:border-blue-400" style={{ background: bg }} />
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => updatePendingTheme({ ...currentTheme, logoGlow: !currentTheme.logoGlow })}
+                            className={`w-full py-2 rounded-lg border text-[10px] font-black uppercase transition-all ${currentTheme.logoGlow ? 'bg-blue-600/20 border-blue-400/30 text-blue-100' : 'bg-gray-900 border-gray-700 text-gray-400'}`}
+                          >
+                            Brillo del logo {currentTheme.logoGlow ? 'activo' : 'apagado'}
+                          </button>
+                        </div>
+
+                        <div className="bg-gray-900/40 p-3 rounded-lg border border-gray-700/30">
+                          {renderBackgroundAnimationEditor(
+                            currentTheme.logoBgAnimation,
+                            (logoBgAnimation) => updatePendingTheme({ ...currentTheme, logoBgAnimation }),
+                            'accent-blue-500'
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* ACCORDION: Background */}
                   <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 border border-gray-700/50 rounded-xl overflow-hidden shadow-xl transition-all duration-300">
                     <button onClick={() => toggleSection('background')} className="w-full text-[10px] uppercase text-indigo-400 font-bold tracking-widest p-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors">
@@ -1611,6 +1825,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               <option value="stars">Estrellas</option>
                               <option value="waves">Ondas</option>
                               <option value="gradient-pulse">Pulso Glow</option>
+                              <option value="fireflies">Luciernagas</option>
+                              <option value="aurora">Aurora</option>
+                              <option value="rays">Rayos de luz</option>
+                              <option value="bubbles">Burbujas</option>
+                              <option value="confetti">Confeti</option>
+                              <option value="rain">Lluvia</option>
+                              <option value="snow">Nieve</option>
+                              <option value="spiral">Espiral</option>
+                              <option value="cross-light">Cruces de luz</option>
+                              <option value="custom">Personalizada</option>
                             </select>
                           </div>
 
@@ -1646,6 +1870,52 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   className="w-4 h-4 rounded border border-gray-600 cursor-pointer"
                                 />
                               </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[8px] text-gray-500 font-bold uppercase">Color 2</span>
+                                  <input
+                                    type="color"
+                                    value={currentTheme.bgAnimation.color2 || '#6366f1'}
+                                    onChange={(e) => updatePendingTheme({ ...currentTheme, bgAnimation: { ...currentTheme.bgAnimation!, color2: e.target.value } })}
+                                    className="w-4 h-4 rounded border border-gray-600 cursor-pointer"
+                                  />
+                                </div>
+                                <select
+                                  value={currentTheme.bgAnimation.direction || 'random'}
+                                  onChange={(e) => updatePendingTheme({ ...currentTheme, bgAnimation: { ...currentTheme.bgAnimation!, direction: e.target.value as any } })}
+                                  className="bg-gray-800 text-[10px] text-white p-1 rounded border border-gray-600"
+                                >
+                                  <option value="random">Libre</option>
+                                  <option value="up">Sube</option>
+                                  <option value="down">Baja</option>
+                                  <option value="left">Izquierda</option>
+                                  <option value="right">Derecha</option>
+                                  <option value="center">Centro</option>
+                                </select>
+                              </div>
+                              {currentTheme.bgAnimation.type === 'custom' && (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <select
+                                    value={currentTheme.bgAnimation.shape || 'circle'}
+                                    onChange={(e) => updatePendingTheme({ ...currentTheme, bgAnimation: { ...currentTheme.bgAnimation!, shape: e.target.value as any } })}
+                                    className="bg-gray-800 text-[10px] text-white p-1 rounded border border-gray-600"
+                                  >
+                                    <option value="circle">Circulo</option>
+                                    <option value="square">Cuadro</option>
+                                    <option value="diamond">Diamante</option>
+                                    <option value="line">Linea</option>
+                                    <option value="cross">Cruz</option>
+                                  </select>
+                                  <input
+                                    type="range"
+                                    min="2"
+                                    max="32"
+                                    value={currentTheme.bgAnimation.size || 10}
+                                    onChange={(e) => updatePendingTheme({ ...currentTheme, bgAnimation: { ...currentTheme.bgAnimation!, size: parseInt(e.target.value) } })}
+                                    className="w-full h-1 bg-gray-700 rounded accent-indigo-500 self-center"
+                                  />
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

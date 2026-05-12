@@ -65,7 +65,24 @@ export const DEFAULT_THEME: Theme = {
   imageContentShadowColor: 'rgba(0,0,0,0.5)',
   imageContentShadowOffsetX: 0,
   imageContentShadowOffsetY: 0,
-  imageContentBlendMode: 'normal'
+  imageContentBlendMode: 'normal',
+
+  // Default Logo Mode
+  logoUrl: '/logo.png',
+  logoBackground: 'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)',
+  logoSize: 78,
+  logoOpacity: 1,
+  logoGlow: true,
+  logoBgAnimation: {
+    type: 'cross-light',
+    speed: 1,
+    color: '#6366f1',
+    color2: '#f59e0b',
+    intensity: 70,
+    size: 18,
+    direction: 'center',
+    shape: 'cross'
+  }
 };
 
 export const THEME_PRESETS: Theme[] = [

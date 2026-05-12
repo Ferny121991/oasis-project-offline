@@ -23,6 +23,34 @@ export type AnimationType =
   | 'slit-in-vertical'
   | 'puff-in';
 
+export type BackgroundAnimationType =
+  | 'none'
+  | 'particles'
+  | 'stars'
+  | 'waves'
+  | 'gradient-pulse'
+  | 'fireflies'
+  | 'aurora'
+  | 'rays'
+  | 'bubbles'
+  | 'confetti'
+  | 'rain'
+  | 'snow'
+  | 'spiral'
+  | 'cross-light'
+  | 'custom';
+
+export interface BackgroundAnimationConfig {
+  type: BackgroundAnimationType;
+  speed?: number;
+  color?: string;
+  color2?: string;
+  intensity?: number;
+  size?: number;
+  direction?: 'up' | 'down' | 'left' | 'right' | 'center' | 'random';
+  shape?: 'circle' | 'square' | 'line' | 'cross' | 'diamond';
+}
+
 export interface Theme {
   id: string;
   name: string;
@@ -55,12 +83,7 @@ export interface Theme {
 
   // Animation
   animation: AnimationType;
-  bgAnimation?: {
-    type: 'none' | 'particles' | 'stars' | 'waves' | 'gradient-pulse';
-    speed?: number;
-    color?: string;
-    intensity?: number;
-  };
+  bgAnimation?: BackgroundAnimationConfig;
 
   // Outline / Stroke
   textStrokeWidth: number; // 0 - 5px
@@ -109,6 +132,14 @@ export interface Theme {
   imageContentShadowOffsetX: number;
   imageContentShadowOffsetY: number;
   imageContentBlendMode: string;
+
+  // Projector Logo Mode
+  logoUrl?: string;
+  logoBackground: string;
+  logoSize: number;
+  logoOpacity: number;
+  logoGlow: boolean;
+  logoBgAnimation?: BackgroundAnimationConfig;
 }
 
 export interface Slide {

@@ -336,7 +336,11 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
             type={theme.bgAnimation.type}
             speed={theme.bgAnimation.speed}
             color={theme.bgAnimation.color}
+            color2={theme.bgAnimation.color2}
             intensity={theme.bgAnimation.intensity}
+            size={theme.bgAnimation.size}
+            direction={theme.bgAnimation.direction}
+            shape={theme.bgAnimation.shape}
           />
         )}
 
@@ -621,12 +625,36 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                 </div>
               ) : (
                 /* FALLBACK LOGO: Shown if isLogoMode is true OR if no slide is provided */
-                <div className={`absolute inset-0 bg-white flex flex-col justify-center items-center gap-8 animate-fade-in`}>
-                  <div className="relative">
+                <div
+                  className="absolute inset-0 flex flex-col justify-center items-center gap-8 animate-fade-in overflow-hidden"
+                  style={{ background: theme.logoBackground || 'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)' }}
+                >
+                  {theme.logoBgAnimation && (
+                    <AnimatedBackground
+                      type={theme.logoBgAnimation.type}
+                      speed={theme.logoBgAnimation.speed}
+                      color={theme.logoBgAnimation.color}
+                      color2={theme.logoBgAnimation.color2}
+                      intensity={theme.logoBgAnimation.intensity}
+                      size={theme.logoBgAnimation.size}
+                      direction={theme.logoBgAnimation.direction}
+                      shape={theme.logoBgAnimation.shape}
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.10)_100%)]" />
+                  <div className="relative z-10 flex items-center justify-center w-full h-full p-[5cqh]">
                     <img
-                      src="/logo.png"
+                      src={theme.logoUrl || '/logo.png'}
                       alt="Logo Principal"
-                      className="relative z-10 max-h-[80cqh] max-w-[90%] object-contain drop-shadow-xl animate-pulse"
+                      className="relative object-contain animate-logo-breathe"
+                      style={{
+                        maxHeight: `${theme.logoSize || 78}cqh`,
+                        maxWidth: `${Math.min(96, (theme.logoSize || 78) + 10)}%`,
+                        opacity: theme.logoOpacity ?? 1,
+                        filter: theme.logoGlow
+                          ? 'drop-shadow(0 0 18px rgba(255,255,255,0.85)) drop-shadow(0 0 42px rgba(99,102,241,0.35))'
+                          : 'drop-shadow(0 10px 24px rgba(0,0,0,0.22))'
+                      }}
                     />
                   </div>
                 </div>
@@ -655,6 +683,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
       <style>{`
         /* FADE BASICS */
         .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+        .animate-logo-breathe { animation: logoBreathe 5s ease-in-out infinite; }
         .animate-fade-slide-up { animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-fade-slide-down { animation: fadeSlideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-fade-slide-left { animation: fadeSlideLeft 0.6s ease-out forwards; }
@@ -687,6 +716,9 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes logoBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+        @keyframes auroraFlow { 0% { transform: translate3d(-6%, -4%, 0) rotate(0deg) scale(1); } 100% { transform: translate3d(6%, 5%, 0) rotate(18deg) scale(1.08); } }
+        @keyframes slowSpin { from { transform: rotate(0deg) scale(1.1); } to { transform: rotate(360deg) scale(1.1); } }
         @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeSlideDown { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeSlideLeft { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }

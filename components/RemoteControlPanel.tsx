@@ -343,6 +343,12 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                         <ZoomIn size={19} /> Acercar
                                     </button>
                                 </div>
+                                <button
+                                    onClick={() => setIsZoomExpanded(true)}
+                                    className="w-full h-12 rounded-2xl bg-slate-950/70 border border-indigo-300/25 text-indigo-100 flex items-center justify-center gap-2 font-black active:scale-[0.98]"
+                                >
+                                    <ImageIcon size={18} /> Abrir imagen grande
+                                </button>
                             </div>
                         )}
 
@@ -598,13 +604,20 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         </button>
                     </header>
                     <div
-                        className="flex-1 w-full h-full touch-none select-none relative bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.22),rgba(15,23,42,0.8)_58%,rgba(2,6,23,0.95))]"
+                        className="flex-1 w-full h-full touch-none select-none relative bg-black"
                         onTouchStart={handleImagePadTouchStart}
                         onTouchMove={handleImagePadTouchMove}
                         onTouchEnd={handleImagePadTouchEnd}
                         onDoubleClick={() => sendImageGestureCommand('image_reset', {}, true)}
                     >
-                        {renderSlideBackdrop()}
+                        {currentSlide.mediaUrl ? (
+                            <img src={currentSlide.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-contain" draggable={false} />
+                        ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-center text-slate-500 px-8">
+                                La imagen es muy grande para verla en el telefono, pero el zoom sigue controlando el proyector.
+                            </div>
+                        )}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.52)_100%)] pointer-events-none" />
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
                             <ZoomIn size={60} className="text-white drop-shadow-2xl" />
                         </div>
