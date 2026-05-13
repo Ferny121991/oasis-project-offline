@@ -40,6 +40,25 @@ function readLocalJson<T>(key: string, fallback: T): T {
   }
 }
 
+function describeCloudError(error: any, fallback: string): string {
+  const rawMessage = String(error?.message || error?.error_description || error?.details || '');
+  const lowerMessage = rawMessage.toLowerCase();
+
+  if (lowerMessage.includes('payload') || lowerMessage.includes('too large') || lowerMessage.includes('request entity too large') || lowerMessage.includes('413')) {
+    return 'Guardado local. Nube: archivo demasiado grande.';
+  }
+
+  if (lowerMessage.includes('jwt') || lowerMessage.includes('auth') || lowerMessage.includes('permission') || lowerMessage.includes('rls')) {
+    return 'Guardado local. Nube: vuelve a iniciar sesion.';
+  }
+
+  if (lowerMessage.includes('failed to fetch') || lowerMessage.includes('network') || lowerMessage.includes('timeout')) {
+    return 'Guardado local. Nube: sin conexion.';
+  }
+
+  return rawMessage ? `Guardado local. Nube: ${rawMessage.slice(0, 80)}` : fallback;
+}
+
 const App: React.FC = () => {
   const bootParams = new URLSearchParams(window.location.search);
   const initialIsProjectorMode = bootParams.get('projector') === 'true';
@@ -866,7 +885,7 @@ const App: React.FC = () => {
 
       if (error) {
         console.error("Cloud fetch error:", error);
-        setSyncError("Error al descargar datos de la nube.");
+        setSyncError(describeCloudError(error, "Guardado local. Nube: error al descargar."));
       } else if (settings) {
 
         // Migration Helper: Ensure items have correct types (Fix for 'transforming' dividers)
@@ -947,7 +966,7 @@ const App: React.FC = () => {
         });
 
         if (insertError) {
-          setSyncError("Error al inicializar datos en la nube.");
+          setSyncError(describeCloudError(insertError, "Guardado local. Nube: error al inicializar."));
         } else {
           setProjects(localProjects);
           setCurrentProjectId(localCurrentProjectId);
@@ -959,7 +978,7 @@ const App: React.FC = () => {
 
     } catch (e) {
       console.error("Unexpected error fetching user data", e);
-      setSyncError("Error de conexión con la nube.");
+      setSyncError(describeCloudError(e, "Guardado local. Nube: error de conexion."));
     } finally {
       setIsSyncing(false);
       // Wait longer to ensure all state setters finished and React re-rendered
@@ -1028,7 +1047,7 @@ const App: React.FC = () => {
 
       if (error) {
         console.error("Cloud save error:", error);
-        setSyncError("Error al guardar");
+        setSyncError(describeCloudError(error, "Guardado local. Nube: error al guardar."));
         return;
       }
 
@@ -1042,7 +1061,7 @@ const App: React.FC = () => {
       if (currentProjectId) localStorage.setItem(LOCAL_CURRENT_PROJECT_KEY, currentProjectId);
     } catch (e) {
       console.error("Critical save error", e);
-      setSyncError("Error al guardar");
+      setSyncError(describeCloudError(e, "Guardado local. Nube: error al guardar."));
     } finally {
       setIsSyncing(false);
     }
@@ -1166,10 +1185,11 @@ const App: React.FC = () => {
           setSyncError(null);
         } else {
           console.error("Cloud sync error:", error);
-          setSyncError("Error al sincronizar");
+          setSyncError(describeCloudError(error, "Guardado local. Nube: error al sincronizar."));
         }
       } catch (e) {
         console.error("Critical sync error", e);
+        setSyncError(describeCloudError(e, "Guardado local. Nube: error al sincronizar."));
       } finally {
         setIsSyncing(false);
       }
@@ -2605,9 +2625,12 @@ const App: React.FC = () => {
                   <span className="text-[10px] font-bold text-gray-300 truncate max-w-[120px]">
                     {session.user.user_metadata.full_name || session.user.email}
                   </span>
-                  <span className={`text-[8px] flex items-center gap-1 ${syncError ? 'text-red-500' : isSyncing ? 'text-indigo-400' : 'text-green-500'}`}>
+                  <span
+                    className={`text-[8px] flex items-center gap-1 max-w-[170px] truncate ${syncError ? 'text-amber-400' : isSyncing ? 'text-indigo-400' : 'text-green-500'}`}
+                    title={syncError || (isSyncing ? 'Sincronizando...' : 'Sincronizado')}
+                  >
                     <div className={`w-1 h-1 rounded-full animate-pulse ${syncError ? 'bg-red-500' : isSyncing ? 'bg-indigo-400' : 'bg-green-500'}`} />
-                    {syncError ? 'Error de Sincronización' : isSyncing ? 'Sincronizando...' : 'Sincronizado'}
+                    {syncError || (isSyncing ? 'Sincronizando...' : 'Sincronizado')}
                   </span>
                 </div>
                 <button
