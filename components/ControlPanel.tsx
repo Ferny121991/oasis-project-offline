@@ -1436,6 +1436,95 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 <button onClick={() => updatePendingTheme({ ...currentTheme, alignment: 'right' })} className={`p-2 rounded-md transition-all ${currentTheme.alignment === 'right' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`}><AlignRight size={14} /></button>
                               </div>
                             </div>
+                            
+                            {/* Color Selection Row */}
+                            <div className="space-y-3">
+                              {/* Text Color */}
+                              <div className="bg-gray-900/60 p-3 rounded-xl border border-gray-700/30 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 rounded-full flex items-center justify-center bg-indigo-500/20 border border-indigo-500/30">
+                                      <Type size={11} className="text-indigo-400" />
+                                    </div>
+                                    <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">Color de Letra</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-mono text-gray-500 uppercase">{currentTheme.textColor}</span>
+                                    <input 
+                                      type="color" 
+                                      value={currentTheme.textColor || '#ffffff'} 
+                                      onChange={(e) => updatePendingTheme({ ...currentTheme, textColor: e.target.value })}
+                                      className="w-6 h-6 rounded-md cursor-pointer bg-transparent border-0 p-0 overflow-hidden" 
+                                    />
+                                  </div>
+                                </div>
+                                
+                                {/* Quick Colors Row */}
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                  {['#ffffff', '#facc15', '#fb923c', '#ef4444', '#f472b6', '#a78bfa', '#60a5fa', '#34d399'].map(color => (
+                                    <button
+                                      key={color}
+                                      onClick={() => updatePendingTheme({ ...currentTheme, textColor: color })}
+                                      className={`w-5 h-5 rounded-full border border-white/10 transition-transform hover:scale-110 active:scale-95 ${currentTheme.textColor === color ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-900' : ''}`}
+                                      style={{ backgroundColor: color }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              {/* Background Color */}
+                              <div className="bg-gray-900/60 p-3 rounded-xl border border-gray-700/30 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 rounded-full flex items-center justify-center bg-amber-500/20 border border-amber-500/30">
+                                      <Highlighter size={11} className="text-amber-400" />
+                                    </div>
+                                    <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">Fondo Resaltado</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {currentTheme.textBackgroundColor && currentTheme.textBackgroundColor !== 'transparent' && (
+                                      <button 
+                                        onClick={() => updatePendingTheme({ ...currentTheme, textBackgroundColor: 'transparent' })}
+                                        className="p-1 hover:bg-white/10 rounded-md text-gray-500 hover:text-red-400 transition-colors"
+                                        title="Quitar fondo"
+                                      >
+                                        <Eraser size={12} />
+                                      </button>
+                                    )}
+                                    <input 
+                                      type="color" 
+                                      value={currentTheme.textBackgroundColor && currentTheme.textBackgroundColor !== 'transparent' ? currentTheme.textBackgroundColor : '#000000'} 
+                                      onChange={(e) => updatePendingTheme({ ...currentTheme, textBackgroundColor: e.target.value })}
+                                      className="w-6 h-6 rounded-md cursor-pointer bg-transparent border-0 p-0 overflow-hidden" 
+                                    />
+                                  </div>
+                                </div>
+                                
+                                {/* Quick Colors Row */}
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                  {['#000000', '#1e3a8a', '#115e59', '#166534', '#854d0e', '#991b1b', '#3730a3', '#transparent'].map(color => (
+                                    color === 'transparent' ? (
+                                      <button
+                                        key={color}
+                                        onClick={() => updatePendingTheme({ ...currentTheme, textBackgroundColor: 'transparent' })}
+                                        className={`w-5 h-5 rounded-full border border-gray-600 flex items-center justify-center bg-gray-800 transition-all hover:bg-gray-700 ${currentTheme.textBackgroundColor === 'transparent' ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-900' : ''}`}
+                                        title="Sin fondo"
+                                      >
+                                        <X size={10} className="text-gray-500" />
+                                      </button>
+                                    ) : (
+                                      <button
+                                        key={color}
+                                        onClick={() => updatePendingTheme({ ...currentTheme, textBackgroundColor: color })}
+                                        className={`w-5 h-5 rounded-full border border-white/10 transition-transform hover:scale-110 active:scale-95 ${currentTheme.textBackgroundColor === color ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-900' : ''}`}
+                                        style={{ backgroundColor: color }}
+                                      />
+                                    )
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
                             <button onClick={resetTextStyle} className="w-full py-2 rounded-lg border border-gray-700 text-[9px] font-bold uppercase text-gray-400 hover:text-white hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
                               <Eraser size={12} /> Limpiar Estilo de Texto
                             </button>
