@@ -290,6 +290,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // No local state for karaoke needed, use prop
   const [newThemeName, setNewThemeName] = useState('');
   const [saveThemeAsDefault, setSaveThemeAsDefault] = useState(false);
+  const [editingTheme, setEditingTheme] = useState<Theme | null>(null);
+  const [editingThemeName, setEditingThemeName] = useState('');
+  const [editingThemeDefault, setEditingThemeDefault] = useState(false);
   const [addYouTubeToCurrent, setAddYouTubeToCurrent] = useState(false);
 
   // Use cloud themes if available, otherwise local
@@ -340,6 +343,34 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       ...theme,
       isDefault: shouldSetDefault && theme.id === themeId
     })));
+  };
+
+  const openEditTheme = (theme: Theme) => {
+    setEditingTheme(theme);
+    setEditingThemeName(theme.name);
+    setEditingThemeDefault(!!theme.isDefault);
+  };
+
+  const closeEditTheme = () => {
+    setEditingTheme(null);
+    setEditingThemeName('');
+    setEditingThemeDefault(false);
+  };
+
+  const saveThemeEdits = (replaceWithCurrent: boolean = false) => {
+    if (!editingTheme || !editingThemeName.trim()) return;
+    const editedTheme: Theme = {
+      ...(replaceWithCurrent ? currentTheme : editingTheme),
+      id: editingTheme.id,
+      name: editingThemeName.trim(),
+      isDefault: editingThemeDefault
+    };
+
+    setCustomThemes(prev => prev.map(theme => {
+      if (theme.id === editingTheme.id) return editedTheme;
+      return editingThemeDefault ? { ...theme, isDefault: false } : theme;
+    }));
+    closeEditTheme();
   };
 
   // --- STAGED THEME SYSTEM ---
@@ -1349,6 +1380,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               >
                                 <X size={10} className="text-white" />
                               </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditTheme(theme);
+                                }}
+                                className="absolute bottom-1 right-1 w-6 h-6 bg-gray-950/75 hover:bg-indigo-600 rounded-full border border-white/15 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                                title="Editar tema"
+                              >
+                                <Edit2 size={11} className="text-white" />
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -1428,6 +1470,84 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           onClick={saveCurrentAsCustomTheme}
                           disabled={!newThemeName.trim()}
                           className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          Guardar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {editingTheme && (
+                  <div className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-gray-900 rounded-2xl border border-gray-700 p-6 w-full max-w-md shadow-2xl">
+                      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <Edit2 size={20} className="text-indigo-400" />
+                        Editar Tema
+                      </h3>
+
+                      <div
+                        className="h-24 rounded-lg mb-4 flex items-center justify-center border border-gray-600"
+                        style={{ background: editingTheme.background }}
+                      >
+                        <span
+                          className="text-sm font-bold"
+                          style={{
+                            color: editingTheme.textColor,
+                            fontFamily: editingTheme.fontFamily,
+                            textShadow: editingTheme.shadow ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none'
+                          }}
+                        >
+                          {editingTheme.name}
+                        </span>
+                      </div>
+
+                      <input
+                        type="text"
+                        value={editingThemeName}
+                        onChange={(e) => setEditingThemeName(e.target.value)}
+                        placeholder="Nombre del tema"
+                        className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-600 outline-none focus:border-indigo-500 mb-3"
+                        autoFocus
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => setEditingThemeDefault(prev => !prev)}
+                        className={`w-full mb-4 px-4 py-3 rounded-lg border flex items-center gap-3 text-left transition-all ${
+                          editingThemeDefault
+                            ? 'bg-yellow-500/15 border-yellow-400/60 text-yellow-100'
+                            : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:border-yellow-500/40'
+                        }`}
+                      >
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center ${editingThemeDefault ? 'bg-yellow-400 text-gray-950' : 'bg-gray-700 text-gray-400'}`}>
+                          <Star size={16} fill={editingThemeDefault ? 'currentColor' : 'none'} />
+                        </span>
+                        <span className="flex-1">
+                          <span className="block text-sm font-black">Tema predeterminado</span>
+                          <span className="block text-[10px] text-gray-400">Puedes prenderlo o apagarlo cuando quieras.</span>
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => saveThemeEdits(true)}
+                        className="w-full mb-4 py-2.5 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-indigo-200 hover:bg-indigo-600/30 transition-all font-bold text-xs"
+                      >
+                        Reemplazar con el estilo actual
+                      </button>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={closeEditTheme}
+                          className="flex-1 py-2.5 rounded-lg border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-all font-bold text-sm"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => saveThemeEdits(false)}
+                          disabled={!editingThemeName.trim()}
+                          className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                           Guardar
                         </button>
