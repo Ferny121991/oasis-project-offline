@@ -54,6 +54,7 @@ export interface BackgroundAnimationConfig {
 export interface Theme {
   id: string;
   name: string;
+  isDefault?: boolean;
   background: string; // CSS background value (color, gradient, or image url)
   aspectRatio: string; // e.g., "16/9", "4/3", "1/1"
   padding: number; // Slide internal padding (margin)

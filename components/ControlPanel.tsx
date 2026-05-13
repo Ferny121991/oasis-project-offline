@@ -3,7 +3,7 @@ import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, Den
 import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry, BackgroundAnimationConfig, BackgroundAnimationType } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
-import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw } from 'lucide-react';
+import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star } from 'lucide-react';
 import RichTextEditor, { textToSegments, segmentsToText } from './RichTextEditor';
 import HistoryPanel from './HistoryPanel';
 
@@ -289,6 +289,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   // No local state for karaoke needed, use prop
   const [newThemeName, setNewThemeName] = useState('');
+  const [saveThemeAsDefault, setSaveThemeAsDefault] = useState(false);
   const [addYouTubeToCurrent, setAddYouTubeToCurrent] = useState(false);
 
   // Use cloud themes if available, otherwise local
@@ -316,15 +317,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     const newTheme: Theme = {
       ...currentTheme,
       id: `custom-${Date.now()}`,
-      name: `⭐ ${newThemeName.trim()}`
+      name: newThemeName.trim()
     };
-    setCustomThemes(prev => [...prev, newTheme]);
+    newTheme.isDefault = saveThemeAsDefault;
+    setCustomThemes(prev => [
+      ...prev.map(theme => saveThemeAsDefault ? { ...theme, isDefault: false } : theme),
+      newTheme
+    ]);
     setNewThemeName('');
+    setSaveThemeAsDefault(false);
     setShowSaveThemeModal(false);
   };
 
   const deleteCustomTheme = (themeId: string) => {
     setCustomThemes(prev => prev.filter(t => t.id !== themeId));
+  };
+
+  const toggleDefaultTheme = (themeId: string) => {
+    const selected = customThemes.find(theme => theme.id === themeId);
+    const shouldSetDefault = !selected?.isDefault;
+    setCustomThemes(prev => prev.map(theme => ({
+      ...theme,
+      isDefault: shouldSetDefault && theme.id === themeId
+    })));
   };
 
   // --- STAGED THEME SYSTEM ---
@@ -1286,6 +1301,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               className="relative group"
                             >
                               <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleDefaultTheme(theme.id);
+                                }}
+                                className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center border transition-all ${
+                                  theme.isDefault
+                                    ? 'bg-yellow-400 text-gray-950 border-yellow-200 shadow-lg shadow-yellow-400/30'
+                                    : 'bg-black/50 text-white/70 border-white/20 opacity-0 group-hover:opacity-100 hover:bg-yellow-400 hover:text-gray-950'
+                                }`}
+                                title={theme.isDefault ? 'Tema predeterminado' : 'Usar como predeterminado'}
+                              >
+                                <Star size={12} fill={theme.isDefault ? 'currentColor' : 'none'} />
+                              </button>
+                              <button
                                 onClick={() => updatePendingTheme({ ...currentTheme, ...theme, id: currentTheme.id })}
                                 className={`w-full p-3 rounded-lg text-left transition-all border-2 hover:scale-[1.02] ${currentTheme.background === theme.background
                                   ? 'border-amber-500 ring-2 ring-amber-500/30'
@@ -1294,7 +1324,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 style={{ background: theme.background }}
                               >
                                 <div
-                                  className="text-[10px] font-bold truncate pr-6"
+                                  className="text-[10px] font-bold truncate pr-6 pl-4"
                                   style={{
                                     color: theme.textColor,
                                     textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
@@ -1302,6 +1332,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 >
                                   {theme.name}
                                 </div>
+                                {theme.isDefault && (
+                                  <div className="mt-1 text-[8px] font-black uppercase text-yellow-200 drop-shadow">
+                                    Predeterminado
+                                  </div>
+                                )}
                               </button>
                               {/* Delete Button */}
                               <button
@@ -1357,13 +1392,34 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         value={newThemeName}
                         onChange={(e) => setNewThemeName(e.target.value)}
                         placeholder="Nombre del tema (ej: Mi Tema Adoración)"
-                        className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-600 outline-none focus:border-amber-500 mb-4"
+                        className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-600 outline-none focus:border-amber-500 mb-3"
                         autoFocus
                       />
 
+                      <button
+                        type="button"
+                        onClick={() => setSaveThemeAsDefault(prev => !prev)}
+                        className={`w-full mb-4 px-4 py-3 rounded-lg border flex items-center gap-3 text-left transition-all ${
+                          saveThemeAsDefault
+                            ? 'bg-yellow-500/15 border-yellow-400/60 text-yellow-100'
+                            : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:border-yellow-500/40'
+                        }`}
+                      >
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center ${saveThemeAsDefault ? 'bg-yellow-400 text-gray-950' : 'bg-gray-700 text-gray-400'}`}>
+                          <Star size={16} fill={saveThemeAsDefault ? 'currentColor' : 'none'} />
+                        </span>
+                        <span className="flex-1">
+                          <span className="block text-sm font-black">Usar como tema predeterminado</span>
+                          <span className="block text-[10px] text-gray-400">Se aplicara automaticamente a nuevos textos, imagenes, PDF y PowerPoint.</span>
+                        </span>
+                      </button>
+
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setShowSaveThemeModal(false)}
+                          onClick={() => {
+                            setShowSaveThemeModal(false);
+                            setSaveThemeAsDefault(false);
+                          }}
                           className="flex-1 py-2.5 rounded-lg border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-all font-bold text-sm"
                         >
                           Cancelar

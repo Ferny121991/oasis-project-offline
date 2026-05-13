@@ -166,6 +166,8 @@ const App: React.FC = () => {
   // Priority for live item: 1. Find in current playlist, 2. Fallback to frozenLiveItem
   const liveItem = (liveItemId ? playlist.find(i => i.id === liveItemId) : null) || frozenLiveItem;
   const backgroundAudioItem = currentAudioIndex >= 0 ? bgAudioPlaylist[currentAudioIndex] : null;
+  const defaultCustomTheme = customThemes.find(theme => theme.isDefault);
+  const creationTheme = defaultCustomTheme || stagedTheme;
 
   // Refs for stable callbacks
   const bgAudioPlaylistRef = useRef(bgAudioPlaylist);
@@ -678,7 +680,7 @@ const App: React.FC = () => {
               title: commandData.title || `Media remota (${commandData.slides.length})`,
               type: 'custom',
               slides: commandData.slides,
-              theme: stagedTheme
+              theme: creationTheme
             };
             setPlaylist(prev => [...prev, newItem]);
             setActiveItemId(newItem.id);
@@ -732,7 +734,7 @@ const App: React.FC = () => {
                     title: passage.title,
                     type: 'scripture' as const,
                     slides: passage.slides,
-                    theme: stagedTheme,
+                    theme: creationTheme,
                     query: commandData.query,
                     bibleVersion: commandData.version
                   };
@@ -753,7 +755,7 @@ const App: React.FC = () => {
                     title: song.title,
                     type: 'song' as const,
                     slides: song.slides,
-                    theme: stagedTheme,
+                    theme: creationTheme,
                     query: commandData.query
                   };
                   setPlaylist(prev => [...prev, newItem]);
@@ -773,7 +775,7 @@ const App: React.FC = () => {
     return () => {
       realtimeSyncService.unsubscribe();
     };
-  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, stopLive, isAudioPlaying, saveCurrentProjectInto]);
+  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, stopLive, isAudioPlaying, saveCurrentProjectInto, creationTheme]);
 
   // Broadcast live state (debounced)
   const lastStateStr = useRef<string>('');
@@ -1501,7 +1503,7 @@ const App: React.FC = () => {
   const handleAddItem = useCallback((item: PresentationItem) => {
     const newItem = {
       ...item,
-      theme: { ...item.theme || DEFAULT_THEME }
+      theme: { ...(defaultCustomTheme || item.theme || DEFAULT_THEME) }
     };
 
     setPlaylist(prev => [...prev, newItem]);
@@ -1513,7 +1515,7 @@ const App: React.FC = () => {
       `Añadido: ${item.title}`,
       { itemId: item.id, type: item.type, slideCount: item.slides?.length || 0 }
     );
-  }, [playlist, session?.user?.id]);
+  }, [defaultCustomTheme, session?.user?.id]);
 
   const stopBackgroundAudio = useCallback(() => {
     setBgAudioPlaylist([]);
@@ -1571,11 +1573,17 @@ const App: React.FC = () => {
       if (activeItem) {
         setStagedTheme(activeItem.theme);
       } else {
-        setStagedTheme(DEFAULT_THEME);
+        setStagedTheme(defaultCustomTheme || DEFAULT_THEME);
       }
       lastActiveItemId.current = activeItemId;
     }
-  }, [activeItemId, playlist]);
+  }, [activeItemId, playlist, defaultCustomTheme]);
+
+  useEffect(() => {
+    if (!activeItemId) {
+      setStagedTheme(defaultCustomTheme || DEFAULT_THEME);
+    }
+  }, [activeItemId, defaultCustomTheme]);
 
   const handleUpdateStagedTheme = (newTheme: Theme) => {
     setStagedTheme(newTheme);
@@ -1842,7 +1850,7 @@ const App: React.FC = () => {
         title,
         type: 'custom',
         slides: newSlides,
-        theme: stagedTheme
+        theme: creationTheme
       };
       setPlaylist(prev => [...prev, newItem]);
     }
@@ -1857,7 +1865,7 @@ const App: React.FC = () => {
         title: newSlide.label === 'IMAGEN' ? 'Nueva Imagen' : (newSlide.label || 'Nuevo Elemento'),
         type: 'custom',
         slides: [newSlide],
-        theme: stagedTheme
+        theme: creationTheme
       };
       setPlaylist(prev => [...prev, newItem]);
       setActiveItemId(newItem.id);
