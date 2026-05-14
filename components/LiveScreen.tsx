@@ -365,13 +365,14 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
             size={theme.bgAnimation.size}
             direction={theme.bgAnimation.direction}
             shape={theme.bgAnimation.shape}
+            staticMode={disableAnimations}
           />
         )}
 
 
 
         {/* Overlay Layer */}
-        {!isLogoMode && <div className="absolute inset-0 z-0 transition-opacity duration-300" style={{ backgroundColor: theme.bgOverlayColor, opacity: theme.bgOverlayOpacity }} />}
+        {!isLogoMode && <div className={`absolute inset-0 z-0 ${disableAnimations ? '' : 'transition-opacity duration-300'}`} style={{ backgroundColor: theme.bgOverlayColor, opacity: theme.bgOverlayOpacity }} />}
 
         {/* Content Layer with Padding Control */}
         <div
@@ -390,7 +391,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
           } as any}
         >
           {/* Blackout State */}
-          {blackout && <div className="absolute inset-0 z-50 bg-black transition-opacity duration-500" />}
+          {blackout && <div className={`absolute inset-0 z-50 bg-black ${disableAnimations ? '' : 'transition-opacity duration-500'}`} />}
 
           {/* MAIN CONTENT RENDERING */}
           {!blackout && (
@@ -665,6 +666,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                       size={theme.logoBgAnimation.size}
                       direction={theme.logoBgAnimation.direction}
                       shape={theme.logoBgAnimation.shape}
+                      staticMode={disableAnimations}
                     />
                   )}
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.10)_100%)]" />
