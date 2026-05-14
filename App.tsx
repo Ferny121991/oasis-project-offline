@@ -30,6 +30,31 @@ const LOCAL_PLAYLIST_KEY = 'flujo_playlist_v2';
 const LOCAL_THEMES_KEY = 'oasis_custom_themes';
 const LOCAL_PROJECTS_KEY = 'oasis_projects_v2';
 const LOCAL_CURRENT_PROJECT_KEY = 'oasis_current_project_id';
+const LOCAL_LOGO_SETTINGS_KEY = 'oasis_global_logo_settings_v1';
+
+type LogoSettings = Pick<Theme, 'logoUrl' | 'logoBackground' | 'logoSize' | 'logoOpacity' | 'logoGlow' | 'logoBgAnimation'>;
+
+const extractLogoSettings = (theme: Theme): LogoSettings => ({
+  logoUrl: theme.logoUrl,
+  logoBackground: theme.logoBackground,
+  logoSize: theme.logoSize,
+  logoOpacity: theme.logoOpacity,
+  logoGlow: theme.logoGlow,
+  logoBgAnimation: theme.logoBgAnimation
+});
+
+const applyLogoSettings = (theme: Theme, logoSettings: LogoSettings): Theme => ({
+  ...theme,
+  ...logoSettings
+});
+
+const keepThemeLogoFields = (theme: Theme, source: Theme): Theme => ({
+  ...theme,
+  ...extractLogoSettings(source)
+});
+
+const logoSettingsChanged = (theme: Theme, logoSettings: LogoSettings): boolean =>
+  JSON.stringify(extractLogoSettings(theme)) !== JSON.stringify(logoSettings);
 
 function readLocalJson<T>(key: string, fallback: T): T {
   try {
@@ -124,6 +149,10 @@ const App: React.FC = () => {
 
   // Staged Theme for previewing changes before applying to projector (Hoisted for Sync)
   const [stagedTheme, setStagedTheme] = useState<Theme>(DEFAULT_THEME);
+  const [globalLogoSettings, setGlobalLogoSettings] = useState<LogoSettings>(() => {
+    if (initialIsRemoteControlMode) return extractLogoSettings(DEFAULT_THEME);
+    return readLocalJson<LogoSettings>(LOCAL_LOGO_SETTINGS_KEY, extractLogoSettings(DEFAULT_THEME));
+  });
 
   // Custom Themes (Cloud Synced)
   const [customThemes, setCustomThemes] = useState<Theme[]>(() => {
@@ -159,6 +188,7 @@ const App: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<MobileTab>('playlist');
   const [session, setSession] = useState<Session | null>(null);
   const [remoteLiveState, setRemoteLiveState] = useState<LiveState | null>(null);
+  const [isRemoteRealtimeConnected, setIsRemoteRealtimeConnected] = useState(false);
   const remotePanelSyncService = useRef(createRealtimeSyncService());
   const isRemoteControlMode = initialIsRemoteControlMode;
   const remoteControlIdFromUrl = bootParams.get('uid');
@@ -194,6 +224,7 @@ const App: React.FC = () => {
 
   // Sync Channel for Multi-window Projector
   const syncChannel = useRef<BroadcastChannel | null>(null);
+  const lastProjectorSyncStr = useRef<string>('');
 
   const saveCurrentProjectInto = useCallback((sourceProjects: Project[]) => {
     if (!currentProjectId) return sourceProjects;
@@ -429,11 +460,11 @@ const App: React.FC = () => {
     }
   }, [isProjectorMode, navigateLiveNext]);
 
-  const sendSyncState = useCallback(() => {
+  const sendSyncState = useCallback((force = false) => {
     if (syncChannel.current) {
       const projectorLiveItem = liveItem && liveSlideIndex >= 0
-        ? { ...liveItem, slides: [liveItem.slides[liveSlideIndex]].filter(Boolean) }
-        : liveItem;
+        ? { ...liveItem, theme: applyLogoSettings(liveItem.theme, globalLogoSettings), slides: [liveItem.slides[liveSlideIndex]].filter(Boolean) }
+        : liveItem ? { ...liveItem, theme: applyLogoSettings(liveItem.theme, globalLogoSettings) } : null;
       // Strip large base64 video data — projector will load from IndexedDB via idb: reference
       const safeLiveItem = projectorLiveItem ? {
         ...projectorLiveItem,
@@ -444,30 +475,38 @@ const App: React.FC = () => {
           return s;
         })
       } : null;
+      const syncData = {
+        liveItemId,
+        activeItemId: liveItemId,
+        liveSlideIndex: safeLiveItem ? 0 : -1,
+        activeSlideIndex: safeLiveItem ? 0 : -1,
+        playlist: safeLiveItem ? [safeLiveItem] : [],
+        // Only sync staged theme when there is no live item. Live items carry their applied theme.
+        stagedTheme: safeLiveItem ? undefined : applyLogoSettings(stagedTheme, globalLogoSettings),
+        isPreviewHidden,
+        isTextHidden,
+        isLogoActive,
+        showSplitScreen,
+        splitLeftSlide,
+        splitRightSlide,
+        splitRatio,
+        splitFontScale,
+        isKaraokeActive,
+        karaokeIndex,
+        logoSettings: globalLogoSettings,
+        frozenLiveItem: safeLiveItem
+      };
+
+      const syncStr = JSON.stringify(syncData);
+      if (!force && syncStr === lastProjectorSyncStr.current) return;
+      lastProjectorSyncStr.current = syncStr;
+
       syncChannel.current.postMessage({
         type: 'SYNC_STATE',
-        data: {
-          liveItemId,
-          activeItemId: liveItemId,
-          liveSlideIndex: safeLiveItem ? 0 : -1,
-          activeSlideIndex: safeLiveItem ? 0 : -1,
-          playlist: safeLiveItem ? [safeLiveItem] : [],
-          stagedTheme,
-          isPreviewHidden,
-          isTextHidden,
-          isLogoActive,
-          showSplitScreen,
-          splitLeftSlide,
-          splitRightSlide,
-          splitRatio,
-          splitFontScale,
-          isKaraokeActive,
-          karaokeIndex,
-          frozenLiveItem: safeLiveItem
-        }
+        data: syncData
       });
     }
-  }, [liveItemId, liveSlideIndex, liveItem, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, isKaraokeActive, karaokeIndex]);
+  }, [liveItemId, liveSlideIndex, liveItem, stagedTheme, globalLogoSettings, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, isKaraokeActive, karaokeIndex]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -503,33 +542,38 @@ const App: React.FC = () => {
       syncChannel.current.onmessage = (event: MessageEvent) => {
         const { type, data } = event.data;
         if (type === 'SYNC_STATE') {
-          setLiveItemId(data.liveItemId);
-          setActiveItemId(data.activeItemId);
-          setLiveSlideIndex(data.liveSlideIndex);
-          setActiveSlideIndex(data.activeSlideIndex);
-          setPlaylist(data.playlist);
-          if (data.stagedTheme) setStagedTheme(data.stagedTheme);
-          setIsPreviewHidden(data.isPreviewHidden);
-          setIsTextHidden(data.isTextHidden);
-          setIsLogoActive(data.isLogoActive);
+          setLiveItemId(prev => prev === data.liveItemId ? prev : data.liveItemId);
+          setActiveItemId(prev => prev === data.activeItemId ? prev : data.activeItemId);
+          setLiveSlideIndex(prev => prev === data.liveSlideIndex ? prev : data.liveSlideIndex);
+          setActiveSlideIndex(prev => prev === data.activeSlideIndex ? prev : data.activeSlideIndex);
+          setPlaylist(prev => JSON.stringify(prev) === JSON.stringify(data.playlist) ? prev : data.playlist);
+          if (data.stagedTheme) {
+            setStagedTheme(prev => JSON.stringify(prev) === JSON.stringify(data.stagedTheme) ? prev : data.stagedTheme);
+          }
+          if (data.logoSettings) {
+            setGlobalLogoSettings(prev => JSON.stringify(prev) === JSON.stringify(data.logoSettings) ? prev : data.logoSettings);
+          }
+          setIsPreviewHidden(prev => prev === data.isPreviewHidden ? prev : data.isPreviewHidden);
+          setIsTextHidden(prev => prev === data.isTextHidden ? prev : data.isTextHidden);
+          setIsLogoActive(prev => prev === data.isLogoActive ? prev : data.isLogoActive);
 
           if (data.frozenLiveItem) {
             if (data.frozenLiveItem.slides) {
-              setFrozenLiveItem(data.frozenLiveItem);
+              setFrozenLiveItem(prev => JSON.stringify(prev) === JSON.stringify(data.frozenLiveItem) ? prev : data.frozenLiveItem);
             } else {
               const found = data.playlist.find((i: any) => i.id === data.frozenLiveItem.id);
-              if (found) setFrozenLiveItem(found);
+              if (found) setFrozenLiveItem(prev => JSON.stringify(prev) === JSON.stringify(found) ? prev : found);
             }
           } else {
-            setFrozenLiveItem(null);
+            setFrozenLiveItem(prev => prev === null ? prev : null);
           }
-          if (data.showSplitScreen !== undefined) setShowSplitScreen(data.showSplitScreen);
-          if (data.splitLeftSlide !== undefined) setSplitLeftSlide(data.splitLeftSlide);
-          if (data.splitRightSlide !== undefined) setSplitRightSlide(data.splitRightSlide);
-          if (data.splitRatio !== undefined) setSplitRatio(data.splitRatio);
-          if (data.splitFontScale !== undefined) setSplitFontScale(data.splitFontScale);
-          if (data.isKaraokeActive !== undefined) setIsKaraokeActive(data.isKaraokeActive);
-          if (data.karaokeIndex !== undefined) setKaraokeIndex(data.karaokeIndex);
+          if (data.showSplitScreen !== undefined) setShowSplitScreen(prev => prev === data.showSplitScreen ? prev : data.showSplitScreen);
+          if (data.splitLeftSlide !== undefined) setSplitLeftSlide(prev => JSON.stringify(prev) === JSON.stringify(data.splitLeftSlide) ? prev : data.splitLeftSlide);
+          if (data.splitRightSlide !== undefined) setSplitRightSlide(prev => JSON.stringify(prev) === JSON.stringify(data.splitRightSlide) ? prev : data.splitRightSlide);
+          if (data.splitRatio !== undefined) setSplitRatio(prev => prev === data.splitRatio ? prev : data.splitRatio);
+          if (data.splitFontScale !== undefined) setSplitFontScale(prev => prev === data.splitFontScale ? prev : data.splitFontScale);
+          if (data.isKaraokeActive !== undefined) setIsKaraokeActive(prev => prev === data.isKaraokeActive ? prev : data.isKaraokeActive);
+          if (data.karaokeIndex !== undefined) setKaraokeIndex(prev => prev === data.karaokeIndex ? prev : data.karaokeIndex);
         }
       };
 
@@ -543,7 +587,7 @@ const App: React.FC = () => {
     } else {
       syncChannel.current.onmessage = (event: MessageEvent) => {
         if (event.data.type === 'REQUEST_STATE') {
-          sendSyncState();
+          sendSyncState(true);
         } else if (event.data.type === 'VIDEO_ENDED') {
           navigateLiveNext();
         }
@@ -561,11 +605,11 @@ const App: React.FC = () => {
     if (!isProjectorMode) {
       sendSyncState();
     }
-  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitFontScale, isProjectorMode, sendSyncState, frozenLiveItem]);
+  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, globalLogoSettings, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitFontScale, isProjectorMode, sendSyncState, frozenLiveItem]);
 
   // Ensure sync when window focus changes (user comes back to tab)
   useEffect(() => {
-    const handleFocus = () => sendSyncState();
+    const handleFocus = () => sendSyncState(true);
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [sendSyncState]);
@@ -856,10 +900,17 @@ const App: React.FC = () => {
     const remoteService = remotePanelSyncService.current;
     remoteService.subscribe(remoteControlIdFromUrl, (state: LiveState) => {
       setRemoteLiveState(state);
+      setIsRemoteRealtimeConnected(remoteService.isConnected());
     });
 
+    const connectionTimer = window.setInterval(() => {
+      setIsRemoteRealtimeConnected(remoteService.isConnected());
+    }, 700);
+
     return () => {
+      window.clearInterval(connectionTimer);
       remoteService.unsubscribe();
+      setIsRemoteRealtimeConnected(false);
     };
   }, [isRemoteControlMode, remoteControlIdFromUrl]);
 
@@ -1136,6 +1187,15 @@ const App: React.FC = () => {
       console.warn("Local storage update failed", e);
     }
   }, [playlist, customThemes, projects, currentProjectId, saveCurrentProjectInto, stripProjectsForStorage, initialIsProjectorMode, initialIsRemoteControlMode]);
+
+  useEffect(() => {
+    if (initialIsRemoteControlMode) return;
+    try {
+      localStorage.setItem(LOCAL_LOGO_SETTINGS_KEY, JSON.stringify(globalLogoSettings));
+    } catch (e) {
+      console.warn("Logo settings save failed", e);
+    }
+  }, [globalLogoSettings, initialIsRemoteControlMode]);
 
   // Persistence Effect: Cloud SYNC (Debounced with Deep Comparison)
   const lastCloudPlaylist = useRef<string>('');
@@ -1606,7 +1666,10 @@ const App: React.FC = () => {
   }, [activeItemId, defaultCustomTheme]);
 
   const handleUpdateStagedTheme = (newTheme: Theme) => {
-    setStagedTheme(newTheme);
+    if (logoSettingsChanged(newTheme, globalLogoSettings)) {
+      setGlobalLogoSettings(extractLogoSettings(newTheme));
+    }
+    setStagedTheme(prev => keepThemeLogoFields(newTheme, prev));
   };
 
   // History System for Undo/Redo
@@ -1644,11 +1707,16 @@ const App: React.FC = () => {
       );
     }
 
+    if (logoSettingsChanged(newTheme, globalLogoSettings)) {
+      setGlobalLogoSettings(extractLogoSettings(newTheme));
+    }
+
+    const itemTheme = activeItem ? keepThemeLogoFields(newTheme, activeItem.theme) : newTheme;
     setPlaylist(prev => prev.map(item =>
-      item.id === activeItemId ? { ...item, theme: newTheme } : item
+      item.id === activeItemId ? { ...item, theme: keepThemeLogoFields(newTheme, item.theme) } : item
     ));
     // Also sync staged theme
-    setStagedTheme(newTheme);
+    setStagedTheme(itemTheme);
   };
 
   const handleUndo = () => {
@@ -1925,9 +1993,13 @@ const App: React.FC = () => {
 
   // External Window Logic
   const openProjectorWindow = useCallback(async (): Promise<Window | null> => {
-    if (externalWindow) {
+    if (externalWindow && !externalWindow.closed) {
       externalWindow.focus();
+      sendSyncState(true);
       return externalWindow;
+    }
+    if (externalWindow?.closed) {
+      setExternalWindow(null);
     }
 
     // Use current URL with projector=true to ensure same origin for YouTube
@@ -1966,7 +2038,8 @@ const App: React.FC = () => {
       setExternalWindow(newWindow);
 
       // Send current state immediately to the new window
-      setTimeout(() => sendSyncState(), 500);
+      setTimeout(() => sendSyncState(true), 250);
+      setTimeout(() => sendSyncState(true), 900);
 
       // Give it a moment to load then try to focus and fullscreen
       setTimeout(() => {
@@ -1982,21 +2055,23 @@ const App: React.FC = () => {
   }, [externalWindow, sendSyncState]);
 
   const closeProjectorWindow = useCallback(() => {
-    if (externalWindow) {
+    if (externalWindow && !externalWindow.closed) {
       externalWindow.close();
-      setExternalWindow(null);
     }
+    setExternalWindow(null);
   }, [externalWindow]);
 
   const toggleProjectorFullscreen = useCallback(() => {
-    if (externalWindow) {
+    if (externalWindow && !externalWindow.closed) {
+      sendSyncState(true);
       externalWindow.postMessage('TOGGLE_FULLSCREEN', '*');
       externalWindow.focus();
     } else {
+      setExternalWindow(null);
       // If window is closed/null, try to reopen it
       openProjectorWindow();
     }
-  }, [externalWindow, openProjectorWindow]);
+  }, [externalWindow, openProjectorWindow, sendSyncState]);
 
   const [previewSlide, setPreviewSlide] = useState<Slide | null>(null);
 
@@ -2005,7 +2080,7 @@ const App: React.FC = () => {
   const currentSlide: Slide | null = activeItem && activeSlideIndex >= 0
     ? activeItem.slides[activeSlideIndex]
     : null;
-  const currentTheme = stagedTheme;
+  const currentTheme = applyLogoSettings(stagedTheme, globalLogoSettings);
 
   // 2. PROJECTOR VIEW (Public Live)
   const projectorSlide: Slide | null = (liveItem && liveSlideIndex >= 0)
@@ -2014,10 +2089,10 @@ const App: React.FC = () => {
 
   // The projector ONLY shows the already saved theme of the live item.
   // Staging changes will NOT appear here until they are saved/applied.
-  const projectorTheme = liveItem ? liveItem.theme : stagedTheme;
+  const projectorTheme = applyLogoSettings(liveItem ? liveItem.theme : stagedTheme, globalLogoSettings);
 
   // Reference for ControlPanel comparison
-  const liveTheme = activeItem ? activeItem.theme : DEFAULT_THEME;
+  const liveTheme = applyLogoSettings(activeItem ? activeItem.theme : DEFAULT_THEME, globalLogoSettings);
 
   // CONTENT LOGIC:
   // 1. Internal Preview: Show previewSlide (draft) if exists, else current active slide.
@@ -2253,7 +2328,7 @@ const App: React.FC = () => {
     return (
       <RemoteControlPanel
         liveState={remoteLiveState}
-        isConnected={remotePanelSyncService.current.isConnected()}
+        isConnected={isRemoteRealtimeConnected}
         sendCommand={(cmd, data) => remotePanelSyncService.current.sendCommand(remoteControlIdFromUrl, cmd, data)}
       />
     );
@@ -2310,15 +2385,15 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-[100dvh] bg-[radial-gradient(circle_at_top_left,#111827_0%,#020617_42%,#000_100%)] text-white font-sans overflow-hidden select-none">
+    <div className="flex flex-col lg:flex-row h-[100dvh] bg-[linear-gradient(135deg,#07111d_0%,#0b1020_46%,#020409_100%)] text-white font-sans overflow-hidden select-none">
       {/* LEFT: Control Center (30%) */}
-      <div id="control-panel" className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[30%] flex-shrink-0 scrollbar-hide overflow-hidden bg-slate-950/90 border-r border-white/10 flex-col`}>
+      <div id="control-panel" className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[28%] flex-shrink-0 scrollbar-hide overflow-hidden bg-[#080d17]/95 border-r border-white/10 flex-col shadow-2xl`}>
         <ControlPanel
           onAddItem={handleAddItem}
           onUpdateTheme={handleUpdateActiveItemTheme}
           onUpdatePendingTheme={handleUpdateStagedTheme}
-          currentTheme={stagedTheme}
-          liveTheme={activeItem ? activeItem.theme : stagedTheme}
+          currentTheme={currentTheme}
+          liveTheme={activeItem ? applyLogoSettings(activeItem.theme, globalLogoSettings) : currentTheme}
           hasActiveItem={!!activeItemId}
           onAddSlide={handleAddSlideToActiveItem}
           activeSlideType={activeItem?.slides[activeSlideIndex]?.type || 'text'}
@@ -2372,7 +2447,7 @@ const App: React.FC = () => {
       </div>
 
       {/* MIDDLE: Playlist & Management (45%) */}
-      <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-white/10 min-w-0 lg:min-w-[300px] overflow-hidden bg-slate-950/55`}>
+      <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-white/10 min-w-0 lg:min-w-[300px] overflow-hidden bg-[linear-gradient(180deg,#0a101b_0%,#080d17_52%,#050812_100%)]`}>
         {/* Mobile Header - Compact with Live Status */}
         <div className="lg:hidden bg-gradient-to-r from-gray-900 via-gray-850 to-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
@@ -2420,14 +2495,14 @@ const App: React.FC = () => {
           )}
         </div>
         {/* Desktop Header */}
-        <div className="hidden lg:flex bg-slate-950/80 backdrop-blur-xl px-6 py-4 border-b border-white/10 justify-between items-center shrink-0">
+        <div className="hidden lg:flex bg-[#0a101b]/90 backdrop-blur-xl px-6 py-4 border-b border-white/10 justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-lg">
+            <div className="w-14 h-14 rounded-2xl bg-cyan-400/10 border border-cyan-300/20 flex items-center justify-center shadow-lg shadow-cyan-950/30">
               <img src="/logo.svg" alt="Logo" className="w-11 h-11 object-contain brightness-110 contrast-125 drop-shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
             </div>
             <div className="flex flex-col">
               <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-                <span className="bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">FlujoEclesial</span>
+                <span className="bg-gradient-to-r from-cyan-300 via-indigo-300 to-amber-200 bg-clip-text text-transparent">FlujoEclesial</span>
                 <span className="font-light text-slate-400">Studio</span>
               </h1>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Centro de control para proyeccion en vivo</p>
@@ -2485,16 +2560,16 @@ const App: React.FC = () => {
 
         <div id="playlist-panel" className="flex-1 flex flex-col min-h-0 relative">
           {/* Header Switcher */}
-          <div className="flex bg-gray-900 border-b border-gray-800 p-1 gap-1 shrink-0">
+          <div className="flex bg-[#080d17] border-b border-white/10 p-2 gap-2 shrink-0">
             <button
               onClick={() => setShowCalendar(false)}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${!showCalendar ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${!showCalendar ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/25' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
             >
               <LayoutGrid size={14} /> Editor
             </button>
             <button
               onClick={() => setShowCalendar(true)}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${showCalendar ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${showCalendar ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/25' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
             >
               <Calendar size={14} /> Calendario
             </button>
@@ -2523,7 +2598,7 @@ const App: React.FC = () => {
                 onDuplicateProject={handleDuplicateProject}
               />
               {/* Export/Import Button */}
-              <div className="px-3 py-2 border-b border-white/10 flex gap-2 bg-slate-950/70">
+              <div className="px-4 py-3 border-b border-white/10 flex gap-2 bg-[#0b1220]/80">
                 {session && (
                   <>
                     <button
@@ -2547,7 +2622,7 @@ const App: React.FC = () => {
                 )}
                 <button
                   onClick={() => setShowExportImport(true)}
-                  className="flex-1 bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
+                  className="flex-1 bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 px-3 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all"
                 >
                   <Download size={14} />
                   <Upload size={14} />
@@ -2555,7 +2630,7 @@ const App: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setShowActionHistory(true)}
-                  className="bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all"
+                  className="bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 px-3 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all"
                   title="Historial de Acciones"
                 >
                   <History size={14} />
@@ -2563,7 +2638,7 @@ const App: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setShowMobileConnect(true)}
-                  className="bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-300 border border-emerald-400/20 px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all"
+                  className="bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-300 border border-emerald-400/20 px-3 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all"
                   title="Control Móvil"
                 >
                   <Smartphone size={14} />
@@ -2685,11 +2760,11 @@ const App: React.FC = () => {
       </div>
 
       {/* RIGHT: Live Preview & Presenter Tools (35%) */}
-      <div id="live-preview-panel" className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[35%] flex-shrink-0 flex-col bg-slate-950 relative border-l border-white/10 overflow-hidden`}>
+      <div id="live-preview-panel" className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[34%] flex-shrink-0 flex-col bg-[#070b13] relative border-l border-white/10 overflow-hidden`}>
 
         {/* TOP BAR: Clock and Status - Responsive */}
-        <div className="h-11 lg:h-12 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-3 lg:px-4 shrink-0">
-          <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs lg:text-sm truncate max-w-[55%] lg:max-w-[50%]">
+        <div className="h-12 lg:h-14 bg-[#0a101b] border-b border-white/10 flex items-center justify-between px-3 lg:px-4 shrink-0 shadow-[0_16px_45px_rgba(0,0,0,0.24)]">
+          <div className="flex items-center gap-2 text-cyan-300 font-black text-xs lg:text-sm truncate max-w-[55%] lg:max-w-[50%]">
             <PlayCircle size={14} className="shrink-0" />
             <span className="truncate">{activeItem ? activeItem.title : 'Sin Selección'}</span>
           </div>
@@ -2710,7 +2785,7 @@ const App: React.FC = () => {
         </div>
 
         {/* PREVIEW AREA */}
-        <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-gray-900 p-4">
+        <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-[radial-gradient(circle_at_center,#111827_0%,#070b13_62%,#020409_100%)] p-4">
 
           {/* Status Overlays for Operator */}
           {isPreviewHidden && (
@@ -2765,9 +2840,9 @@ const App: React.FC = () => {
                 onUpdateTheme={handleUpdateStagedTheme}
                 karaokeActive={isKaraokeActive && liveItemId === activeItem?.id}
                 karaokeIndex={karaokeIndex}
-                hideText={isTextHidden && liveItemId === activeItem?.id}
-                isLogoMode={isLogoActive && liveItemId === activeItem?.id}
-                blackout={isPreviewHidden && liveItemId === activeItem?.id}
+                hideText={isTextHidden && liveItemId === activeItem?.id && !isLogoActive}
+                isLogoMode={isLogoActive}
+                blackout={isPreviewHidden}
                 autoPlay={false}
                 mute={true}
                 onVideoEnd={handleVideoEnd}
@@ -2841,26 +2916,26 @@ const App: React.FC = () => {
           </div>
 
           {/* Row 1: Quick Actions - Larger on Mobile */}
-          <div id="live-action-controls" className="grid grid-cols-5 gap-1.5 p-2 border-b border-white/10">
-            <button onClick={() => setIsPreviewHidden(!isPreviewHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isPreviewHidden ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+          <div id="live-action-controls" className="grid grid-cols-5 gap-2 p-3 border-b border-white/10">
+            <button onClick={() => setIsPreviewHidden(!isPreviewHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2.5 rounded-xl transition-all active:scale-95 ${isPreviewHidden ? 'bg-red-600 text-white' : 'bg-white/[0.07] border border-white/10 text-gray-400 hover:bg-white/[0.1] hover:text-white'}`}>
               {isPreviewHidden ? <EyeOff size={20} className="lg:w-4 lg:h-4" /> : <Eye size={20} className="lg:w-4 lg:h-4" />}
               <span className="text-[8px] lg:text-[9px] font-bold mt-1">BLACK</span>
             </button>
-            <button onClick={() => setIsTextHidden(!isTextHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isTextHidden ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+            <button onClick={() => setIsTextHidden(!isTextHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2.5 rounded-xl transition-all active:scale-95 ${isTextHidden ? 'bg-yellow-600 text-white' : 'bg-white/[0.07] border border-white/10 text-gray-400 hover:bg-white/[0.1] hover:text-white'}`}>
               <Eraser size={20} className="lg:w-4 lg:h-4" />
               <span className="text-[8px] lg:text-[9px] font-bold mt-1">CLEAR</span>
             </button>
-            <button onClick={() => { setIsLogoActive(!isLogoActive); setIsPreviewHidden(false); }} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${isLogoActive ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+            <button onClick={() => { setIsLogoActive(!isLogoActive); setIsPreviewHidden(false); }} className={`flex flex-col items-center justify-center p-3 lg:p-2.5 rounded-xl transition-all active:scale-95 ${isLogoActive ? 'bg-cyan-400 text-slate-950' : 'bg-white/[0.07] border border-white/10 text-gray-400 hover:bg-white/[0.1] hover:text-white'}`}>
               <Image size={20} className="lg:w-4 lg:h-4" />
               <span className="text-[8px] lg:text-[9px] font-bold mt-1">LOGO</span>
             </button>
-            <button onClick={() => setShowSplitScreen(!showSplitScreen)} className={`flex flex-col items-center justify-center p-3 lg:p-2 rounded-lg lg:rounded transition-all active:scale-95 ${showSplitScreen ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+            <button onClick={() => setShowSplitScreen(!showSplitScreen)} className={`flex flex-col items-center justify-center p-3 lg:p-2.5 rounded-xl transition-all active:scale-95 ${showSplitScreen ? 'bg-purple-600 text-white' : 'bg-white/[0.07] border border-white/10 text-gray-400 hover:bg-white/[0.1] hover:text-white'}`}>
               <Columns size={20} className="lg:w-4 lg:h-4" />
               <span className="text-[8px] lg:text-[9px] font-bold mt-1">SPLIT</span>
             </button>
             <div className="flex flex-col gap-1">
               {!externalWindow ? (
-                <button onClick={openProjectorWindow} className="flex-1 bg-indigo-900/50 hover:bg-indigo-600 active:bg-indigo-600 text-indigo-200 hover:text-white rounded-lg lg:rounded flex items-center justify-center gap-1 text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
+                <button onClick={openProjectorWindow} className="flex-1 bg-indigo-600/35 hover:bg-indigo-500 active:bg-indigo-500 text-indigo-100 hover:text-white rounded-xl flex items-center justify-center gap-1 text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95 border border-indigo-300/20">
                   <ExternalLink size={12} /> <span className="hidden sm:inline">PROY</span><span className="sm:hidden">P</span>
                 </button>
               ) : (
@@ -2873,7 +2948,7 @@ const App: React.FC = () => {
                   </button>
                 </div>
               )}
-              <button onClick={toggleFullscreen} className="flex-1 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 text-gray-400 hover:text-white rounded-lg lg:rounded flex items-center justify-center gap-1 text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
+              <button onClick={toggleFullscreen} className="flex-1 bg-white/[0.07] hover:bg-white/[0.1] active:bg-gray-600 text-gray-400 hover:text-white rounded-xl flex items-center justify-center gap-1 text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95 border border-white/10">
                 <Maximize2 size={12} /> <span className="hidden sm:inline">FULL</span>
               </button>
             </div>

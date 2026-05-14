@@ -300,14 +300,14 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
   return (
     <div
-      className={`w-full h-full flex flex-col justify-center items-center p-0 relative transition-all duration-500 overflow-hidden ${isFullscreen ? 'cursor-none bg-black' : 'bg-gray-950'}`}
+      className={`w-full h-full flex flex-col justify-center items-center p-0 relative overflow-hidden ${isFullscreen ? 'cursor-none bg-black' : 'bg-gray-950'}`}
       onMouseMove={handleMouseMove}
     >
       {/* 
         ASPECT RATIO CONTAINER 
       */}
       <div
-        className="relative overflow-hidden shadow-2xl transition-all duration-500 bg-black"
+        className="relative overflow-hidden shadow-2xl bg-black"
         style={{
           aspectRatio: isFullscreen ? 'unset' : (theme.aspectRatio || '16/9'),
           width: isFullscreen ? '100%' : 'auto',
@@ -320,7 +320,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
         {/* Background Layer */}
         {!isLogoMode && (
           <div
-            className="absolute inset-0 z-0 transition-all duration-700"
+            className="absolute inset-0 z-0"
             style={{
               background: theme.background,
               filter: `brightness(${theme.bgBrightness}) blur(${theme.bgImageBlur}px)`,
@@ -626,7 +626,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
               ) : (
                 /* FALLBACK LOGO: Shown if isLogoMode is true OR if no slide is provided */
                 <div
-                  className="absolute inset-0 flex flex-col justify-center items-center gap-8 animate-fade-in overflow-hidden"
+                  className="absolute inset-0 flex flex-col justify-center items-center gap-8 overflow-hidden"
                   style={{ background: theme.logoBackground || 'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)' }}
                 >
                   {theme.logoBgAnimation && (
@@ -646,7 +646,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                     <img
                       src={theme.logoUrl || '/logo.png'}
                       alt="Logo Principal"
-                      className="relative object-contain animate-logo-breathe"
+                      className="relative object-contain logo-stable-breathe"
                       style={{
                         maxHeight: `${theme.logoSize || 78}cqh`,
                         maxWidth: `${Math.min(96, (theme.logoSize || 78) + 10)}%`,
@@ -683,7 +683,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
       <style>{`
         /* FADE BASICS */
         .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
-        .animate-logo-breathe { animation: logoBreathe 5s ease-in-out infinite; }
+        .logo-stable-breathe { animation: logoBreathe 5s ease-in-out infinite; transform-origin: center; }
         .animate-fade-slide-up { animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-fade-slide-down { animation: fadeSlideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-fade-slide-left { animation: fadeSlideLeft 0.6s ease-out forwards; }

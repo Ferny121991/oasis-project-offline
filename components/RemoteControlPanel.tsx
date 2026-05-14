@@ -174,16 +174,22 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 
     if (!liveState) {
         return (
-            <div className="min-h-[100dvh] bg-[#070b16] text-white flex items-center justify-center p-6">
-                <div className="w-full max-w-sm text-center rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-500/15 border border-indigo-400/20 mx-auto mb-5 flex items-center justify-center text-indigo-300">
+            <div className="min-h-[100dvh] bg-[linear-gradient(180deg,#06111f_0%,#0b1020_52%,#020409_100%)] text-white flex items-center justify-center p-6">
+                <div className="w-full max-w-sm text-center rounded-[2rem] border border-cyan-300/20 bg-white/[0.055] p-8 shadow-2xl shadow-black/50 backdrop-blur">
+                    <div className="w-16 h-16 rounded-2xl bg-cyan-400/10 border border-cyan-300/20 mx-auto mb-5 flex items-center justify-center text-cyan-200 shadow-lg shadow-cyan-950/30">
                         <Smartphone size={32} />
                     </div>
                     <h1 className="text-xl font-black">Conectando control</h1>
                     <p className="text-sm text-slate-400 mt-2">Mantén abierta la pantalla principal del presentador para recibir comandos.</p>
-                    <div className="mt-6 h-2 rounded-full bg-slate-800 overflow-hidden">
-                        <div className="h-full w-1/2 bg-indigo-500 animate-pulse rounded-full" />
+                    <div className="mt-6 h-2 rounded-full bg-slate-900 overflow-hidden">
+                        <div className="h-full w-1/2 bg-cyan-400 animate-pulse rounded-full" />
                     </div>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="mt-6 h-12 w-full rounded-2xl bg-cyan-400 text-slate-950 text-sm font-black active:scale-[0.99]"
+                    >
+                        Reintentar conexiÃ³n
+                    </button>
                 </div>
             </div>
         );
@@ -211,8 +217,8 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     };
 
     return (
-        <div className="flex flex-col h-[100dvh] w-full bg-[#070b16] text-slate-100 overflow-hidden font-sans antialiased">
-            <header className="shrink-0 px-4 pt-4 pb-3 bg-[#070b16]/95 border-b border-white/10">
+        <div className="flex flex-col h-[100dvh] w-full bg-[linear-gradient(180deg,#06111f_0%,#0b1020_45%,#020409_100%)] text-slate-100 overflow-hidden font-sans antialiased">
+            <header className="shrink-0 px-4 pt-4 pb-3 bg-[#06111f]/95 border-b border-white/10 backdrop-blur">
                 <div className="flex items-center justify-between gap-3">
                     <button
                         onClick={onClose}
@@ -222,7 +228,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         {onClose ? <X size={20} /> : <Smartphone size={20} />}
                     </button>
                     <div className="min-w-0 flex-1">
-                        <p className="text-[10px] uppercase font-black tracking-wider text-indigo-300">Oasis Remote</p>
+                        <p className="text-[10px] uppercase font-black tracking-[0.2em] text-cyan-300">Oasis Remote</p>
                         <h1 className="text-sm font-black truncate">{activeItem?.title || liveState.currentProjectName || 'Control remoto'}</h1>
                     </div>
                     <div className={`px-2.5 py-1.5 rounded-full border flex items-center gap-1.5 ${isConnected ? 'bg-emerald-500/10 border-emerald-400/20 text-emerald-300' : 'bg-amber-500/10 border-amber-400/20 text-amber-300'}`}>
@@ -235,7 +241,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
             <main className="flex-1 overflow-y-auto pb-24">
                 {activeTab === 'control' && (
                     <section className="p-4 max-w-md mx-auto space-y-4">
-                        <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-slate-900 shadow-2xl">
+                        <div className="relative aspect-video rounded-[1.5rem] overflow-hidden border border-cyan-300/20 bg-slate-950 shadow-2xl shadow-black/50">
                             {renderSlideBackdrop()}
                             <div className="absolute inset-0 bg-gradient-to-t from-[#070b16] via-[#070b16]/25 to-transparent" />
                             <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-black/45 border border-white/10 px-2.5 py-1 text-[10px] font-black uppercase">
@@ -243,7 +249,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                 {hasLiveItem ? `Slide ${(liveState.liveSlideIndex ?? 0) + 1}` : 'Sin vivo'}
                             </div>
                             <div className="absolute inset-x-0 bottom-0 p-4">
-                                <p className="text-xs text-indigo-200/80 font-bold uppercase mb-1">{currentSlide?.label || currentSlide?.type || 'Vista previa'}</p>
+                                <p className="text-xs text-cyan-200/80 font-bold uppercase mb-1">{currentSlide?.label || currentSlide?.type || 'Vista previa'}</p>
                                 <p className="text-xl font-black leading-tight line-clamp-3">
                                     {stripHtml(currentSlide?.content) || activeItem?.title || 'Selecciona un elemento para comenzar'}
                                 </p>
@@ -283,18 +289,18 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             </button>
                             <button
                                 onClick={() => sendCommand('next')}
-                                className="h-20 rounded-2xl bg-indigo-600 text-white flex items-center justify-center gap-2 font-black shadow-lg shadow-indigo-600/25 active:scale-[0.98]"
+                                className="h-20 rounded-2xl bg-cyan-400 text-slate-950 flex items-center justify-center gap-2 font-black shadow-lg shadow-cyan-950/35 active:scale-[0.98]"
                             >
                                 Siguiente <ChevronRight size={24} />
                             </button>
                         </div>
 
                         {currentSlide?.type === 'image' && (
-                            <div className="rounded-3xl border border-indigo-400/20 bg-indigo-500/[0.07] p-3 space-y-3">
+                            <div className="rounded-[1.75rem] border border-cyan-300/20 bg-cyan-400/[0.07] p-3 space-y-3 shadow-xl shadow-black/30">
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
-                                        <h2 className="text-xs font-black uppercase tracking-wider text-indigo-200">Zoom de imagen</h2>
-                                        <p className="text-[11px] text-slate-400">Arrastra con un dedo. Pellizca con dos dedos para acercar.</p>
+                                        <h2 className="text-xs font-black uppercase tracking-wider text-cyan-200">Zoom de imagen</h2>
+                                        <p className="text-[11px] text-slate-400">Toca la imagen para verla grande. Pellizca con dos dedos para acercar.</p>
                                     </div>
                                     <button
                                         onClick={() => sendImageGestureCommand('image_reset', {}, true)}
@@ -305,18 +311,20 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                     </button>
                                 </div>
                                 <div
-                                    className="relative h-44 rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.22),rgba(15,23,42,0.8)_58%,rgba(2,6,23,0.95))] overflow-hidden touch-none select-none"
+                                    className="relative h-56 rounded-[1.5rem] border border-white/10 bg-black overflow-hidden touch-none select-none shadow-inner"
                                     onTouchStart={handleImagePadTouchStart}
                                     onTouchMove={handleImagePadTouchMove}
                                     onTouchEnd={handleImagePadTouchEnd}
                                     onDoubleClick={() => sendImageGestureCommand('image_reset', {}, true)}
+                                    onClick={() => setIsZoomExpanded(true)}
                                 >
-                                    {renderSlideBackdrop()}
-                                    <div className="absolute inset-0 bg-slate-950/50" />
-                                    <div className="absolute inset-4 rounded-3xl border border-dashed border-indigo-200/25" />
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8 pointer-events-none">
-                                        <ZoomIn size={30} className="text-indigo-200 mb-2" />
-                                        <p className="text-sm font-black text-white">Toca y mueve la imagen</p>
+                                    {currentSlide.mediaUrl ? (
+                                        <img src={currentSlide.mediaUrl} alt="" className="absolute inset-0 h-full w-full object-contain" draggable={false} />
+                                    ) : renderSlideBackdrop()}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/20 pointer-events-none" />
+                                    <div className="absolute inset-3 rounded-[1.25rem] border border-dashed border-cyan-200/28 pointer-events-none" />
+                                    <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none">
+                                        <p className="text-sm font-black text-white">Abrir y mover zoom</p>
                                         <p className="text-xs text-slate-300 mt-1">Doble toque para reiniciar</p>
                                     </div>
                                     <button 
@@ -324,7 +332,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                             e.stopPropagation();
                                             setIsZoomExpanded(true);
                                         }}
-                                        className="absolute right-2 bottom-2 p-2 rounded-xl bg-black/40 text-white backdrop-blur-md active:scale-95 border border-white/10"
+                                        className="absolute right-3 top-3 p-2 rounded-xl bg-black/55 text-white backdrop-blur-md active:scale-95 border border-white/10"
                                     >
                                         <Maximize size={18} />
                                     </button>
@@ -338,14 +346,14 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                     </button>
                                     <button
                                         onClick={() => sendImageGestureCommand('image_zoom', { factor: 1.18 }, true)}
-                                        className="h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center gap-2 font-black active:scale-[0.98]"
+                                        className="h-12 rounded-2xl bg-cyan-400 text-slate-950 flex items-center justify-center gap-2 font-black active:scale-[0.98]"
                                     >
                                         <ZoomIn size={19} /> Acercar
                                     </button>
                                 </div>
                                 <button
                                     onClick={() => setIsZoomExpanded(true)}
-                                    className="w-full h-12 rounded-2xl bg-slate-950/70 border border-indigo-300/25 text-indigo-100 flex items-center justify-center gap-2 font-black active:scale-[0.98]"
+                                    className="w-full h-12 rounded-2xl bg-slate-950/70 border border-cyan-300/25 text-cyan-100 flex items-center justify-center gap-2 font-black active:scale-[0.98]"
                                 >
                                     <ImageIcon size={18} /> Abrir imagen grande
                                 </button>

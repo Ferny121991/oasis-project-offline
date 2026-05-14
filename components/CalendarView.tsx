@@ -84,20 +84,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({ projects, onOpenProject, on
     };
 
     return (
-        <div className="flex-1 flex flex-col lg:flex-row bg-gray-950 overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row bg-[linear-gradient(135deg,#080d17_0%,#0b1220_58%,#050812_100%)] overflow-hidden">
             {/* Main Calendar */}
             <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-5 rounded-[1.35rem] border border-white/10 bg-white/[0.045] px-4 py-3 shadow-xl shadow-black/20">
                     <h2 className="text-xl lg:text-2xl font-black text-white flex items-center gap-3">
-                        <Calendar className="text-indigo-500" size={24} />
-                        {monthNames[month]} <span className="text-gray-600">{year}</span>
+                        <span className="h-11 w-11 rounded-2xl bg-cyan-400/15 border border-cyan-300/20 flex items-center justify-center">
+                            <Calendar className="text-cyan-300" size={22} />
+                        </span>
+                        {monthNames[month]} <span className="text-slate-500">{year}</span>
                     </h2>
 
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => changeMonth(-1)}
-                            className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                            className="p-2 rounded-xl bg-slate-950/80 border border-white/10 text-gray-400 hover:text-white hover:bg-white/[0.08] transition-colors"
                         >
                             <ChevronLeft size={20} />
                         </button>
@@ -107,13 +109,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ projects, onOpenProject, on
                                 const today = new Date();
                                 setSelectedDate(today.toISOString().split('T')[0]);
                             }}
-                            className="px-3 py-2 rounded-lg bg-gray-900 border border-gray-800 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                            className="px-3 py-2 rounded-xl bg-cyan-400/10 border border-cyan-300/20 text-xs font-black uppercase tracking-wider text-cyan-200 hover:bg-cyan-400/20 transition-colors"
                         >
                             Hoy
                         </button>
                         <button
                             onClick={() => changeMonth(1)}
-                            className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                            className="p-2 rounded-xl bg-slate-950/80 border border-white/10 text-gray-400 hover:text-white hover:bg-white/[0.08] transition-colors"
                         >
                             <ChevronRight size={20} />
                         </button>
@@ -123,7 +125,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ projects, onOpenProject, on
                 {/* Weekday Headers */}
                 <div className="grid grid-cols-7 mb-2">
                     {['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'].map(day => (
-                        <div key={day} className="text-center text-[10px] font-bold text-gray-500 py-2">
+                        <div key={day} className="text-center text-[10px] font-black tracking-[0.18em] text-slate-500 py-2">
                             {day}
                         </div>
                     ))}
@@ -135,7 +137,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ projects, onOpenProject, on
                     {Array.from({ length: firstDayOfMonth }).map((_, i) => {
                         const day = prevMonthDays - firstDayOfMonth + i + 1;
                         return (
-                            <div key={`prev-${day}`} className="bg-gray-900/10 border border-gray-800/30 rounded-lg lg:rounded-xl p-1 lg:p-2 opacity-30 select-none pointer-events-none">
+                            <div key={`prev-${day}`} className="bg-white/[0.02] border border-white/[0.04] rounded-xl lg:rounded-2xl p-1 lg:p-2 opacity-30 select-none pointer-events-none">
                                 <span className="text-xs lg:text-sm font-medium text-gray-600">{day}</span>
                             </div>
                         );
@@ -152,16 +154,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({ projects, onOpenProject, on
                             <div
                                 key={`day-${day}`}
                                 onClick={() => handleDayClick(day)}
-                                className={`group relative bg-gray-900 border transition-all hover:bg-gray-800 flex flex-col p-1 lg:p-2 rounded-lg lg:rounded-xl cursor-pointer overflow-hidden 
-                                    ${isSelected ? 'border-indigo-500 bg-indigo-900/30 ring-2 ring-indigo-500/50' : ''}
-                                    ${isCurrentDay && !isSelected ? 'border-indigo-500/50 bg-indigo-900/10' : ''}
-                                    ${!isCurrentDay && !isSelected ? 'border-gray-800 hover:border-gray-700' : ''}`}
+                                className={`group relative bg-white/[0.035] border transition-all hover:bg-white/[0.065] flex flex-col p-1 lg:p-2 rounded-xl lg:rounded-2xl cursor-pointer overflow-hidden shadow-lg shadow-black/10
+                                    ${isSelected ? 'border-cyan-300/70 bg-cyan-400/10 ring-2 ring-cyan-400/25' : ''}
+                                    ${isCurrentDay && !isSelected ? 'border-cyan-300/45 bg-cyan-400/8' : ''}
+                                    ${!isCurrentDay && !isSelected ? 'border-white/10 hover:border-cyan-300/30' : ''}`}
                             >
                                 <div className="flex justify-between items-start mb-0.5 lg:mb-1">
                                     <span className={`text-xs lg:text-sm font-medium w-5 h-5 lg:w-7 lg:h-7 flex items-center justify-center rounded-full 
-                                        ${isCurrentDay ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : ''}
-                                        ${isSelected && !isCurrentDay ? 'bg-indigo-500 text-white' : ''}
-                                        ${!isCurrentDay && !isSelected ? 'text-gray-400 group-hover:bg-gray-700 group-hover:text-white' : ''}`}>
+                                        ${isCurrentDay ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/30 font-black' : ''}
+                                        ${isSelected && !isCurrentDay ? 'bg-cyan-400 text-slate-950 font-black' : ''}
+                                        ${!isCurrentDay && !isSelected ? 'text-gray-400 group-hover:bg-white/10 group-hover:text-white' : ''}`}>
                                         {day}
                                     </span>
                                     {dayProjects.length > 0 && (
@@ -174,7 +176,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ projects, onOpenProject, on
                                         <div
                                             key={project.id}
                                             onClick={(e) => { e.stopPropagation(); onOpenProject(project.id); }}
-                                            className="p-1 rounded bg-gray-800/80 hover:bg-indigo-600/20 border border-gray-700 hover:border-indigo-500/50 cursor-pointer transition-all group/item"
+                                            className="p-1 rounded-lg bg-slate-950/70 hover:bg-cyan-400/10 border border-white/10 hover:border-cyan-300/40 cursor-pointer transition-all group/item"
                                         >
                                             <div className="text-[8px] lg:text-[10px] font-bold text-gray-200 truncate group-hover/item:text-indigo-300">
                                                 {project.name}
@@ -194,7 +196,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ projects, onOpenProject, on
             </div>
 
             {/* Sidebar - Selected Date & Unscheduled */}
-            <div className="w-full lg:w-80 bg-gray-900 border-t lg:border-t-0 lg:border-l border-gray-800 flex flex-col max-h-[40vh] lg:max-h-full overflow-hidden">
+            <div className="w-full lg:w-80 bg-[#070b13]/95 border-t lg:border-t-0 lg:border-l border-white/10 flex flex-col max-h-[40vh] lg:max-h-full overflow-hidden">
                 {/* Selected Date Panel */}
                 {selectedDate && (
                     <div className="p-4 border-b border-gray-800">
