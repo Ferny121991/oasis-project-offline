@@ -109,6 +109,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
   // Resolve idb: media URLs to real Object URLs from IndexedDB
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(null);
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
   useEffect(() => {
     if (slide?.type !== 'video' || !slide.mediaUrl) {
       setResolvedVideoUrl(null);
@@ -128,6 +129,22 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   }, [slide?.id, slide?.type, slide?.mediaUrl]);
 
   useEffect(() => {
+    if (slide?.type !== 'image' || !slide.mediaUrl) {
+      setResolvedImageUrl(null);
+      return;
+    }
+    if (isIdbMediaUrl(slide.mediaUrl)) {
+      const slideId = getSlideIdFromIdbUrl(slide.mediaUrl);
+      let cancelled = false;
+      getMediaBlobUrl(slideId).then(url => {
+        if (!cancelled) setResolvedImageUrl(url);
+      });
+      return () => { cancelled = true; };
+    }
+    setResolvedImageUrl(slide.mediaUrl);
+  }, [slide?.id, slide?.type, slide?.mediaUrl]);
+
+  useEffect(() => {
     if (slide?.type !== 'video' || !videoRef.current) return;
 
     if (autoPlay) {
@@ -139,6 +156,9 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
     }
   }, [slide?.id, slide?.type, autoPlay, resolvedVideoUrl]);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const displayImageUrl = slide?.type === 'image'
+    ? (resolvedImageUrl || (!isIdbMediaUrl(slide.mediaUrl) ? (slide.mediaUrl || null) : null))
+    : null;
 
   const handleMouseMove = () => {
     if (enableOverlay && isFullscreen) {
@@ -434,7 +454,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                   )}
 
                   {/* IMAGE SLIDE */}
-                  {slide.type === 'image' && slide.mediaUrl && !hideText && (
+                  {slide.type === 'image' && displayImageUrl && !hideText && (
                     <div
                       className="absolute inset-0 flex justify-center items-center overflow-hidden bg-black select-none"
                       style={{
@@ -448,9 +468,11 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                       onDoubleClick={() => ((theme.imageContentScale || 1) > 1.05 ? resetImageTransform() : updateImageTransform(2, theme.imageContentOffsetX || 0, theme.imageContentOffsetY || 0))}
                     >
                       <img
-                        src={slide.mediaUrl}
+                        src={displayImageUrl}
                         alt="Slide Content"
                         className={disableAnimations ? 'w-full h-full' : 'w-full h-full transition-all duration-300'}
+                        loading="eager"
+                        decoding={disableAnimations ? 'sync' : 'async'}
                         draggable={false}
                         style={{
                           objectFit: theme.imageContentFit || 'cover',

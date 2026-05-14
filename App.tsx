@@ -227,6 +227,7 @@ const App: React.FC = () => {
   // Sync Channel for Multi-window Projector
   const syncChannel = useRef<BroadcastChannel | null>(null);
   const lastProjectorSyncStr = useRef<string>('');
+  const lastAppliedProjectorSyncStr = useRef<string>('');
 
   const saveCurrentProjectInto = useCallback((sourceProjects: Project[]) => {
     if (!currentProjectId) return sourceProjects;
@@ -548,6 +549,10 @@ const App: React.FC = () => {
       syncChannel.current.onmessage = (event: MessageEvent) => {
         const { type, data } = event.data;
         if (type === 'SYNC_STATE') {
+          const incomingSyncStr = JSON.stringify(data);
+          if (incomingSyncStr === lastAppliedProjectorSyncStr.current) return;
+          lastAppliedProjectorSyncStr.current = incomingSyncStr;
+
           setShowProjectorStartOverlay(false);
           setLiveItemId(prev => prev === data.liveItemId ? prev : data.liveItemId);
           setActiveItemId(prev => prev === data.activeItemId ? prev : data.activeItemId);
@@ -2119,6 +2124,22 @@ const App: React.FC = () => {
   // The projector ONLY shows the already saved theme of the live item.
   // Staging changes will NOT appear here until they are saved/applied.
   const projectorTheme = applyLogoSettings(liveItem ? liveItem.theme : stagedTheme, globalLogoSettings);
+  const [lastStableProjectorSlide, setLastStableProjectorSlide] = useState<Slide | null>(null);
+  const [lastStableProjectorTheme, setLastStableProjectorTheme] = useState<Theme>(projectorTheme);
+
+  useEffect(() => {
+    if (projectorSlide) {
+      setLastStableProjectorSlide(projectorSlide);
+    } else if (!liveItemId) {
+      setLastStableProjectorSlide(null);
+    }
+  }, [projectorSlide, liveItemId]);
+
+  useEffect(() => {
+    if (liveItem || !liveItemId) {
+      setLastStableProjectorTheme(prev => JSON.stringify(prev) === JSON.stringify(projectorTheme) ? prev : projectorTheme);
+    }
+  }, [projectorTheme, liveItem, liveItemId]);
 
   // Reference for ControlPanel comparison
   const liveTheme = applyLogoSettings(activeItem ? activeItem.theme : DEFAULT_THEME, globalLogoSettings);
@@ -2129,7 +2150,8 @@ const App: React.FC = () => {
 
   // 2. Projector (External/Live):
   //    Priority: Blackout > Logo > Slide(with ClearText option)
-  const projectorContent = isPreviewHidden || isLogoActive ? null : projectorSlide;
+  const projectorContent = isPreviewHidden || isLogoActive ? null : (projectorSlide || (liveItemId ? lastStableProjectorSlide : null));
+  const displayedProjectorTheme = liveItemId && !liveItem ? lastStableProjectorTheme : projectorTheme;
 
   useEffect(() => {
     (window as any).makeLive = makeLive;
@@ -2320,7 +2342,7 @@ const App: React.FC = () => {
             <SplitScreen
               leftSlide={splitLeftSlide || projectorContent}
               rightSlide={splitRightSlide}
-              theme={projectorTheme}
+              theme={displayedProjectorTheme}
               isFullscreen={true}
               showControls={false}
               splitRatio={splitRatio}
@@ -2329,7 +2351,7 @@ const App: React.FC = () => {
           ) : (
             <LiveScreen
               slide={projectorContent}
-              theme={projectorTheme}
+              theme={displayedProjectorTheme}
               isFullscreen={true}
               enableOverlay={false}
               hideText={isTextHidden}
