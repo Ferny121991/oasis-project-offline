@@ -19,6 +19,7 @@ interface LiveScreenProps {
   karaokeIndex?: number;
   onVideoEnd?: () => void;
   zoomState?: { scale: number, x: number, y: number } | null;
+  disableAnimations?: boolean;
 }
 
 const LiveScreen: React.FC<LiveScreenProps> = ({
@@ -35,7 +36,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   karaokeActive = false,
   karaokeIndex = -1,
   onVideoEnd,
-  zoomState
+  zoomState,
+  disableAnimations = false
 }) => {
   const [showTools, setShowTools] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -155,6 +157,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
   // CSS Animations map
   const getAnimationClass = () => {
+    if (disableAnimations) return '';
+
     switch (theme.animation) {
       case 'none': return '';
       case 'fade': return 'animate-fade-in';
@@ -446,7 +450,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                       <img
                         src={slide.mediaUrl}
                         alt="Slide Content"
-                        className="w-full h-full transition-all duration-300"
+                        className={disableAnimations ? 'w-full h-full' : 'w-full h-full transition-all duration-300'}
                         draggable={false}
                         style={{
                           objectFit: theme.imageContentFit || 'cover',
@@ -646,7 +650,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                     <img
                       src={theme.logoUrl || '/logo.png'}
                       alt="Logo Principal"
-                      className="relative object-contain logo-stable-breathe"
+                      className={`relative object-contain ${disableAnimations ? '' : 'logo-stable-breathe'}`}
                       style={{
                         maxHeight: `${theme.logoSize || 78}cqh`,
                         maxWidth: `${Math.min(96, (theme.logoSize || 78) + 10)}%`,

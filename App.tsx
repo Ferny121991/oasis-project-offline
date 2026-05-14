@@ -146,6 +146,8 @@ const App: React.FC = () => {
   // State for External Projector Window
   const [externalWindow, setExternalWindow] = useState<Window | null>(null);
   const [isProjectorMode, setIsProjectorMode] = useState(initialIsProjectorMode);
+  const [isProjectorFullscreen, setIsProjectorFullscreen] = useState(() => !!document.fullscreenElement);
+  const [showProjectorStartOverlay, setShowProjectorStartOverlay] = useState(initialIsProjectorMode && !document.fullscreenElement);
 
   // Staged Theme for previewing changes before applying to projector (Hoisted for Sync)
   const [stagedTheme, setStagedTheme] = useState<Theme>(DEFAULT_THEME);
@@ -307,6 +309,7 @@ const App: React.FC = () => {
       setLiveSlideIndex(targetSlideIndex);
       if (slideIndex !== undefined) setActiveSlideIndex(targetSlideIndex);
       setIsPreviewHidden(false);
+      setIsLogoActive(false);
 
       // Log to action history
       if (item) {
@@ -513,6 +516,7 @@ const App: React.FC = () => {
     const projectorKey = params.get('projector');
     if (projectorKey === 'true') {
       setIsProjectorMode(true);
+      setShowProjectorStartOverlay(!document.fullscreenElement);
     }
 
     syncChannel.current = new BroadcastChannel('flujo_projector_sync');
@@ -521,6 +525,7 @@ const App: React.FC = () => {
       const handleMessage = (e: MessageEvent) => {
         if (e.data === 'TOGGLE_FULLSCREEN') {
           if (!document.fullscreenElement) {
+            setShowProjectorStartOverlay(false);
             document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen auto-block:", err));
           }
         }
@@ -531,6 +536,7 @@ const App: React.FC = () => {
         if (e.key.toLowerCase() === 'f' || e.key === 'F11') {
           e.preventDefault();
           if (!document.fullscreenElement) {
+            setShowProjectorStartOverlay(false);
             document.documentElement.requestFullscreen().catch(err => console.error(err));
           } else {
             if (document.exitFullscreen) document.exitFullscreen();
@@ -542,6 +548,7 @@ const App: React.FC = () => {
       syncChannel.current.onmessage = (event: MessageEvent) => {
         const { type, data } = event.data;
         if (type === 'SYNC_STATE') {
+          setShowProjectorStartOverlay(false);
           setLiveItemId(prev => prev === data.liveItemId ? prev : data.liveItemId);
           setActiveItemId(prev => prev === data.activeItemId ? prev : data.activeItemId);
           setLiveSlideIndex(prev => prev === data.liveSlideIndex ? prev : data.liveSlideIndex);
@@ -598,6 +605,28 @@ const App: React.FC = () => {
       syncChannel.current?.close();
     };
   }, [navigateLiveNext, sendSyncState]);
+
+  useEffect(() => {
+    if (!isProjectorMode) return;
+
+    const handleFullscreenChange = () => {
+      const fullscreen = !!document.fullscreenElement;
+      setIsProjectorFullscreen(fullscreen);
+      if (fullscreen) setShowProjectorStartOverlay(false);
+    };
+
+    handleFullscreenChange();
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [isProjectorMode]);
+
+  useEffect(() => {
+    if (!isProjectorMode || !showProjectorStartOverlay) return;
+    const hideOverlayTimer = window.setTimeout(() => {
+      setShowProjectorStartOverlay(false);
+    }, 2200);
+    return () => window.clearTimeout(hideOverlayTimer);
+  }, [isProjectorMode, showProjectorStartOverlay]);
 
 
   // Sync state whenever it changes
@@ -2247,6 +2276,7 @@ const App: React.FC = () => {
         className="fixed inset-0 w-screen h-screen bg-black overflow-hidden flex flex-col items-center justify-center cursor-none z-[9999]"
         onDoubleClick={() => {
           if (!document.fullscreenElement) {
+            setShowProjectorStartOverlay(false);
             document.documentElement.requestFullscreen().catch(e => console.error(e));
           } else {
             if (document.exitFullscreen) document.exitFullscreen();
@@ -2263,10 +2293,11 @@ const App: React.FC = () => {
             background: black !important;
           }
         `}</style>
-        {!document.fullscreenElement && (
+        {showProjectorStartOverlay && !isProjectorFullscreen && (
           <div
             className="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center text-white cursor-pointer group"
             onClick={() => {
+              setShowProjectorStartOverlay(false);
               document.documentElement.requestFullscreen().catch(e => console.error(e));
             }}
           >
@@ -2305,6 +2336,7 @@ const App: React.FC = () => {
               isLogoMode={isLogoActive}
               blackout={isPreviewHidden}
               onVideoEnd={handleVideoEnd}
+              disableAnimations={true}
             />
           )}
         </div>
@@ -2868,6 +2900,7 @@ const App: React.FC = () => {
                     autoPlay={false} // PIP is static to avoid sync annoyance
                     mute={true}      // PIP is silent
                     onVideoEnd={handleVideoEnd}
+                    disableAnimations={true}
                   />
                 </div>
               </div>
