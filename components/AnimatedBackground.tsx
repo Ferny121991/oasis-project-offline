@@ -10,7 +10,6 @@ interface AnimatedBackgroundProps {
     size?: number;
     direction?: 'up' | 'down' | 'left' | 'right' | 'center' | 'random';
     shape?: 'circle' | 'square' | 'line' | 'cross' | 'diamond';
-    staticMode?: boolean;
 }
 
 type Particle = {
@@ -35,8 +34,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
     intensity = 50,
     size = 12,
     direction = 'random',
-    shape = 'circle',
-    staticMode = false
+    shape = 'circle'
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number | null>(null);
@@ -163,7 +161,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
         const loop = (time: number) => {
             if (displayWidth <= 0 || displayHeight <= 0) {
                 updateDimensions();
-                if (!staticMode) animationRef.current = requestAnimationFrame(loop);
+                animationRef.current = requestAnimationFrame(loop);
                 return;
             }
 
@@ -171,7 +169,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 
             if (type === 'waves') {
                 drawWaves(time);
-                if (!staticMode) animationRef.current = requestAnimationFrame(loop);
+                animationRef.current = requestAnimationFrame(loop);
                 return;
             }
 
@@ -233,29 +231,26 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
             });
 
             ctx.globalAlpha = 1;
-            if (!staticMode) animationRef.current = requestAnimationFrame(loop);
+            animationRef.current = requestAnimationFrame(loop);
         };
 
-        const initTimeout = setTimeout(() => {
-            updateDimensions();
-            loop(0);
-        }, 50);
+        updateDimensions();
+        animationRef.current = requestAnimationFrame(loop);
 
         window.addEventListener('resize', updateDimensions);
 
         return () => {
-            clearTimeout(initTimeout);
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
             window.removeEventListener('resize', updateDimensions);
         };
-    }, [type, speed, color, color2, intensity, size, direction, shape, staticMode]);
+    }, [type, speed, color, color2, intensity, size, direction, shape]);
 
     if (type === 'none') return null;
 
     if (type === 'gradient-pulse') {
         return (
             <div
-                className={`absolute inset-0 z-0 pointer-events-none ${staticMode ? '' : 'animate-pulse-slow'}`}
+                className="absolute inset-0 z-0 animate-pulse-slow pointer-events-none"
                 style={{
                     background: `radial-gradient(circle at center, ${color}55 0%, ${color2}22 34%, transparent 72%)`
                 }}
@@ -270,7 +265,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
                     className="absolute -inset-[30%] opacity-70 blur-3xl"
                     style={{
                         background: `conic-gradient(from 120deg, transparent 0deg, ${color} 80deg, ${color2} 160deg, transparent 260deg, ${color} 320deg, transparent 360deg)`,
-                        animation: staticMode ? 'none' : `auroraFlow ${Math.max(6, 18 / speed)}s ease-in-out infinite alternate`
+                        animation: `auroraFlow ${Math.max(6, 18 / speed)}s ease-in-out infinite alternate`
                     }}
                 />
             </div>
@@ -284,7 +279,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
                     className="absolute -inset-[20%] opacity-55"
                     style={{
                         background: `repeating-conic-gradient(from 0deg, ${color}33 0deg 8deg, transparent 8deg 22deg, ${color2}22 22deg 30deg, transparent 30deg 44deg)`,
-                        animation: staticMode ? 'none' : `slowSpin ${Math.max(12, 32 / speed)}s linear infinite`
+                        animation: `slowSpin ${Math.max(12, 32 / speed)}s linear infinite`
                     }}
                 />
             </div>

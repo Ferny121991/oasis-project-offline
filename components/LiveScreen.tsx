@@ -365,7 +365,6 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
             size={theme.bgAnimation.size}
             direction={theme.bgAnimation.direction}
             shape={theme.bgAnimation.shape}
-            staticMode={disableAnimations}
           />
         )}
 
@@ -666,7 +665,6 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                       size={theme.logoBgAnimation.size}
                       direction={theme.logoBgAnimation.direction}
                       shape={theme.logoBgAnimation.shape}
-                      staticMode={disableAnimations}
                     />
                   )}
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.10)_100%)]" />
