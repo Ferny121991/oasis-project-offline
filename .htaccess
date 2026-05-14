@@ -17,7 +17,7 @@
     Header set Expires "0"
   </FilesMatch>
 
-  <FilesMatch "^index-[A-Za-z0-9_-]+\.(js|css)$|^pdf.*\.(js|mjs)$">
+  <FilesMatch "^[A-Za-z0-9_-]+-[A-Za-z0-9_-]+\.(js|css|mjs)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 </IfModule>
