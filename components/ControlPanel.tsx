@@ -1099,7 +1099,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                   {/* Playlist of Background Audio */}
                   {bgAudioPlaylist.length > 0 && (
-                    <div className="mb-4 bg-gray-900/50 rounded-xl border border-gray-700/50 overflow-hidden shadow-xl animate-fade-in">
+                    <div className="mb-4 bg-gray-900/50 rounded-xl border border-gray-700/50 overflow-hidden shadow-xl animate-fade-in oasis-audio-playlist-container">
                       <div className="p-2.5 bg-gradient-to-r from-pink-900/30 to-rose-900/30 border-b border-gray-700/50 flex items-center justify-between">
                         <span className="text-[10px] text-pink-300 font-bold uppercase tracking-widest flex items-center gap-2">
                           <Music size={12} /> Playlist de Fondo ({bgAudioPlaylist.length})
@@ -1113,7 +1113,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         {bgAudioPlaylist.map((track, idx) => (
                           <div
                             key={track.id}
-                            className={`flex items-center gap-3 p-3 border-b border-gray-800/50 group hover:bg-white/5 transition-all ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''}`}
+                            className={`flex items-center gap-3 p-3 border-b border-gray-800/50 group hover:bg-white/5 transition-all ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''} oasis-audio-track-row`}
                           >
                             <span className="text-[10px] font-bold text-gray-600 w-4">{idx + 1}</span>
                             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectAudio?.(idx)}>
