@@ -1097,44 +1097,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     )}
                   </div>
 
-                  {/* Playlist of Background Audio */}
-                  {bgAudioPlaylist.length > 0 && (
-                    <div className="mb-4 bg-gray-900/50 rounded-xl border border-gray-700/50 overflow-hidden shadow-xl animate-fade-in oasis-audio-playlist-container">
-                      <div className="p-2.5 bg-gradient-to-r from-pink-900/30 to-rose-900/30 border-b border-gray-700/50 flex items-center justify-between">
-                        <span className="text-[10px] text-pink-300 font-bold uppercase tracking-widest flex items-center gap-2">
-                          <Music size={12} /> Playlist de Fondo ({bgAudioPlaylist.length})
-                        </span>
-                        <div className="flex gap-1">
-                          <button onClick={() => onPrevAudio?.()} className="p-1 text-gray-400 hover:text-white transition-colors"><SkipBack size={14} /></button>
-                          <button onClick={() => onNextAudio?.()} className="p-1 text-gray-400 hover:text-white transition-colors"><SkipForward size={14} /></button>
-                        </div>
-                      </div>
-                      <div className="max-h-40 overflow-y-auto">
-                        {bgAudioPlaylist.map((track, idx) => (
-                          <div
-                            key={track.id}
-                            className={`flex items-center gap-3 p-3 border-b border-gray-800/50 group hover:bg-white/5 transition-all ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''} oasis-audio-track-row`}
-                          >
-                            <span className="text-[10px] font-bold text-gray-600 w-4">{idx + 1}</span>
-                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectAudio?.(idx)}>
-                              <p className={`text-xs font-medium truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-300'}`}>
-                                {track.title}
-                              </p>
-                              {backgroundAudioItem?.id === track.id && (
-                                <span className="text-[9px] text-pink-500 font-bold uppercase animate-pulse">Reproduciendo ahora</span>
-                              )}
-                            </div>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
-                              className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-all"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+
 
                   <div className="flex items-center gap-3 mb-2 p-3 bg-gray-800/50 rounded-xl border border-gray-700/50">
                     <button
@@ -1292,50 +1255,113 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
 
 
-            {/* BACKGROUND AUDIO PLAYER CONTROLS */}
-            {backgroundAudioItem && (
-              <div className="bg-gray-900 border border-indigo-500/30 rounded-xl p-4 shadow-lg animate-fade-in mb-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-600/20">
-                    <Music size={16} className={isAudioPlaying ? 'animate-pulse' : ''} />
+            {/* UNIFIED BACKGROUND AUDIO PLAYER & PLAYLIST */}
+            {(backgroundAudioItem || bgAudioPlaylist.length > 0) && (
+              <div className="bg-gray-900 border border-pink-500/30 rounded-xl overflow-hidden shadow-lg animate-fade-in mb-6 flex flex-col">
+                {/* TOP: Reproductor / Controles */}
+                {backgroundAudioItem && (
+                  <div className="p-4 bg-gradient-to-br from-gray-900 to-gray-800 border-b border-pink-500/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)] z-10 relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-pink-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-pink-600/20">
+                        <Music size={20} className={isAudioPlaying ? 'animate-pulse' : ''} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9px] text-pink-400 font-bold uppercase tracking-widest block mb-1">Música de fondo en vivo</span>
+                        <p className="text-sm text-white font-bold truncate">{backgroundAudioItem.title}</p>
+                      </div>
+                      <button
+                        onClick={() => onSetBackgroundAudio?.('', '')}
+                        className="w-8 h-8 rounded-full bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 flex items-center justify-center transition-all"
+                        title="Detener y limpiar todo"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => onPrevAudio?.()}
+                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-all active:scale-90"
+                        title="Pista Anterior"
+                      >
+                        <SkipBack size={20} />
+                      </button>
+                      <button
+                        onClick={() => onSeekAudio?.(-15)}
+                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-all active:scale-90"
+                        title="Retroceder 15s"
+                      >
+                        <RotateCcw size={18} />
+                      </button>
+
+                      <button
+                        onClick={() => onToggleAudioPlayback?.()}
+                        className={`w-14 h-14 flex items-center justify-center rounded-full transition-all active:scale-95 shadow-xl mx-2 ${isAudioPlaying ? 'bg-pink-600 text-white shadow-pink-600/30' : 'bg-white text-pink-900 shadow-white/10'}`}
+                      >
+                        {isAudioPlaying ? <PauseCircle size={32} /> : <PlayCircle size={32} />}
+                      </button>
+
+                      <button
+                        onClick={() => onSeekAudio?.(15)}
+                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-all active:scale-90"
+                        title="Adelantar 15s"
+                      >
+                        <Clock size={18} />
+                      </button>
+                      <button
+                        onClick={() => onNextAudio?.()}
+                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-all active:scale-90"
+                        title="Siguiente Pista"
+                      >
+                        <SkipForward size={20} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest block">Musica de fondo</span>
-                    <p className="text-xs text-white font-bold truncate">{backgroundAudioItem.title}</p>
+                )}
+
+                {/* BOTTOM: Playlist */}
+                {bgAudioPlaylist.length > 0 && (
+                  <div className="bg-gray-950/80 oasis-audio-playlist-container flex flex-col max-h-48 relative z-0">
+                    <div className="px-3 py-2 bg-pink-900/10 border-b border-pink-500/10 flex items-center justify-between sticky top-0 z-10 backdrop-blur-md">
+                      <span className="text-[10px] text-pink-300 font-bold uppercase tracking-widest flex items-center gap-2">
+                        <Layers size={12} /> Siguiente en la fila ({bgAudioPlaylist.length})
+                      </span>
+                    </div>
+                    <div className="overflow-y-auto no-scrollbar pb-2">
+                      {bgAudioPlaylist.map((track, idx) => (
+                        <div
+                          key={track.id}
+                          className={`flex items-center gap-3 px-3 py-2 border-b border-gray-800/50 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''} oasis-audio-track-row`}
+                          onClick={() => onSelectAudio?.(idx)}
+                        >
+                          <div className="w-4 flex justify-center shrink-0">
+                            {backgroundAudioItem?.id === track.id && isAudioPlaying ? (
+                              <div className="flex items-end gap-[2px] h-3">
+                                <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_0ms] h-full rounded-t-sm"></div>
+                                <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_200ms] h-2/3 rounded-t-sm"></div>
+                                <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_400ms] h-full rounded-t-sm"></div>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-gray-600">{idx + 1}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-medium truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                              {track.title}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all shrink-0"
+                            title="Quitar de la fila"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => onSetBackgroundAudio?.('', '')}
-                    className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
-                    title="Detener musica"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-center gap-4">
-                  <button
-                    onClick={() => onSeekAudio?.(-15)}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-all active:scale-90"
-                    title="Retroceder 15s"
-                  >
-                    <SkipBack size={20} />
-                  </button>
-
-                  <button
-                    onClick={() => onToggleAudioPlayback?.()}
-                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-all active:scale-95 shadow-lg ${isAudioPlaying ? 'bg-indigo-600 text-white shadow-indigo-600/30' : 'bg-white text-indigo-900 shadow-white/10'}`}
-                  >
-                    {isAudioPlaying ? <PauseCircle size={28} /> : <PlayCircle size={28} />}
-                  </button>
-
-                  <button
-                    onClick={() => onSeekAudio?.(15)}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-all active:scale-90"
-                    title="Adelantar 15s"
-                  >
-                    <SkipForward size={20} />
-                  </button>
-                </div>
+                )}
               </div>
             )}
 
