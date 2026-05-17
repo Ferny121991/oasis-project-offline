@@ -1,6 +1,7 @@
 # Build and distribution
-dist/
+# dist/
 dist-ssr/
+
 
 # Dependencies
 node_modules/
