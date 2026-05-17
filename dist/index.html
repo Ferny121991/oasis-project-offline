@@ -13,197 +13,36 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Montserrat:wght@400;700;900&family=Poppins:wght@400;700;900&family=Playfair+Display:wght@400;700;900&family=Bebas+Neue&family=Archivo+Black&family=Oswald:wght@400;700&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/index.css">
   <style>
-    body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-    .slide-font { font-family: 'Montserrat', sans-serif; }
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    .safe-area-pt { padding-top: env(safe-area-inset-top, 0); }
-    .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0); }
-    .safe-area-pl { padding-left: env(safe-area-inset-left, 0); }
-    .safe-area-pr { padding-right: env(safe-area-inset-right, 0); }
-    .touch-manipulation { touch-action: manipulation; }
-    .select-none { -webkit-user-select: none; user-select: none; }
-    @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-fade-in { animation: fade-in 0.2s ease-out; }
-
-    .oasis-floating-logo-save {
-      position: fixed;
-      left: 22px;
-      bottom: 86px;
-      z-index: 99990;
-      display: none;
-      width: min(360px, calc(100vw - 44px));
-      border: 1px solid rgba(251, 191, 36, 0.58);
-      border-radius: 18px;
-      background: linear-gradient(135deg, #f59e0b, #0891b2);
-      color: #fff;
-      padding: 14px 16px;
-      font-size: 12px;
-      font-weight: 950;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      cursor: pointer;
-      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
-    }
-    .oasis-floating-logo-save.is-visible { display: block; }
-    .oasis-floating-logo-save.is-saved { background: linear-gradient(135deg, #059669, #10b981); border-color: rgba(167, 243, 208, 0.8); }
-    @media (min-width: 1024px) { .oasis-floating-logo-save { width: calc(28vw - 44px); } }
-
-    #oasis-pro-tour { position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(2, 6, 23, 0.78); backdrop-filter: blur(8px); color: #f8fafc; font-family: Inter, sans-serif; }
-    #oasis-pro-tour.is-visible { display: flex; }
-    .oasis-tour-shell { width: min(1040px, 100%); max-height: min(88vh, 650px); display: grid; grid-template-columns: 330px minmax(0, 1fr); overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 22px; background: #020617; box-shadow: 0 30px 100px rgba(0, 0, 0, 0.64); }
-    .oasis-tour-rail { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 560px; padding: 28px; background: radial-gradient(circle at 20% 12%, rgba(255,255,255,0.22), transparent 26%), linear-gradient(145deg, var(--tour-from), var(--tour-mid), var(--tour-to)); overflow: hidden; }
-    .oasis-tour-top, .oasis-tour-rail-footer { position: relative; z-index: 1; }
-    .oasis-tour-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid rgba(255,255,255,0.22); border-radius: 999px; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.88); font-size: 11px; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; }
-    .oasis-tour-icon { width: 74px; height: 74px; display: grid; place-items: center; margin-top: 28px; border-radius: 23px; border: 1px solid rgba(255,255,255,0.24); background: rgba(255,255,255,0.16); box-shadow: 0 20px 38px rgba(0,0,0,0.24); font-size: 34px; }
-    .oasis-tour-rail h2 { margin: 22px 0 0; max-width: 280px; font-size: 31px; line-height: 1.05; font-weight: 950; letter-spacing: 0; }
-    .oasis-tour-rail p { margin: 14px 0 0; max-width: 280px; color: rgba(255,255,255,0.88); font-size: 15px; line-height: 1.58; }
-    .oasis-tour-progress-label { margin-bottom: 12px; color: rgba(255,255,255,0.84); font-size: 12px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
-    .oasis-tour-progress-track { height: 9px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,0.18); }
-    .oasis-tour-progress-fill { height: 100%; border-radius: 999px; background: #fff; transition: width 220ms ease; }
-    .oasis-tour-main { min-width: 0; display: flex; flex-direction: column; min-height: 560px; }
-    .oasis-tour-mainbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(15, 23, 42, 0.82); }
-    .oasis-tour-step-name { color: #94a3b8; font-size: 12px; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; }
-    .oasis-tour-skip { border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; background: rgba(255,255,255,0.05); color: #cbd5e1; padding: 9px 13px; font-size: 12px; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer; }
-    .oasis-tour-content { flex: 1; padding: 26px 28px 20px; overflow: hidden; background: linear-gradient(180deg, rgba(15,23,42,0.92), #020617); }
-    .oasis-tour-intro { margin: 0 0 16px; color: #e2e8f0; font-size: 18px; line-height: 1.55; }
-    .oasis-tour-focus { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .oasis-tour-item { display: flex; align-items: flex-start; gap: 11px; min-height: 74px; padding: 13px; border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; background: rgba(255,255,255,0.045); color: #cbd5e1; font-size: 14px; line-height: 1.42; }
-    .oasis-tour-check { flex: 0 0 auto; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 8px; background: rgba(129, 140, 248, 0.18); color: #c4b5fd; font-weight: 950; font-size: 13px; }
-    .oasis-tour-tip { margin-top: 14px; padding: 14px 15px; border: 1px solid rgba(103,232,249,0.16); border-radius: 14px; background: rgba(8,145,178,0.1); color: #cffafe; font-size: 14px; line-height: 1.5; }
-    .oasis-tour-dots { display: flex; flex-wrap: wrap; gap: 7px; padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.07); background: rgba(2,6,23,0.96); }
-    .oasis-tour-dot { width: 12px; height: 8px; border: 0; border-radius: 999px; background: #475569; cursor: pointer; transition: 180ms ease; }
-    .oasis-tour-dot.done { width: 18px; background: rgba(129,140,248,0.6); }
-    .oasis-tour-dot.active { width: 34px; background: #818cf8; }
-    .oasis-tour-actions { display: flex; gap: 12px; padding: 18px 24px 22px; background: #020617; }
-    .oasis-tour-button { height: 50px; border: 0; border-radius: 14px; color: white; font-weight: 950; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; }
-    .oasis-tour-prev { flex: 1; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.045); color: #cbd5e1; }
-    .oasis-tour-next { flex: 1.35; background: linear-gradient(135deg, var(--tour-from), var(--tour-to)); box-shadow: 0 16px 28px rgba(79,70,229,0.24); }
-    @media (max-width: 900px) { #oasis-pro-tour { padding: 10px; } .oasis-tour-shell { grid-template-columns: 1fr; max-height: 94vh; } .oasis-tour-rail { min-height: 0; padding: 20px 20px 18px; } .oasis-tour-icon { width: 56px; height: 56px; margin-top: 14px; border-radius: 18px; font-size: 28px; } .oasis-tour-rail h2 { margin-top: 14px; max-width: none; font-size: clamp(23px, 6vw, 31px); } .oasis-tour-rail p { max-width: none; font-size: 14px; } .oasis-tour-rail-footer { margin-top: 18px; } .oasis-tour-main { min-height: 0; } .oasis-tour-content { overflow: auto; padding: 18px; } .oasis-tour-focus { grid-template-columns: 1fr; } .oasis-tour-item { min-height: 0; } .oasis-tour-mainbar, .oasis-tour-dots, .oasis-tour-actions { padding-left: 18px; padding-right: 18px; } }
+    body{font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent;touch-action:manipulation}.slide-font{font-family:'Montserrat',sans-serif}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}.safe-area-pt{padding-top:env(safe-area-inset-top,0)}.safe-area-pb{padding-bottom:env(safe-area-inset-bottom,0)}.safe-area-pl{padding-left:env(safe-area-inset-left,0)}.safe-area-pr{padding-right:env(safe-area-inset-right,0)}.touch-manipulation{touch-action:manipulation}.select-none{-webkit-user-select:none;user-select:none}@keyframes fade-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}.animate-fade-in{animation:fade-in .2s ease-out}
+    .oasis-floating-logo-save{position:fixed;left:22px;bottom:86px;z-index:99990;display:none;width:min(380px,calc(100vw - 44px));border:1px solid rgba(251,191,36,.58);border-radius:18px;background:linear-gradient(135deg,#f59e0b,#0891b2);color:#fff;padding:14px 16px;font-size:12px;font-weight:950;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:0 22px 60px rgba(0,0,0,.42)}.oasis-floating-logo-save.is-visible{display:block}.oasis-floating-logo-save.is-saved{background:linear-gradient(135deg,#059669,#10b981);border-color:rgba(167,243,208,.8)}@media (min-width:1024px){.oasis-floating-logo-save{width:calc(28vw - 44px)}}
+    #oasis-pro-tour{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(2,6,23,.78);backdrop-filter:blur(8px);color:#f8fafc;font-family:Inter,sans-serif}#oasis-pro-tour.is-visible{display:flex}.oasis-tour-shell{width:min(1040px,100%);max-height:min(88vh,650px);display:grid;grid-template-columns:330px minmax(0,1fr);overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:#020617;box-shadow:0 30px 100px rgba(0,0,0,.64)}.oasis-tour-rail{position:relative;display:flex;flex-direction:column;justify-content:space-between;min-height:560px;padding:28px;background:radial-gradient(circle at 20% 12%,rgba(255,255,255,.22),transparent 26%),linear-gradient(145deg,var(--tour-from),var(--tour-mid),var(--tour-to));overflow:hidden}.oasis-tour-top,.oasis-tour-rail-footer{position:relative;z-index:1}.oasis-tour-kicker{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid rgba(255,255,255,.22);border-radius:999px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.88);font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.oasis-tour-icon{width:74px;height:74px;display:grid;place-items:center;margin-top:28px;border-radius:23px;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.16);box-shadow:0 20px 38px rgba(0,0,0,.24);font-size:34px}.oasis-tour-rail h2{margin:22px 0 0;max-width:280px;font-size:31px;line-height:1.05;font-weight:950;letter-spacing:0}.oasis-tour-rail p{margin:14px 0 0;max-width:280px;color:rgba(255,255,255,.88);font-size:15px;line-height:1.58}.oasis-tour-progress-label{margin-bottom:12px;color:rgba(255,255,255,.84);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.oasis-tour-progress-track{height:9px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.18)}.oasis-tour-progress-fill{height:100%;border-radius:999px;background:#fff;transition:width .22s ease}.oasis-tour-main{min-width:0;display:flex;flex-direction:column;min-height:560px}.oasis-tour-mainbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(15,23,42,.82)}.oasis-tour-step-name{color:#94a3b8;font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}.oasis-tour-skip{border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(255,255,255,.05);color:#cbd5e1;padding:9px 13px;font-size:12px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;cursor:pointer}.oasis-tour-content{flex:1;padding:26px 28px 20px;overflow:hidden;background:linear-gradient(180deg,rgba(15,23,42,.92),#020617)}.oasis-tour-intro{margin:0 0 16px;color:#e2e8f0;font-size:18px;line-height:1.55}.oasis-tour-focus{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.oasis-tour-item{display:flex;align-items:flex-start;gap:11px;min-height:74px;padding:13px;border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(255,255,255,.045);color:#cbd5e1;font-size:14px;line-height:1.42}.oasis-tour-check{flex:0 0 auto;width:22px;height:22px;display:grid;place-items:center;border-radius:8px;background:rgba(129,140,248,.18);color:#c4b5fd;font-weight:950;font-size:13px}.oasis-tour-tip{margin-top:14px;padding:14px 15px;border:1px solid rgba(103,232,249,.16);border-radius:14px;background:rgba(8,145,178,.1);color:#cffafe;font-size:14px;line-height:1.5}.oasis-tour-dots{display:flex;flex-wrap:wrap;gap:7px;padding:16px 24px;border-top:1px solid rgba(255,255,255,.07);background:rgba(2,6,23,.96)}.oasis-tour-dot{width:12px;height:8px;border:0;border-radius:999px;background:#475569;cursor:pointer;transition:.18s ease}.oasis-tour-dot.done{width:18px;background:rgba(129,140,248,.6)}.oasis-tour-dot.active{width:34px;background:#818cf8}.oasis-tour-actions{display:flex;gap:12px;padding:18px 24px 22px;background:#020617}.oasis-tour-button{height:50px;border:0;border-radius:14px;color:#fff;font-weight:950;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}.oasis-tour-prev{flex:1;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.045);color:#cbd5e1}.oasis-tour-next{flex:1.35;background:linear-gradient(135deg,var(--tour-from),var(--tour-to));box-shadow:0 16px 28px rgba(79,70,229,.24)}@media(max-width:900px){#oasis-pro-tour{padding:10px}.oasis-tour-shell{grid-template-columns:1fr;max-height:94vh}.oasis-tour-rail{min-height:0;padding:20px 20px 18px}.oasis-tour-icon{width:56px;height:56px;margin-top:14px;border-radius:18px;font-size:28px}.oasis-tour-rail h2{margin-top:14px;max-width:none;font-size:clamp(23px,6vw,31px)}.oasis-tour-rail p{max-width:none;font-size:14px}.oasis-tour-rail-footer{margin-top:18px}.oasis-tour-main{min-height:0}.oasis-tour-content{overflow:auto;padding:18px}.oasis-tour-focus{grid-template-columns:1fr}.oasis-tour-item{min-height:0}.oasis-tour-mainbar,.oasis-tour-dots,.oasis-tour-actions{padding-left:18px;padding-right:18px}}
   </style>
-  <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0"
-  }
-}
-</script>
-  <script type="module" crossorigin src="./assets/index-C_2HMn0u.js?v=logo-floating-20260516"></script>
+  <script type="importmap">{"imports":{"@google/genai":"https://aistudiocdn.com/@google/genai@^1.30.0","uuid":"https://aistudiocdn.com/uuid@^13.0.0","lucide-react":"https://aistudiocdn.com/lucide-react@^0.554.0","react/":"https://aistudiocdn.com/react@^19.2.0/","react":"https://aistudiocdn.com/react@^19.2.0","react-dom/":"https://aistudiocdn.com/react-dom@^19.2.0/","react-dom":"https://aistudiocdn.com/react-dom@^19.2.0"}}</script>
+  <script type="module" crossorigin src="./assets/index-C_2HMn0u.js?v=logo-cloud-20260516"></script>
 </head>
 <body class="bg-gray-900 text-white h-screen overflow-hidden">
   <div id="root" class="h-full w-full"></div>
   <div id="oasis-pro-tour" aria-live="polite"></div>
   <script>
-    (function () {
-      function visibleTextMatches(pattern) {
-        return Array.from(document.querySelectorAll('body *')).some(function (node) {
-          var text = node.textContent || '';
-          if (!pattern.test(text)) return false;
-          var style = window.getComputedStyle(node);
-          return style.display !== 'none' && style.visibility !== 'hidden' && node.getClientRects().length > 0;
-        });
-      }
-      function isLogoPanelVisible() {
-        return visibleTextMatches(/Pantalla de bienvenida|Logo y Proyector|Brillo del logo/i);
-      }
-      function getLogoPanel() {
-        var marker = Array.from(document.querySelectorAll('h2,h3,p,button,span')).find(function (node) {
-          return /Pantalla de bienvenida|Logo y Proyector|Brillo del logo/i.test(node.textContent || '') && node.getClientRects().length > 0;
-        });
-        return marker ? (marker.closest('#control-panel') || marker.closest('div')) : document.body;
-      }
-      function readLogoSettingsFromPanel() {
-        var panel = getLogoPanel();
-        var img = panel.querySelector('img[alt="Logo"]') || document.querySelector('img[alt="Logo"]');
-        var ranges = Array.from(panel.querySelectorAll('input[type="range"]'));
-        var preview = Array.from(panel.querySelectorAll('div[style]')).find(function (node) {
-          return /background/i.test(node.getAttribute('style') || '') && node.querySelector('img[alt="Logo"]');
-        });
-        var glowButton = Array.from(panel.querySelectorAll('button')).find(function (button) { return /Brillo del logo/i.test(button.textContent || ''); });
-        var existing = localStorage.getItem('oasis_global_logo_settings_v1');
-        var current = existing ? JSON.parse(existing) : {};
-        return {
-          logoUrl: img ? img.getAttribute('src') : current.logoUrl,
-          logoBackground: preview ? (preview.style.background || preview.style.backgroundImage || current.logoBackground || '#ffffff') : (current.logoBackground || '#ffffff'),
-          logoSize: ranges[0] ? parseInt(ranges[0].value, 10) : (current.logoSize || 78),
-          logoOpacity: ranges[1] ? parseFloat(ranges[1].value) : (current.logoOpacity || 1),
-          logoGlow: glowButton ? /activo/i.test(glowButton.textContent || '') : !!current.logoGlow,
-          logoBgAnimation: current.logoBgAnimation
-        };
-      }
-      function ensureFloatingLogoButton() {
-        var button = document.getElementById('oasis-floating-logo-save');
-        if (!button) {
-          button = document.createElement('button');
-          button.id = 'oasis-floating-logo-save';
-          button.type = 'button';
-          button.className = 'oasis-floating-logo-save';
-          button.textContent = 'Guardar logo como predeterminado';
-          button.addEventListener('click', function () {
-            try {
-              localStorage.setItem('oasis_global_logo_settings_v1', JSON.stringify(readLogoSettingsFromPanel()));
-              button.classList.add('is-saved');
-              button.textContent = 'Logo predeterminado guardado';
-              setTimeout(function () {
-                button.classList.remove('is-saved');
-                button.textContent = 'Guardar logo como predeterminado';
-              }, 2600);
-            } catch (error) {
-              console.warn(error);
-              alert('No se pudo guardar el logo predeterminado en este navegador.');
-            }
-          });
-          document.body.appendChild(button);
-        }
-        button.classList.toggle('is-visible', isLogoPanelVisible());
-      }
-      function improveLogoPreviewSize() {
-        var panel = getLogoPanel();
-        var img = panel.querySelector('img[alt="Logo"]');
-        var size = panel.querySelector('input[type="range"]');
-        if (!img || !size) return;
-        img.style.width = (parseInt(size.value, 10) || 78) + '%';
-        if (!size.dataset.oasisLogoSizeBound) {
-          size.dataset.oasisLogoSizeBound = '1';
-          size.addEventListener('input', function () { img.style.width = (parseInt(size.value, 10) || 78) + '%'; });
-        }
-      }
-      setInterval(function () { ensureFloatingLogoButton(); improveLogoPreviewSize(); }, 500);
+    (function(){
+      var API='https://ovmaieigdfkfkgwutres.supabase.co', KEY='sb_publishable_lhWXFbIDqFA6wSflqdsyjQ_3iCa-QdU';
+      function visibleTextMatches(pattern){return Array.from(document.querySelectorAll('body *')).some(function(node){var text=node.textContent||'';if(!pattern.test(text))return false;var style=window.getComputedStyle(node);return style.display!=='none'&&style.visibility!=='hidden'&&node.getClientRects().length>0})}
+      function isLogoPanelVisible(){return visibleTextMatches(/Pantalla de bienvenida|Logo y Proyector|Brillo del logo/i)}
+      function getLogoPanel(){var marker=Array.from(document.querySelectorAll('h2,h3,p,button,span')).find(function(node){return /Pantalla de bienvenida|Logo y Proyector|Brillo del logo/i.test(node.textContent||'')&&node.getClientRects().length>0});return marker?(marker.closest('#control-panel')||marker.closest('div')):document.body}
+      function getAuth(){try{var key=Object.keys(localStorage).find(function(name){return name.indexOf('sb-ovmaieigdfkfkgwutres-auth-token')!==-1||name.indexOf('supabase.auth.token')!==-1});if(!key)return null;var raw=JSON.parse(localStorage.getItem(key)||'null'),session=raw&&(raw.currentSession||raw);if(!session||!session.access_token||!session.user||!session.user.id)return null;return{token:session.access_token,userId:session.user.id}}catch(e){return null}}
+      function readLogoSettings(){var panel=getLogoPanel(),img=panel.querySelector('img[alt="Logo"]')||document.querySelector('img[alt="Logo"]'),ranges=Array.from(panel.querySelectorAll('input[type="range"]')),preview=Array.from(panel.querySelectorAll('div[style]')).find(function(node){return /background/i.test(node.getAttribute('style')||'')&&node.querySelector('img[alt="Logo"]')}),glowButton=Array.from(panel.querySelectorAll('button')).find(function(button){return /Brillo del logo/i.test(button.textContent||'')}),existing=localStorage.getItem('oasis_global_logo_settings_v1'),current=existing?JSON.parse(existing):{};return{logoUrl:img?img.getAttribute('src'):current.logoUrl,logoBackground:preview?(preview.style.background||preview.style.backgroundImage||current.logoBackground||'#ffffff'):(current.logoBackground||'#ffffff'),logoSize:ranges[0]?parseInt(ranges[0].value,10):(current.logoSize||78),logoOpacity:ranges[1]?parseFloat(ranges[1].value):(current.logoOpacity||1),logoGlow:glowButton?/activo/i.test(glowButton.textContent||''):!!current.logoGlow,logoBgAnimation:current.logoBgAnimation}}
+      async function fetchLiveState(auth){var res=await fetch(API+'/rest/v1/realtime_sync?user_id=eq.'+encodeURIComponent(auth.userId)+'&select=live_state',{headers:{apikey:KEY,Authorization:'Bearer '+auth.token}});if(!res.ok)throw new Error('fetch live_state failed');var rows=await res.json();return rows&&rows[0]&&rows[0].live_state?rows[0].live_state:{}}
+      async function saveCloud(settings){var auth=getAuth();if(!auth)return false;var live={};try{live=await fetchLiveState(auth)}catch(_){live={}}live.savedLogoSettings=settings;live.lastUpdated=new Date().toISOString();var res=await fetch(API+'/rest/v1/realtime_sync?on_conflict=user_id',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+auth.token,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:auth.userId,live_state:live,updated_at:new Date().toISOString()})});if(!res.ok)throw new Error('save cloud failed');return true}
+      async function importCloudOnce(){if(sessionStorage.getItem('oasis_logo_cloud_checked')==='true')return;var auth=getAuth();if(!auth)return;sessionStorage.setItem('oasis_logo_cloud_checked','true');try{var live=await fetchLiveState(auth);if(!live||!live.savedLogoSettings)return;var incoming=JSON.stringify(live.savedLogoSettings),current=localStorage.getItem('oasis_global_logo_settings_v1');if(incoming&&incoming!==current){localStorage.setItem('oasis_global_logo_settings_v1',incoming);if(!sessionStorage.getItem('oasis_logo_cloud_reloaded')){sessionStorage.setItem('oasis_logo_cloud_reloaded','true');setTimeout(function(){window.location.reload()},120)}}}catch(e){console.warn('No se pudo importar logo cloud',e)}}
+      function ensureButton(){var button=document.getElementById('oasis-floating-logo-save');if(!button){button=document.createElement('button');button.id='oasis-floating-logo-save';button.type='button';button.className='oasis-floating-logo-save';button.textContent='Guardar logo como predeterminado';button.addEventListener('click',function(){try{var settings=readLogoSettings();localStorage.setItem('oasis_global_logo_settings_v1',JSON.stringify(settings));button.classList.add('is-saved');button.textContent='Guardando en la nube...';saveCloud(settings).then(function(ok){button.textContent=ok?'Logo guardado en todos tus dispositivos':'Logo guardado en este dispositivo'}).catch(function(){button.textContent='Guardado local; inicia sesion para nube'});setTimeout(function(){button.classList.remove('is-saved');button.textContent='Guardar logo como predeterminado'},3800)}catch(error){console.warn(error);alert('No se pudo guardar el logo predeterminado.')}});document.body.appendChild(button)}button.classList.toggle('is-visible',isLogoPanelVisible())}
+      function improveLogoPreviewSize(){var panel=getLogoPanel(),img=panel.querySelector('img[alt="Logo"]'),size=panel.querySelector('input[type="range"]');if(!img||!size)return;img.style.width=(parseInt(size.value,10)||78)+'%';if(!size.dataset.oasisLogoSizeBound){size.dataset.oasisLogoSizeBound='1';size.addEventListener('input',function(){img.style.width=(parseInt(size.value,10)||78)+'%'})}}
+      setInterval(function(){ensureButton();improveLogoPreviewSize();importCloudOnce()},500);
     })();
   </script>
   <script>
-    (function () {
-      var steps = [
-        { icon: '✦', tag: 'Bienvenida', title: 'Bienvenido a FlujoEclesial Studio', desc: 'Aprende el flujo completo sin detenerte en detalles innecesarios.', color: ['#4f46e5', '#7c3aed', '#c026d3'], focus: ['Preparar contenido antes del servicio', 'Proyectar con una salida limpia', 'Controlar desde celular o tablet', 'Trabajar aunque falle internet'], tip: 'El tour esta pensado para cabina: corto, directo y facil de seguir.' },
-        { icon: '▣', tag: 'Contenido', title: 'Prepara canciones, textos y recursos', desc: 'Todo comienza en el panel de contenido.', color: ['#0284c7', '#0891b2', '#0f766e'], focus: ['YouTube para videos y musica de fondo', 'Manual para avisos, lecturas y textos libres', 'Biblia para pasajes listos para proyectar', 'Imagenes y elementos nuevos desde cero'], tip: 'Prepara primero, proyecta despues. Ese orden evita carreras durante el servicio.' },
-        { icon: '✚', tag: 'Biblia', title: 'Crea lecturas biblicas en segundos', desc: 'Busca una referencia y conviertela en diapositivas limpias.', color: ['#d97706', '#ea580c', '#e11d48'], focus: ['RV1960, NVI, NTV, LBLA, NIV, KJV y NKJV', 'Autocompletado de libros', 'Formato consistente para lectura publica', 'Util para predicacion, lecturas y anuncios'], tip: 'Usa referencias claras como Juan 3:16 o Salmos 23:1-4.' },
-        { icon: '⇧', tag: 'Importacion', title: 'Agrega PDF, PowerPoint y multimedia', desc: 'El material externo entra al mismo flujo de presentacion.', color: ['#1d4ed8', '#4338ca', '#6d28d9'], focus: ['PowerPoint convertido en slides', 'PDF integrado al servicio', 'Imagenes y videos locales', 'Medios organizados junto a canciones y textos'], tip: 'Revisa cada archivo importado en vista previa antes de salir en vivo.' },
-        { icon: '◐', tag: 'Diseno', title: 'Ajusta el estilo antes de proyectar', desc: 'Controla la apariencia sin perder velocidad.', color: ['#9333ea', '#db2777', '#e11d48'], focus: ['Temas predefinidos', 'Fuentes, tamanos, sombras y colores', 'Fondos, degradados e imagenes', 'Vista previa antes de enviar'], tip: 'Un estilo simple y consistente casi siempre se ve mas profesional.' },
-        { icon: '☰', tag: 'Playlist', title: 'Ordena el servicio completo', desc: 'La playlist funciona como la escaleta de cabina.', color: ['#059669', '#0d9488', '#0891b2'], focus: ['Arrastra para reordenar', 'Edita titulos para claridad', 'Agrupa canciones, lecturas y avisos', 'Separa eventos usando proyectos'], tip: 'Nombra los elementos como los diria el equipo: Cancion 1, Lectura, Anuncios, Predica.' },
-        { icon: '▦', tag: 'Slides', title: 'Revisa cada diapositiva antes de enviarla', desc: 'Selecciona, previsualiza y manda al vivo cuando este lista.', color: ['#7c3aed', '#4f46e5', '#1d4ed8'], focus: ['Clic para previsualizar', 'Doble clic para enviar en vivo', 'Flechas para navegar rapido', 'PDF y PPTX entran en este flujo'], tip: 'La vista previa es tu ultimo filtro antes de que lo vea la audiencia.' },
-        { icon: '▰', tag: 'En vivo', title: 'Controla la salida del proyector', desc: 'Usa los botones de seguridad para transiciones limpias.', color: ['#ea580c', '#d97706', '#ca8a04'], focus: ['Black para pantalla negra', 'Clear para ocultar texto', 'Logo para pausa visual', 'Split y Proyector para salidas especiales'], tip: 'Black, Clear y Logo salvan momentos cuando necesitas corregir algo rapido.' },
-        { icon: '▱', tag: 'Remoto', title: 'Opera desde celular o tablet', desc: 'El remoto te libera de estar pegado a la computadora.', color: ['#0891b2', '#2563eb', '#4338ca'], focus: ['Conexion por QR o URL local', 'Cambio de slides desde el movil', 'Busqueda dentro de la playlist', 'Agregar imagenes desde el dispositivo'], tip: 'La computadora principal sigue abierta; el telefono solo envia comandos.' },
-        { icon: '⌕', tag: 'Zoom', title: 'Ajusta el encuadre desde el remoto', desc: 'Corrige imagenes o documentos sin rehacer la diapositiva.', color: ['#c026d3', '#9333ea', '#4f46e5'], focus: ['Acercar y alejar', 'Mover el encuadre', 'Gestos tactiles compatibles', 'Reiniciar la vista original'], tip: 'Util cuando una imagen o documento necesita leerse mejor en pantalla grande.' },
-        { icon: '☁', tag: 'Respaldo', title: 'Trabaja local y sincroniza con control', desc: 'Prioriza estabilidad durante el evento y respalda cuando convenga.', color: ['#334155', '#1d4ed8', '#0891b2'], focus: ['Modo local-first', 'Supabase cuando esta configurado', 'Sincronizacion manual recomendada', 'Exportar e importar .oasis.json'], tip: 'Antes de cambios grandes, exporta una copia del servicio.' },
-        { icon: '↺', tag: 'Recuperacion', title: 'Corrige errores sin detener el flujo', desc: 'Historial, proyectos y respaldo ayudan a volver al camino.', color: ['#be123c', '#b91c1c', '#ea580c'], focus: ['Historial de acciones', 'Restauracion cuando haga falta', 'Importacion selectiva', 'Calendario y temporizador de apoyo'], tip: 'En vivo, resolver rapido vale mas que editar perfecto.' },
-        { icon: '⌨', tag: 'Atajos', title: 'Maneja la proyeccion con teclado', desc: 'Reduce clics y gana velocidad durante el servicio.', color: ['#3f3f46', '#334155', '#111827'], focus: ['Espacio: siguiente slide', 'Flechas: navegar slides', 'B: blackout', 'C: clear', 'L: logo', 'P: proyector', 'F: pantalla completa'], tip: 'Practica los atajos una vez antes del servicio y el flujo se siente mucho mas natural.' },
-        { icon: '▶', tag: 'Listo', title: 'Comienza con confianza', desc: 'Prepara, revisa, abre proyector, conecta remoto y opera desde la playlist.', color: ['#16a34a', '#059669', '#0f766e'], focus: ['Contenido listo antes de salir en vivo', 'Vista previa antes de enviar', 'Transiciones con Black, Clear o Logo', 'Respaldo al terminar'], tip: 'La mejor proyeccion se siente invisible: clara, tranquila y sin distracciones.' }
-      ];
-      var index = 0;
-      var tour = document.getElementById('oasis-pro-tour');
-      var active = false;
-      function oldTourNode() { var title = Array.from(document.querySelectorAll('h2')).find(function (node) { return /FlujoEclesial Studio|Listo para Proyectar|Panel de Contenido|Editor de Estilos/.test(node.textContent || ''); }); return title ? title.closest('[class*="fixed"][class*="inset-0"]') : null; }
-      function finish() { localStorage.setItem('oasis_onboarding_complete', 'true'); active = false; tour.classList.remove('is-visible'); var old = oldTourNode(); if (old) old.style.display = 'none'; setTimeout(function () { window.location.reload(); }, 80); }
-      function render() { var step = steps[index]; var percent = Math.round(((index + 1) / steps.length) * 100); tour.style.setProperty('--tour-from', step.color[0]); tour.style.setProperty('--tour-mid', step.color[1]); tour.style.setProperty('--tour-to', step.color[2]); tour.innerHTML = '<section class="oasis-tour-shell" role="dialog" aria-modal="true"><aside class="oasis-tour-rail"><div class="oasis-tour-top"><div class="oasis-tour-kicker"><span>' + step.tag + '</span><span>•</span><span>Paso ' + (index + 1) + ' de ' + steps.length + '</span></div><div class="oasis-tour-icon">' + step.icon + '</div><h2>' + step.title + '</h2><p>' + step.desc + '</p></div><div class="oasis-tour-rail-footer"><div class="oasis-tour-progress-label">' + percent + '% completado</div><div class="oasis-tour-progress-track"><div class="oasis-tour-progress-fill" style="width:' + percent + '%"></div></div></div></aside><main class="oasis-tour-main"><div class="oasis-tour-mainbar"><div class="oasis-tour-step-name">Guia rapida de operacion</div><button class="oasis-tour-skip" data-action="finish">Saltar</button></div><div class="oasis-tour-content"><p class="oasis-tour-intro">Puntos clave de este paso:</p><div class="oasis-tour-focus">' + step.focus.map(function (item) { return '<div class="oasis-tour-item"><span class="oasis-tour-check">✓</span><span>' + item + '</span></div>'; }).join('') + '</div><div class="oasis-tour-tip">' + step.tip + '</div></div><div class="oasis-tour-dots">' + steps.map(function (_, i) { return '<button class="oasis-tour-dot ' + (i === index ? 'active' : i < index ? 'done' : '') + '" data-step="' + i + '"></button>'; }).join('') + '</div><div class="oasis-tour-actions"><button class="oasis-tour-button oasis-tour-prev" data-action="prev" ' + (index === 0 ? 'style="visibility:hidden"' : '') + '>Anterior</button><button class="oasis-tour-button oasis-tour-next" data-action="next">' + (index === steps.length - 1 ? 'Comenzar' : 'Siguiente') + '</button></div></main></section>'; }
-      tour.addEventListener('click', function (event) { var target = event.target.closest('[data-action], [data-step]'); if (!target) return; if (target.dataset.step) { index = Number(target.dataset.step); render(); return; } if (target.dataset.action === 'prev') { index = Math.max(0, index - 1); render(); return; } if (target.dataset.action === 'next') { if (index === steps.length - 1) finish(); else { index += 1; render(); } return; } if (target.dataset.action === 'finish') finish(); });
-      function activateIfNeeded() { if (active || localStorage.getItem('oasis_onboarding_complete') === 'true') return; var old = oldTourNode(); if (!old) return; old.style.display = 'none'; active = true; render(); tour.classList.add('is-visible'); }
-      var observer = new MutationObserver(activateIfNeeded); observer.observe(document.documentElement, { childList: true, subtree: true }); document.addEventListener('DOMContentLoaded', activateIfNeeded); setTimeout(activateIfNeeded, 1200);
+    (function(){
+      var steps=[{icon:'✦',tag:'Bienvenida',title:'Bienvenido a FlujoEclesial Studio',desc:'Aprende el flujo completo sin detenerte en detalles innecesarios.',color:['#4f46e5','#7c3aed','#c026d3'],focus:['Preparar contenido antes del servicio','Proyectar con una salida limpia','Controlar desde celular o tablet','Trabajar aunque falle internet'],tip:'El tour esta pensado para cabina: corto, directo y facil de seguir.'},{icon:'▣',tag:'Contenido',title:'Prepara canciones, textos y recursos',desc:'Todo comienza en el panel de contenido.',color:['#0284c7','#0891b2','#0f766e'],focus:['YouTube para videos y musica de fondo','Manual para avisos, lecturas y textos libres','Biblia para pasajes listos para proyectar','Imagenes y elementos nuevos desde cero'],tip:'Prepara primero, proyecta despues. Ese orden evita carreras durante el servicio.'},{icon:'▶',tag:'Listo',title:'Comienza con confianza',desc:'Prepara, revisa, abre proyector, conecta remoto y opera desde la playlist.',color:['#16a34a','#059669','#0f766e'],focus:['Contenido listo antes de salir en vivo','Vista previa antes de enviar','Transiciones con Black, Clear o Logo','Respaldo al terminar'],tip:'La mejor proyeccion se siente invisible: clara, tranquila y sin distracciones.'}];
+      var index=0,tour=document.getElementById('oasis-pro-tour'),active=false;function oldTourNode(){var title=Array.from(document.querySelectorAll('h2')).find(function(node){return /FlujoEclesial Studio|Listo para Proyectar|Panel de Contenido|Editor de Estilos/.test(node.textContent||'')});return title?title.closest('[class*="fixed"][class*="inset-0"]'):null}function finish(){localStorage.setItem('oasis_onboarding_complete','true');active=false;tour.classList.remove('is-visible');var old=oldTourNode();if(old)old.style.display='none';setTimeout(function(){window.location.reload()},80)}function render(){var step=steps[index],percent=Math.round((index+1)/steps.length*100);tour.style.setProperty('--tour-from',step.color[0]);tour.style.setProperty('--tour-mid',step.color[1]);tour.style.setProperty('--tour-to',step.color[2]);tour.innerHTML='<section class="oasis-tour-shell" role="dialog" aria-modal="true"><aside class="oasis-tour-rail"><div class="oasis-tour-top"><div class="oasis-tour-kicker"><span>'+step.tag+'</span><span>•</span><span>Paso '+(index+1)+' de '+steps.length+'</span></div><div class="oasis-tour-icon">'+step.icon+'</div><h2>'+step.title+'</h2><p>'+step.desc+'</p></div><div class="oasis-tour-rail-footer"><div class="oasis-tour-progress-label">'+percent+'% completado</div><div class="oasis-tour-progress-track"><div class="oasis-tour-progress-fill" style="width:'+percent+'%"></div></div></div></aside><main class="oasis-tour-main"><div class="oasis-tour-mainbar"><div class="oasis-tour-step-name">Guia rapida de operacion</div><button class="oasis-tour-skip" data-action="finish">Saltar</button></div><div class="oasis-tour-content"><p class="oasis-tour-intro">Puntos clave de este paso:</p><div class="oasis-tour-focus">'+step.focus.map(function(item){return'<div class="oasis-tour-item"><span class="oasis-tour-check">✓</span><span>'+item+'</span></div>'}).join('')+'</div><div class="oasis-tour-tip">'+step.tip+'</div></div><div class="oasis-tour-dots">'+steps.map(function(_,i){return'<button class="oasis-tour-dot '+(i===index?'active':i<index?'done':'')+'" data-step="'+i+'"></button>'}).join('')+'</div><div class="oasis-tour-actions"><button class="oasis-tour-button oasis-tour-prev" data-action="prev" '+(index===0?'style="visibility:hidden"':'')+'>Anterior</button><button class="oasis-tour-button oasis-tour-next" data-action="next">'+(index===steps.length-1?'Comenzar':'Siguiente')+'</button></div></main></section>'}tour.addEventListener('click',function(event){var target=event.target.closest('[data-action], [data-step]');if(!target)return;if(target.dataset.step){index=Number(target.dataset.step);render();return}if(target.dataset.action==='prev'){index=Math.max(0,index-1);render();return}if(target.dataset.action==='next'){if(index===steps.length-1)finish();else{index+=1;render()}return}if(target.dataset.action==='finish')finish()});function activateIfNeeded(){if(active||localStorage.getItem('oasis_onboarding_complete')==='true')return;var old=oldTourNode();if(!old)return;old.style.display='none';active=true;render();tour.classList.add('is-visible')}var observer=new MutationObserver(activateIfNeeded);observer.observe(document.documentElement,{childList:true,subtree:true});document.addEventListener('DOMContentLoaded',activateIfNeeded);setTimeout(activateIfNeeded,1200);
     })();
   </script>
 </body>
