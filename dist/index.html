@@ -3,8 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#111827" />
@@ -12,9 +11,7 @@
   <link rel="icon" type="image/svg+xml" href="./logo.svg">
   <link rel="apple-touch-icon" href="./logo.svg">
   <script src="https://cdn.tailwindcss.com"></script>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Bungee&family=Caveat:wght@400;700&family=Cinzel:wght@400;700;900&family=Cormorant+Garamond:wght@400;700&family=DM+Sans:wght@400;700&family=Inter:wght@300;400;600;800&family=Josefin+Sans:wght@400;700&family=Lato:wght@400;700;900&family=Lexend:wght@400;700&family=Lobster&family=Merriweather:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Open+Sans:wght@400;700;800&family=Oswald:wght@400;700&family=Outfit:wght@400;700;900&family=Pacifico&family=Permanent+Marker&family=Playfair+Display:wght@400;700;900&family=Poppins:wght@400;700;900&family=Quicksand:wght@400;700&family=Raleway:wght@400;700;900&family=Roboto:wght@400;700;900&family=Space+Grotesk:wght@400;700&family=Syne:wght@400;700;800&family=Unbounded:wght@400;700;900&display=swap"
-    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Montserrat:wght@400;700;900&family=Poppins:wght@400;700;900&family=Playfair+Display:wght@400;700;900&family=Bebas+Neue&family=Archivo+Black&family=Oswald:wght@400;700&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
     .slide-font { font-family: 'Montserrat', sans-serif; }
@@ -28,8 +25,59 @@
     .select-none { -webkit-user-select: none; user-select: none; }
     @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     .animate-fade-in { animation: fade-in 0.2s ease-out; }
-  </style>
 
+    .oasis-save-logo-default {
+      width: 100%;
+      margin-top: 14px;
+      border: 1px solid rgba(251, 191, 36, 0.42);
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.22), rgba(14, 165, 233, 0.14));
+      color: #fef3c7;
+      padding: 13px 14px;
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+    }
+
+    .oasis-save-logo-default:hover { border-color: rgba(253, 224, 71, 0.8); background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(14, 165, 233, 0.2)); }
+    .oasis-save-logo-default.is-saved { border-color: rgba(110, 231, 183, 0.7); background: rgba(16, 185, 129, 0.18); color: #d1fae5; }
+    .oasis-save-logo-note { margin-top: 8px; text-align: center; color: #64748b; font-size: 10px; font-weight: 700; line-height: 1.45; }
+
+    #oasis-pro-tour { position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(2, 6, 23, 0.78); backdrop-filter: blur(8px); color: #f8fafc; font-family: Inter, sans-serif; }
+    #oasis-pro-tour.is-visible { display: flex; }
+    .oasis-tour-shell { width: min(1040px, 100%); max-height: min(88vh, 650px); display: grid; grid-template-columns: 330px minmax(0, 1fr); overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 22px; background: #020617; box-shadow: 0 30px 100px rgba(0, 0, 0, 0.64); }
+    .oasis-tour-rail { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 560px; padding: 28px; background: radial-gradient(circle at 20% 12%, rgba(255,255,255,0.22), transparent 26%), linear-gradient(145deg, var(--tour-from), var(--tour-mid), var(--tour-to)); overflow: hidden; }
+    .oasis-tour-top, .oasis-tour-rail-footer { position: relative; z-index: 1; }
+    .oasis-tour-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid rgba(255,255,255,0.22); border-radius: 999px; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.88); font-size: 11px; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; }
+    .oasis-tour-icon { width: 74px; height: 74px; display: grid; place-items: center; margin-top: 28px; border-radius: 23px; border: 1px solid rgba(255,255,255,0.24); background: rgba(255,255,255,0.16); box-shadow: 0 20px 38px rgba(0,0,0,0.24); font-size: 34px; }
+    .oasis-tour-rail h2 { margin: 22px 0 0; max-width: 280px; font-size: 31px; line-height: 1.05; font-weight: 950; letter-spacing: 0; }
+    .oasis-tour-rail p { margin: 14px 0 0; max-width: 280px; color: rgba(255,255,255,0.88); font-size: 15px; line-height: 1.58; }
+    .oasis-tour-progress-label { margin-bottom: 12px; color: rgba(255,255,255,0.84); font-size: 12px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+    .oasis-tour-progress-track { height: 9px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,0.18); }
+    .oasis-tour-progress-fill { height: 100%; border-radius: 999px; background: #fff; transition: width 220ms ease; }
+    .oasis-tour-main { min-width: 0; display: flex; flex-direction: column; min-height: 560px; }
+    .oasis-tour-mainbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(15, 23, 42, 0.82); }
+    .oasis-tour-step-name { color: #94a3b8; font-size: 12px; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; }
+    .oasis-tour-skip { border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; background: rgba(255,255,255,0.05); color: #cbd5e1; padding: 9px 13px; font-size: 12px; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer; }
+    .oasis-tour-content { flex: 1; padding: 26px 28px 20px; overflow: hidden; background: linear-gradient(180deg, rgba(15,23,42,0.92), #020617); }
+    .oasis-tour-intro { margin: 0 0 16px; color: #e2e8f0; font-size: 18px; line-height: 1.55; }
+    .oasis-tour-focus { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .oasis-tour-item { display: flex; align-items: flex-start; gap: 11px; min-height: 74px; padding: 13px; border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; background: rgba(255,255,255,0.045); color: #cbd5e1; font-size: 14px; line-height: 1.42; }
+    .oasis-tour-check { flex: 0 0 auto; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 8px; background: rgba(129, 140, 248, 0.18); color: #c4b5fd; font-weight: 950; font-size: 13px; }
+    .oasis-tour-tip { margin-top: 14px; padding: 14px 15px; border: 1px solid rgba(103,232,249,0.16); border-radius: 14px; background: rgba(8,145,178,0.1); color: #cffafe; font-size: 14px; line-height: 1.5; }
+    .oasis-tour-dots { display: flex; flex-wrap: wrap; gap: 7px; padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.07); background: rgba(2,6,23,0.96); }
+    .oasis-tour-dot { width: 12px; height: 8px; border: 0; border-radius: 999px; background: #475569; cursor: pointer; transition: 180ms ease; }
+    .oasis-tour-dot.done { width: 18px; background: rgba(129,140,248,0.6); }
+    .oasis-tour-dot.active { width: 34px; background: #818cf8; }
+    .oasis-tour-actions { display: flex; gap: 12px; padding: 18px 24px 22px; background: #020617; }
+    .oasis-tour-button { height: 50px; border: 0; border-radius: 14px; color: white; font-weight: 950; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; }
+    .oasis-tour-prev { flex: 1; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.045); color: #cbd5e1; }
+    .oasis-tour-next { flex: 1.35; background: linear-gradient(135deg, var(--tour-from), var(--tour-to)); box-shadow: 0 16px 28px rgba(79,70,229,0.24); }
+    @media (max-width: 900px) { #oasis-pro-tour { padding: 10px; } .oasis-tour-shell { grid-template-columns: 1fr; max-height: 94vh; } .oasis-tour-rail { min-height: 0; padding: 20px 20px 18px; } .oasis-tour-icon { width: 56px; height: 56px; margin-top: 14px; border-radius: 18px; font-size: 28px; } .oasis-tour-rail h2 { margin-top: 14px; max-width: none; font-size: clamp(23px, 6vw, 31px); } .oasis-tour-rail p { max-width: none; font-size: 14px; } .oasis-tour-rail-footer { margin-top: 18px; } .oasis-tour-main { min-height: 0; } .oasis-tour-content { overflow: auto; padding: 18px; } .oasis-tour-focus { grid-template-columns: 1fr; } .oasis-tour-item { min-height: 0; } .oasis-tour-mainbar, .oasis-tour-dots, .oasis-tour-actions { padding-left: 18px; padding-right: 18px; } }
+  </style>
   <link rel="stylesheet" href="/index.css">
   <script type="importmap">
 {
@@ -44,308 +92,7 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="./assets/index-C_2HMn0u.js?v=onboarding-compact-20260516"></script>
-  <style>
-    #oasis-pro-tour {
-      position: fixed;
-      inset: 0;
-      z-index: 100000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      background: rgba(2, 6, 23, 0.78);
-      backdrop-filter: blur(8px);
-      color: #f8fafc;
-      font-family: Inter, sans-serif;
-    }
-
-    #oasis-pro-tour.is-visible { display: flex; }
-
-    .oasis-tour-shell {
-      width: min(1040px, 100%);
-      max-height: min(88vh, 650px);
-      display: grid;
-      grid-template-columns: 330px minmax(0, 1fr);
-      overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 22px;
-      background: #020617;
-      box-shadow: 0 30px 100px rgba(0, 0, 0, 0.64);
-    }
-
-    .oasis-tour-rail {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      min-height: 560px;
-      padding: 28px;
-      background: radial-gradient(circle at 20% 12%, rgba(255,255,255,0.22), transparent 26%), linear-gradient(145deg, var(--tour-from), var(--tour-mid), var(--tour-to));
-      overflow: hidden;
-    }
-
-    .oasis-tour-rail:after {
-      content: "";
-      position: absolute;
-      inset: auto -70px -90px auto;
-      width: 220px;
-      height: 220px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.14);
-      filter: blur(28px);
-    }
-
-    .oasis-tour-top,
-    .oasis-tour-rail-footer { position: relative; z-index: 1; }
-
-    .oasis-tour-kicker {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 12px;
-      border: 1px solid rgba(255,255,255,0.22);
-      border-radius: 999px;
-      background: rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.88);
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    .oasis-tour-icon {
-      width: 74px;
-      height: 74px;
-      display: grid;
-      place-items: center;
-      margin-top: 28px;
-      border-radius: 23px;
-      border: 1px solid rgba(255,255,255,0.24);
-      background: rgba(255,255,255,0.16);
-      box-shadow: 0 20px 38px rgba(0,0,0,0.24);
-      font-size: 34px;
-    }
-
-    .oasis-tour-rail h2 {
-      margin: 22px 0 0;
-      max-width: 280px;
-      font-size: 31px;
-      line-height: 1.05;
-      font-weight: 950;
-      letter-spacing: 0;
-    }
-
-    .oasis-tour-rail p {
-      margin: 14px 0 0;
-      max-width: 280px;
-      color: rgba(255,255,255,0.88);
-      font-size: 15px;
-      line-height: 1.58;
-    }
-
-    .oasis-tour-progress-label {
-      margin-bottom: 12px;
-      color: rgba(255,255,255,0.84);
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    .oasis-tour-progress-track {
-      height: 9px;
-      overflow: hidden;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.18);
-    }
-
-    .oasis-tour-progress-fill {
-      height: 100%;
-      border-radius: 999px;
-      background: #fff;
-      transition: width 220ms ease;
-    }
-
-    .oasis-tour-main {
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      min-height: 560px;
-    }
-
-    .oasis-tour-mainbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 18px 24px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      background: rgba(15, 23, 42, 0.82);
-    }
-
-    .oasis-tour-step-name {
-      color: #94a3b8;
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-    }
-
-    .oasis-tour-skip {
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 999px;
-      background: rgba(255,255,255,0.05);
-      color: #cbd5e1;
-      padding: 9px 13px;
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      cursor: pointer;
-    }
-
-    .oasis-tour-content {
-      flex: 1;
-      padding: 26px 28px 20px;
-      overflow: hidden;
-      background: linear-gradient(180deg, rgba(15,23,42,0.92), #020617);
-    }
-
-    .oasis-tour-intro {
-      margin: 0 0 16px;
-      color: #e2e8f0;
-      font-size: 18px;
-      line-height: 1.55;
-    }
-
-    .oasis-tour-focus {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .oasis-tour-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 11px;
-      min-height: 74px;
-      padding: 13px;
-      border: 1px solid rgba(255,255,255,0.09);
-      border-radius: 14px;
-      background: rgba(255,255,255,0.045);
-      color: #cbd5e1;
-      font-size: 14px;
-      line-height: 1.42;
-    }
-
-    .oasis-tour-check {
-      flex: 0 0 auto;
-      width: 22px;
-      height: 22px;
-      display: grid;
-      place-items: center;
-      border-radius: 8px;
-      background: rgba(129, 140, 248, 0.18);
-      color: #c4b5fd;
-      font-weight: 950;
-      font-size: 13px;
-    }
-
-    .oasis-tour-tip {
-      margin-top: 14px;
-      padding: 14px 15px;
-      border: 1px solid rgba(103,232,249,0.16);
-      border-radius: 14px;
-      background: rgba(8,145,178,0.1);
-      color: #cffafe;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    .oasis-tour-dots {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 7px;
-      padding: 16px 24px;
-      border-top: 1px solid rgba(255,255,255,0.07);
-      background: rgba(2,6,23,0.96);
-    }
-
-    .oasis-tour-dot {
-      width: 12px;
-      height: 8px;
-      border: 0;
-      border-radius: 999px;
-      background: #475569;
-      cursor: pointer;
-      transition: 180ms ease;
-    }
-
-    .oasis-tour-dot.done { width: 18px; background: rgba(129,140,248,0.6); }
-    .oasis-tour-dot.active { width: 34px; background: #818cf8; }
-
-    .oasis-tour-actions {
-      display: flex;
-      gap: 12px;
-      padding: 18px 24px 22px;
-      background: #020617;
-    }
-
-    .oasis-tour-button {
-      height: 50px;
-      border: 0;
-      border-radius: 14px;
-      color: white;
-      font-weight: 950;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      cursor: pointer;
-    }
-
-    .oasis-tour-prev {
-      flex: 1;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.045);
-      color: #cbd5e1;
-    }
-
-    .oasis-tour-next {
-      flex: 1.35;
-      background: linear-gradient(135deg, var(--tour-from), var(--tour-to));
-      box-shadow: 0 16px 28px rgba(79,70,229,0.24);
-    }
-
-    @media (max-width: 900px) {
-      #oasis-pro-tour { padding: 10px; }
-      .oasis-tour-shell { grid-template-columns: 1fr; max-height: 94vh; }
-      .oasis-tour-rail { min-height: 0; padding: 20px 20px 18px; }
-      .oasis-tour-icon { width: 56px; height: 56px; margin-top: 14px; border-radius: 18px; font-size: 28px; }
-      .oasis-tour-rail h2 { margin-top: 14px; max-width: none; font-size: clamp(23px, 6vw, 31px); }
-      .oasis-tour-rail p { max-width: none; font-size: 14px; }
-      .oasis-tour-rail-footer { margin-top: 18px; }
-      .oasis-tour-main { min-height: 0; }
-      .oasis-tour-content { overflow: auto; padding: 18px; }
-      .oasis-tour-focus { grid-template-columns: 1fr; }
-      .oasis-tour-item { min-height: 0; }
-      .oasis-tour-mainbar, .oasis-tour-dots, .oasis-tour-actions { padding-left: 18px; padding-right: 18px; }
-    }
-
-    @media (max-height: 720px) and (min-width: 901px) {
-      .oasis-tour-shell { max-height: 94vh; }
-      .oasis-tour-rail, .oasis-tour-main { min-height: 510px; }
-      .oasis-tour-rail { padding: 22px; }
-      .oasis-tour-icon { width: 58px; height: 58px; margin-top: 18px; font-size: 28px; }
-      .oasis-tour-rail h2 { font-size: 26px; }
-      .oasis-tour-content { padding: 18px 24px; }
-      .oasis-tour-intro { font-size: 16px; margin-bottom: 12px; }
-      .oasis-tour-item { min-height: 62px; padding: 11px; font-size: 13px; }
-      .oasis-tour-tip { margin-top: 12px; padding: 12px; font-size: 13px; }
-      .oasis-tour-dots { padding-top: 12px; padding-bottom: 12px; }
-      .oasis-tour-actions { padding-top: 14px; padding-bottom: 16px; }
-      .oasis-tour-button { height: 46px; }
-    }
-  </style>
+  <script type="module" crossorigin src="./assets/index-C_2HMn0u.js?v=logo-default-20260516"></script>
 </head>
 
 <body class="bg-gray-900 text-white h-screen overflow-hidden">
@@ -353,93 +100,108 @@
   <div id="oasis-pro-tour" aria-live="polite"></div>
   <script>
     (function () {
-      var steps = [
-        { icon: '✦', tag: 'Bienvenida', title: 'Bienvenido a FlujoEclesial Studio', desc: 'Aprende el flujo completo sin detenerte en detalles innecesarios.', color: ['#4f46e5', '#7c3aed', '#c026d3'], focus: ['Preparar contenido antes del servicio', 'Proyectar con una salida limpia', 'Controlar desde celular o tablet', 'Trabajar aunque falle internet'], tip: 'El tour está pensado para cabina: corto, directo y fácil de seguir.' },
-        { icon: '▣', tag: 'Contenido', title: 'Prepara canciones, textos y recursos', desc: 'Todo comienza en el panel de contenido.', color: ['#0284c7', '#0891b2', '#0f766e'], focus: ['YouTube para videos y música de fondo', 'Manual para avisos, lecturas y textos libres', 'Biblia para pasajes listos para proyectar', 'Imágenes y elementos nuevos desde cero'], tip: 'Prepara primero, proyecta después. Ese orden evita carreras durante el servicio.' },
-        { icon: '✚', tag: 'Biblia', title: 'Crea lecturas bíblicas en segundos', desc: 'Busca una referencia y conviértela en diapositivas limpias.', color: ['#d97706', '#ea580c', '#e11d48'], focus: ['RV1960, NVI, NTV, LBLA, NIV, KJV y NKJV', 'Autocompletado de libros', 'Formato consistente para lectura pública', 'Útil para predicación, lecturas y anuncios'], tip: 'Usa referencias claras como Juan 3:16 o Salmos 23:1-4.' },
-        { icon: '⇧', tag: 'Importación', title: 'Agrega PDF, PowerPoint y multimedia', desc: 'El material externo entra al mismo flujo de presentación.', color: ['#1d4ed8', '#4338ca', '#6d28d9'], focus: ['PowerPoint (.pptx) convertido en slides', 'PDF integrado al servicio', 'Imágenes y videos locales', 'Medios organizados junto a canciones y textos'], tip: 'Revisa cada archivo importado en vista previa antes de salir en vivo.' },
-        { icon: '◐', tag: 'Diseño', title: 'Ajusta el estilo antes de proyectar', desc: 'Controla la apariencia sin perder velocidad.', color: ['#9333ea', '#db2777', '#e11d48'], focus: ['Temas predefinidos', 'Fuentes, tamaños, sombras y colores', 'Fondos, degradados e imágenes', 'Vista previa antes de enviar'], tip: 'Un estilo simple y consistente casi siempre se ve más profesional.' },
-        { icon: '☰', tag: 'Playlist', title: 'Ordena el servicio completo', desc: 'La playlist funciona como la escaleta de cabina.', color: ['#059669', '#0d9488', '#0891b2'], focus: ['Arrastra para reordenar', 'Edita títulos para claridad', 'Agrupa canciones, lecturas y avisos', 'Separa eventos usando proyectos'], tip: 'Nombra los elementos como los diría el equipo: Canción 1, Lectura, Anuncios, Predica.' },
-        { icon: '▦', tag: 'Slides', title: 'Revisa cada diapositiva antes de enviarla', desc: 'Selecciona, previsualiza y manda al vivo cuando esté lista.', color: ['#7c3aed', '#4f46e5', '#1d4ed8'], focus: ['Clic para previsualizar', 'Doble clic para enviar en vivo', 'Flechas para navegar rápido', 'PDF y PPTX entran en este flujo'], tip: 'La vista previa es tu último filtro antes de que lo vea la audiencia.' },
-        { icon: '▰', tag: 'En vivo', title: 'Controla la salida del proyector', desc: 'Usa los botones de seguridad para transiciones limpias.', color: ['#ea580c', '#d97706', '#ca8a04'], focus: ['Black para pantalla negra', 'Clear para ocultar texto', 'Logo para pausa visual', 'Split y Proyector para salidas especiales'], tip: 'Black, Clear y Logo salvan momentos cuando necesitas corregir algo rápido.' },
-        { icon: '▱', tag: 'Remoto', title: 'Opera desde celular o tablet', desc: 'El remoto te libera de estar pegado a la computadora.', color: ['#0891b2', '#2563eb', '#4338ca'], focus: ['Conexión por QR o URL local', 'Cambio de slides desde el móvil', 'Búsqueda dentro de la playlist', 'Agregar imágenes desde el dispositivo'], tip: 'La computadora principal sigue abierta; el teléfono solo envía comandos.' },
-        { icon: '⌕', tag: 'Zoom', title: 'Ajusta el encuadre desde el remoto', desc: 'Corrige imágenes o documentos sin rehacer la diapositiva.', color: ['#c026d3', '#9333ea', '#4f46e5'], focus: ['Acercar y alejar', 'Mover el encuadre', 'Gestos táctiles compatibles', 'Reiniciar la vista original'], tip: 'Útil cuando una imagen o documento necesita leerse mejor en pantalla grande.' },
-        { icon: '☁', tag: 'Respaldo', title: 'Trabaja local y sincroniza con control', desc: 'Prioriza estabilidad durante el evento y respalda cuando convenga.', color: ['#334155', '#1d4ed8', '#0891b2'], focus: ['Modo local-first', 'Supabase cuando está configurado', 'Sincronización manual recomendada', 'Exportar e importar .oasis.json'], tip: 'Antes de cambios grandes, exporta una copia del servicio.' },
-        { icon: '↺', tag: 'Recuperación', title: 'Corrige errores sin detener el flujo', desc: 'Historial, proyectos y respaldo ayudan a volver al camino.', color: ['#be123c', '#b91c1c', '#ea580c'], focus: ['Historial de acciones', 'Restauración cuando haga falta', 'Importación selectiva', 'Calendario y temporizador de apoyo'], tip: 'En vivo, resolver rápido vale más que editar perfecto.' },
-        { icon: '⌨', tag: 'Atajos', title: 'Maneja la proyección con teclado', desc: 'Reduce clics y gana velocidad durante el servicio.', color: ['#3f3f46', '#334155', '#111827'], focus: ['Espacio: siguiente slide', 'Flechas: navegar slides', 'B: blackout', 'C: clear', 'L: logo', 'P: proyector', 'F: pantalla completa'], tip: 'Practica los atajos una vez antes del servicio y el flujo se siente mucho más natural.' },
-        { icon: '▶', tag: 'Listo', title: 'Comienza con confianza', desc: 'Prepara, revisa, abre proyector, conecta remoto y opera desde la playlist.', color: ['#16a34a', '#059669', '#0f766e'], focus: ['Contenido listo antes de salir en vivo', 'Vista previa antes de enviar', 'Transiciones con Black, Clear o Logo', 'Respaldo al terminar'], tip: 'La mejor proyección se siente invisible: clara, tranquila y sin distracciones.' }
-      ];
+      function readLogoSettingsFromPanel() {
+        var title = Array.from(document.querySelectorAll('h2,h3,p')).find(function (node) {
+          return /Pantalla de bienvenida|Logo y Proyector/i.test(node.textContent || '');
+        });
+        var panel = title ? title.closest('.rounded-\[1\.35rem\], div') : null;
+        var preview = panel ? panel.querySelector('[style*="background"]') : null;
+        var img = panel ? panel.querySelector('img[alt="Logo"]') : null;
+        var ranges = panel ? Array.from(panel.querySelectorAll('input[type="range"]')) : [];
+        var glowButton = panel ? Array.from(panel.querySelectorAll('button')).find(function (button) { return /Brillo del logo/i.test(button.textContent || ''); }) : null;
+        return {
+          logoUrl: img ? img.getAttribute('src') : undefined,
+          logoBackground: preview ? preview.style.background || preview.style.backgroundImage || '#ffffff' : '#ffffff',
+          logoSize: ranges[0] ? parseInt(ranges[0].value, 10) : 78,
+          logoOpacity: ranges[1] ? parseFloat(ranges[1].value) : 1,
+          logoGlow: glowButton ? /activo/i.test(glowButton.textContent || '') : !!(img && img.style.filter && img.style.filter !== 'none'),
+          logoBgAnimation: undefined
+        };
+      }
 
+      function injectLogoDefaultButton() {
+        var title = Array.from(document.querySelectorAll('h2,h3,p')).find(function (node) {
+          return /Pantalla de bienvenida/i.test(node.textContent || '');
+        });
+        if (!title) return;
+        var panel = title.closest('div.rounded-\[1\.35rem\]') || title.closest('div');
+        if (!panel || panel.querySelector('[data-oasis-save-logo-default="1"]')) return;
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'oasis-save-logo-default';
+        button.dataset.oasisSaveLogoDefault = '1';
+        button.textContent = 'Guardar este logo como predeterminado';
+        var note = document.createElement('div');
+        note.className = 'oasis-save-logo-note';
+        note.textContent = 'Se usara automaticamente cada vez que abras la app o actives el modo LOGO.';
+        button.addEventListener('click', function () {
+          try {
+            localStorage.setItem('oasis_global_logo_settings_v1', JSON.stringify(readLogoSettingsFromPanel()));
+            button.classList.add('is-saved');
+            button.textContent = 'Logo predeterminado guardado';
+            setTimeout(function () {
+              button.classList.remove('is-saved');
+              button.textContent = 'Guardar este logo como predeterminado';
+            }, 2600);
+          } catch (error) {
+            console.warn(error);
+            alert('No se pudo guardar el logo predeterminado en este navegador.');
+          }
+        });
+        panel.appendChild(button);
+        panel.appendChild(note);
+      }
+
+      function improveLogoPreviewSize() {
+        var title = Array.from(document.querySelectorAll('h2,h3,p')).find(function (node) {
+          return /Pantalla de bienvenida/i.test(node.textContent || '');
+        });
+        if (!title) return;
+        var panel = title.closest('div.rounded-\[1\.35rem\]') || title.closest('div');
+        if (!panel) return;
+        var img = panel.querySelector('img[alt="Logo"]');
+        var size = panel.querySelector('input[type="range"]');
+        if (!img || !size) return;
+        img.style.width = (parseInt(size.value, 10) || 78) + '%';
+        if (!size.dataset.oasisLogoSizeBound) {
+          size.dataset.oasisLogoSizeBound = '1';
+          size.addEventListener('input', function () { img.style.width = (parseInt(size.value, 10) || 78) + '%'; });
+        }
+      }
+
+      setInterval(function () {
+        injectLogoDefaultButton();
+        improveLogoPreviewSize();
+      }, 900);
+    })();
+  </script>
+  <script>
+    (function () {
+      var steps = [
+        { icon: '✦', tag: 'Bienvenida', title: 'Bienvenido a FlujoEclesial Studio', desc: 'Aprende el flujo completo sin detenerte en detalles innecesarios.', color: ['#4f46e5', '#7c3aed', '#c026d3'], focus: ['Preparar contenido antes del servicio', 'Proyectar con una salida limpia', 'Controlar desde celular o tablet', 'Trabajar aunque falle internet'], tip: 'El tour esta pensado para cabina: corto, directo y facil de seguir.' },
+        { icon: '▣', tag: 'Contenido', title: 'Prepara canciones, textos y recursos', desc: 'Todo comienza en el panel de contenido.', color: ['#0284c7', '#0891b2', '#0f766e'], focus: ['YouTube para videos y musica de fondo', 'Manual para avisos, lecturas y textos libres', 'Biblia para pasajes listos para proyectar', 'Imagenes y elementos nuevos desde cero'], tip: 'Prepara primero, proyecta despues. Ese orden evita carreras durante el servicio.' },
+        { icon: '✚', tag: 'Biblia', title: 'Crea lecturas biblicas en segundos', desc: 'Busca una referencia y conviertela en diapositivas limpias.', color: ['#d97706', '#ea580c', '#e11d48'], focus: ['RV1960, NVI, NTV, LBLA, NIV, KJV y NKJV', 'Autocompletado de libros', 'Formato consistente para lectura publica', 'Util para predicacion, lecturas y anuncios'], tip: 'Usa referencias claras como Juan 3:16 o Salmos 23:1-4.' },
+        { icon: '⇧', tag: 'Importacion', title: 'Agrega PDF, PowerPoint y multimedia', desc: 'El material externo entra al mismo flujo de presentacion.', color: ['#1d4ed8', '#4338ca', '#6d28d9'], focus: ['PowerPoint convertido en slides', 'PDF integrado al servicio', 'Imagenes y videos locales', 'Medios organizados junto a canciones y textos'], tip: 'Revisa cada archivo importado en vista previa antes de salir en vivo.' },
+        { icon: '◐', tag: 'Diseno', title: 'Ajusta el estilo antes de proyectar', desc: 'Controla la apariencia sin perder velocidad.', color: ['#9333ea', '#db2777', '#e11d48'], focus: ['Temas predefinidos', 'Fuentes, tamanos, sombras y colores', 'Fondos, degradados e imagenes', 'Vista previa antes de enviar'], tip: 'Un estilo simple y consistente casi siempre se ve mas profesional.' },
+        { icon: '☰', tag: 'Playlist', title: 'Ordena el servicio completo', desc: 'La playlist funciona como la escaleta de cabina.', color: ['#059669', '#0d9488', '#0891b2'], focus: ['Arrastra para reordenar', 'Edita titulos para claridad', 'Agrupa canciones, lecturas y avisos', 'Separa eventos usando proyectos'], tip: 'Nombra los elementos como los diria el equipo: Cancion 1, Lectura, Anuncios, Predica.' },
+        { icon: '▦', tag: 'Slides', title: 'Revisa cada diapositiva antes de enviarla', desc: 'Selecciona, previsualiza y manda al vivo cuando este lista.', color: ['#7c3aed', '#4f46e5', '#1d4ed8'], focus: ['Clic para previsualizar', 'Doble clic para enviar en vivo', 'Flechas para navegar rapido', 'PDF y PPTX entran en este flujo'], tip: 'La vista previa es tu ultimo filtro antes de que lo vea la audiencia.' },
+        { icon: '▰', tag: 'En vivo', title: 'Controla la salida del proyector', desc: 'Usa los botones de seguridad para transiciones limpias.', color: ['#ea580c', '#d97706', '#ca8a04'], focus: ['Black para pantalla negra', 'Clear para ocultar texto', 'Logo para pausa visual', 'Split y Proyector para salidas especiales'], tip: 'Black, Clear y Logo salvan momentos cuando necesitas corregir algo rapido.' },
+        { icon: '▱', tag: 'Remoto', title: 'Opera desde celular o tablet', desc: 'El remoto te libera de estar pegado a la computadora.', color: ['#0891b2', '#2563eb', '#4338ca'], focus: ['Conexion por QR o URL local', 'Cambio de slides desde el movil', 'Busqueda dentro de la playlist', 'Agregar imagenes desde el dispositivo'], tip: 'La computadora principal sigue abierta; el telefono solo envia comandos.' },
+        { icon: '⌕', tag: 'Zoom', title: 'Ajusta el encuadre desde el remoto', desc: 'Corrige imagenes o documentos sin rehacer la diapositiva.', color: ['#c026d3', '#9333ea', '#4f46e5'], focus: ['Acercar y alejar', 'Mover el encuadre', 'Gestos tactiles compatibles', 'Reiniciar la vista original'], tip: 'Util cuando una imagen o documento necesita leerse mejor en pantalla grande.' },
+        { icon: '☁', tag: 'Respaldo', title: 'Trabaja local y sincroniza con control', desc: 'Prioriza estabilidad durante el evento y respalda cuando convenga.', color: ['#334155', '#1d4ed8', '#0891b2'], focus: ['Modo local-first', 'Supabase cuando esta configurado', 'Sincronizacion manual recomendada', 'Exportar e importar .oasis.json'], tip: 'Antes de cambios grandes, exporta una copia del servicio.' },
+        { icon: '↺', tag: 'Recuperacion', title: 'Corrige errores sin detener el flujo', desc: 'Historial, proyectos y respaldo ayudan a volver al camino.', color: ['#be123c', '#b91c1c', '#ea580c'], focus: ['Historial de acciones', 'Restauracion cuando haga falta', 'Importacion selectiva', 'Calendario y temporizador de apoyo'], tip: 'En vivo, resolver rapido vale mas que editar perfecto.' },
+        { icon: '⌨', tag: 'Atajos', title: 'Maneja la proyeccion con teclado', desc: 'Reduce clics y gana velocidad durante el servicio.', color: ['#3f3f46', '#334155', '#111827'], focus: ['Espacio: siguiente slide', 'Flechas: navegar slides', 'B: blackout', 'C: clear', 'L: logo', 'P: proyector', 'F: pantalla completa'], tip: 'Practica los atajos una vez antes del servicio y el flujo se siente mucho mas natural.' },
+        { icon: '▶', tag: 'Listo', title: 'Comienza con confianza', desc: 'Prepara, revisa, abre proyector, conecta remoto y opera desde la playlist.', color: ['#16a34a', '#059669', '#0f766e'], focus: ['Contenido listo antes de salir en vivo', 'Vista previa antes de enviar', 'Transiciones con Black, Clear o Logo', 'Respaldo al terminar'], tip: 'La mejor proyeccion se siente invisible: clara, tranquila y sin distracciones.' }
+      ];
       var index = 0;
       var tour = document.getElementById('oasis-pro-tour');
       var active = false;
-
-      function oldTourNode() {
-        var titles = Array.prototype.slice.call(document.querySelectorAll('h2'));
-        var title = titles.find(function (node) {
-          return /FlujoEclesial Studio|Listo para Proyectar|Panel de Contenido|Editor de Estilos/.test(node.textContent || '');
-        });
-        return title ? title.closest('[class*="fixed"][class*="inset-0"]') : null;
-      }
-
-      function finish() {
-        localStorage.setItem('oasis_onboarding_complete', 'true');
-        active = false;
-        tour.classList.remove('is-visible');
-        var old = oldTourNode();
-        if (old) old.style.display = 'none';
-        setTimeout(function () { window.location.reload(); }, 80);
-      }
-
-      function render() {
-        var step = steps[index];
-        var percent = Math.round(((index + 1) / steps.length) * 100);
-        tour.style.setProperty('--tour-from', step.color[0]);
-        tour.style.setProperty('--tour-mid', step.color[1]);
-        tour.style.setProperty('--tour-to', step.color[2]);
-        tour.innerHTML = '<section class="oasis-tour-shell" role="dialog" aria-modal="true" aria-label="Tutorial de FlujoEclesial">' +
-          '<aside class="oasis-tour-rail">' +
-          '<div class="oasis-tour-top"><div class="oasis-tour-kicker"><span>' + step.tag + '</span><span>•</span><span>Paso ' + (index + 1) + ' de ' + steps.length + '</span></div><div class="oasis-tour-icon">' + step.icon + '</div><h2>' + step.title + '</h2><p>' + step.desc + '</p></div>' +
-          '<div class="oasis-tour-rail-footer"><div class="oasis-tour-progress-label">' + percent + '% completado</div><div class="oasis-tour-progress-track"><div class="oasis-tour-progress-fill" style="width:' + percent + '%"></div></div></div>' +
-          '</aside>' +
-          '<main class="oasis-tour-main">' +
-          '<div class="oasis-tour-mainbar"><div class="oasis-tour-step-name">Guía rápida de operación</div><button class="oasis-tour-skip" data-action="finish">Saltar</button></div>' +
-          '<div class="oasis-tour-content"><p class="oasis-tour-intro">Puntos clave de este paso:</p><div class="oasis-tour-focus">' + step.focus.map(function (item) { return '<div class="oasis-tour-item"><span class="oasis-tour-check">✓</span><span>' + item + '</span></div>'; }).join('') + '</div><div class="oasis-tour-tip">' + step.tip + '</div></div>' +
-          '<div class="oasis-tour-dots">' + steps.map(function (_, i) { return '<button class="oasis-tour-dot ' + (i === index ? 'active' : i < index ? 'done' : '') + '" data-step="' + i + '" aria-label="Ir al paso ' + (i + 1) + '"></button>'; }).join('') + '</div>' +
-          '<div class="oasis-tour-actions"><button class="oasis-tour-button oasis-tour-prev" data-action="prev" ' + (index === 0 ? 'style="visibility:hidden"' : '') + '>Anterior</button><button class="oasis-tour-button oasis-tour-next" data-action="next">' + (index === steps.length - 1 ? 'Comenzar' : 'Siguiente') + '</button></div>' +
-          '</main></section>';
-      }
-
-      tour.addEventListener('click', function (event) {
-        var target = event.target.closest('[data-action], [data-step]');
-        if (!target) return;
-        if (target.dataset.step) { index = Number(target.dataset.step); render(); return; }
-        if (target.dataset.action === 'prev') { index = Math.max(0, index - 1); render(); return; }
-        if (target.dataset.action === 'next') { if (index === steps.length - 1) finish(); else { index += 1; render(); } return; }
-        if (target.dataset.action === 'finish') finish();
-      });
-
-      document.addEventListener('keydown', function (event) {
-        if (!active) return;
-        if (event.key === 'Escape') finish();
-        if (event.key === 'ArrowLeft') { index = Math.max(0, index - 1); render(); }
-        if (event.key === 'ArrowRight') { if (index === steps.length - 1) finish(); else { index += 1; render(); } }
-      });
-
-      function activateIfNeeded() {
-        if (active || localStorage.getItem('oasis_onboarding_complete') === 'true') return;
-        var old = oldTourNode();
-        if (!old) return;
-        old.style.display = 'none';
-        active = true;
-        render();
-        tour.classList.add('is-visible');
-      }
-
-      var observer = new MutationObserver(activateIfNeeded);
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-      document.addEventListener('DOMContentLoaded', activateIfNeeded);
-      setTimeout(activateIfNeeded, 1200);
+      function oldTourNode() { var title = Array.from(document.querySelectorAll('h2')).find(function (node) { return /FlujoEclesial Studio|Listo para Proyectar|Panel de Contenido|Editor de Estilos/.test(node.textContent || ''); }); return title ? title.closest('[class*="fixed"][class*="inset-0"]') : null; }
+      function finish() { localStorage.setItem('oasis_onboarding_complete', 'true'); active = false; tour.classList.remove('is-visible'); var old = oldTourNode(); if (old) old.style.display = 'none'; setTimeout(function () { window.location.reload(); }, 80); }
+      function render() { var step = steps[index]; var percent = Math.round(((index + 1) / steps.length) * 100); tour.style.setProperty('--tour-from', step.color[0]); tour.style.setProperty('--tour-mid', step.color[1]); tour.style.setProperty('--tour-to', step.color[2]); tour.innerHTML = '<section class="oasis-tour-shell" role="dialog" aria-modal="true"><aside class="oasis-tour-rail"><div class="oasis-tour-top"><div class="oasis-tour-kicker"><span>' + step.tag + '</span><span>•</span><span>Paso ' + (index + 1) + ' de ' + steps.length + '</span></div><div class="oasis-tour-icon">' + step.icon + '</div><h2>' + step.title + '</h2><p>' + step.desc + '</p></div><div class="oasis-tour-rail-footer"><div class="oasis-tour-progress-label">' + percent + '% completado</div><div class="oasis-tour-progress-track"><div class="oasis-tour-progress-fill" style="width:' + percent + '%"></div></div></div></aside><main class="oasis-tour-main"><div class="oasis-tour-mainbar"><div class="oasis-tour-step-name">Guia rapida de operacion</div><button class="oasis-tour-skip" data-action="finish">Saltar</button></div><div class="oasis-tour-content"><p class="oasis-tour-intro">Puntos clave de este paso:</p><div class="oasis-tour-focus">' + step.focus.map(function (item) { return '<div class="oasis-tour-item"><span class="oasis-tour-check">✓</span><span>' + item + '</span></div>'; }).join('') + '</div><div class="oasis-tour-tip">' + step.tip + '</div></div><div class="oasis-tour-dots">' + steps.map(function (_, i) { return '<button class="oasis-tour-dot ' + (i === index ? 'active' : i < index ? 'done' : '') + '" data-step="' + i + '"></button>'; }).join('') + '</div><div class="oasis-tour-actions"><button class="oasis-tour-button oasis-tour-prev" data-action="prev" ' + (index === 0 ? 'style="visibility:hidden"' : '') + '>Anterior</button><button class="oasis-tour-button oasis-tour-next" data-action="next">' + (index === steps.length - 1 ? 'Comenzar' : 'Siguiente') + '</button></div></main></section>'; }
+      tour.addEventListener('click', function (event) { var target = event.target.closest('[data-action], [data-step]'); if (!target) return; if (target.dataset.step) { index = Number(target.dataset.step); render(); return; } if (target.dataset.action === 'prev') { index = Math.max(0, index - 1); render(); return; } if (target.dataset.action === 'next') { if (index === steps.length - 1) finish(); else { index += 1; render(); } return; } if (target.dataset.action === 'finish') finish(); });
+      function activateIfNeeded() { if (active || localStorage.getItem('oasis_onboarding_complete') === 'true') return; var old = oldTourNode(); if (!old) return; old.style.display = 'none'; active = true; render(); tour.classList.add('is-visible'); }
+      var observer = new MutationObserver(activateIfNeeded); observer.observe(document.documentElement, { childList: true, subtree: true }); document.addEventListener('DOMContentLoaded', activateIfNeeded); setTimeout(activateIfNeeded, 1200);
     })();
   </script>
 </body>
