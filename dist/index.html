@@ -26,7 +26,6 @@
       font-family: 'Montserrat', sans-serif;
     }
 
-    /* Hide scrollbar for clean presentation */
     .no-scrollbar::-webkit-scrollbar {
       display: none;
     }
@@ -36,7 +35,6 @@
       scrollbar-width: none;
     }
 
-    /* Safe area utilities for notched devices */
     .safe-area-pt {
       padding-top: env(safe-area-inset-top, 0);
     }
@@ -53,18 +51,15 @@
       padding-right: env(safe-area-inset-right, 0);
     }
 
-    /* Touch optimization */
     .touch-manipulation {
       touch-action: manipulation;
     }
 
-    /* Prevent text selection on touch devices */
     .select-none {
       -webkit-user-select: none;
       user-select: none;
     }
 
-    /* Smooth animations */
     @keyframes fade-in {
       from {
         opacity: 0;
@@ -96,11 +91,406 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="./assets/index-C_2HMn0u.js"></script>
+  <script type="module" crossorigin src="./assets/index-C_2HMn0u.js?v=onboarding-pro-20260516"></script>
+  <style>
+    #oasis-pro-tour {
+      position: fixed;
+      inset: 0;
+      z-index: 100000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(2, 6, 23, 0.9);
+      backdrop-filter: blur(6px);
+      color: white;
+      font-family: Inter, sans-serif;
+    }
+
+    #oasis-pro-tour.is-visible {
+      display: flex;
+    }
+
+    .oasis-pro-card {
+      width: min(920px, 100%);
+      max-height: min(92vh, 820px);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 28px;
+      background: #020617;
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.62);
+    }
+
+    .oasis-pro-head {
+      position: relative;
+      overflow: hidden;
+      padding: 34px 42px 30px;
+      text-align: center;
+      background: linear-gradient(135deg, var(--tour-from), var(--tour-mid), var(--tour-to));
+    }
+
+    .oasis-pro-head:before,
+    .oasis-pro-head:after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(44px);
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .oasis-pro-head:before {
+      width: 240px;
+      height: 240px;
+      top: -120px;
+      right: -90px;
+    }
+
+    .oasis-pro-head:after {
+      width: 180px;
+      height: 180px;
+      bottom: -95px;
+      left: -65px;
+      background: rgba(0, 0, 0, 0.22);
+    }
+
+    .oasis-pro-kicker,
+    .oasis-pro-icon,
+    .oasis-pro-title,
+    .oasis-pro-description {
+      position: relative;
+      z-index: 1;
+    }
+
+    .oasis-pro-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 7px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .oasis-pro-icon {
+      width: 76px;
+      height: 76px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.14);
+      font-size: 36px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+    }
+
+    .oasis-pro-title {
+      margin: 0;
+      font-size: clamp(25px, 4vw, 38px);
+      line-height: 1.05;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .oasis-pro-description {
+      max-width: 710px;
+      margin: 14px auto 0;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: clamp(15px, 2vw, 19px);
+      line-height: 1.65;
+    }
+
+    .oasis-pro-body {
+      max-height: 42vh;
+      overflow: auto;
+      padding: 26px 30px;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .oasis-pro-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .oasis-pro-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      color: #cbd5e1;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .oasis-pro-check {
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(129, 140, 248, 0.18);
+      color: #c4b5fd;
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .oasis-pro-tip {
+      margin-top: 16px;
+      padding: 15px 16px;
+      border: 1px solid rgba(103, 232, 249, 0.18);
+      border-radius: 18px;
+      background: rgba(103, 232, 249, 0.07);
+      color: rgba(236, 254, 255, 0.92);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .oasis-pro-progress {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 30px;
+      background: #020617;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .oasis-pro-dots {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .oasis-pro-dot {
+      width: 12px;
+      height: 8px;
+      border: 0;
+      border-radius: 999px;
+      background: #475569;
+      cursor: pointer;
+      transition: 180ms ease;
+    }
+
+    .oasis-pro-dot.done {
+      width: 18px;
+      background: rgba(129, 140, 248, 0.64);
+    }
+
+    .oasis-pro-dot.active {
+      width: 34px;
+      background: #818cf8;
+    }
+
+    .oasis-pro-count {
+      white-space: nowrap;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .oasis-pro-actions {
+      display: flex;
+      gap: 14px;
+      padding: 22px 30px;
+      background: #020617;
+    }
+
+    .oasis-pro-button {
+      height: 54px;
+      border: 0;
+      border-radius: 18px;
+      color: white;
+      font-weight: 950;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .oasis-pro-prev {
+      flex: 1;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.045);
+      color: #cbd5e1;
+    }
+
+    .oasis-pro-next {
+      flex: 1.55;
+      background: linear-gradient(135deg, var(--tour-from), var(--tour-to));
+      box-shadow: 0 18px 34px rgba(79, 70, 229, 0.24);
+    }
+
+    .oasis-pro-skip {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 2;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.32);
+      color: rgba(255, 255, 255, 0.78);
+      padding: 9px 13px;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    @media (max-width: 720px) {
+      #oasis-pro-tour {
+        padding: 10px;
+      }
+
+      .oasis-pro-card {
+        border-radius: 22px;
+        max-height: 94vh;
+      }
+
+      .oasis-pro-head {
+        padding: 28px 18px 24px;
+      }
+
+      .oasis-pro-body {
+        padding: 18px;
+        max-height: 45vh;
+      }
+
+      .oasis-pro-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .oasis-pro-progress,
+      .oasis-pro-actions {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .oasis-pro-count {
+        display: none;
+      }
+    }
+  </style>
 </head>
 
 <body class="bg-gray-900 text-white h-screen overflow-hidden">
-  <div id="root" class="h-full w-full"></div>
+  <div id="root" class="h-full w-full"></div>
+  <div id="oasis-pro-tour" aria-live="polite"></div>
+  <script>
+    (function () {
+      var steps = [
+        { icon: '✨', tag: 'Bienvenida', title: 'Bienvenido a FlujoEclesial Studio', desc: 'Un recorrido profesional para dominar la preparacion, proyeccion y control del servicio desde el primer uso.', color: ['#4f46e5', '#7c3aed', '#c026d3'], items: ['Interfaz moderna para operar sin distracciones', 'Modo local-first para trabajar incluso sin internet', 'Control remoto movil para manejar la pantalla en vivo', 'Herramientas para Biblia, multimedia, temas y presentaciones'], tip: 'Puedes saltar el tutorial cuando quieras. Si ya lo completaste y quieres verlo otra vez, borra oasis_onboarding_complete del almacenamiento local.' },
+        { icon: '📚', tag: 'Contenido', title: 'Crea y prepara todo desde el panel principal', desc: 'El panel de contenido es el punto de partida para agregar canciones, textos, lecturas biblicas, videos e imagenes.', color: ['#0284c7', '#0891b2', '#0f766e'], items: ['YouTube: busca o pega enlaces para videos y musica de fondo', 'Manual: escribe avisos, oraciones, lecturas o cualquier texto libre', 'Biblia: busca pasajes por libro, capitulo, versiculo y version', 'Imagenes: sube recursos visuales para enviarlos al proyector', 'Nuevo elemento: crea bloques vacios cuando quieras preparar algo desde cero'], tip: 'Prepara el contenido antes del servicio para que durante la proyeccion solo tengas que seleccionar y enviar.' },
+        { icon: '📖', tag: 'Biblia', title: 'Busca pasajes biblicos listos para proyectar', desc: 'El modulo de Biblia crea diapositivas limpias a partir de una referencia biblica.', color: ['#d97706', '#ea580c', '#e11d48'], items: ['Versiones disponibles: Reina Valera 1960, NVI, NTV, LBLA, NIV, KJV y NKJV', 'Autocompletado de libros para evitar errores al escribir', 'Generacion de slides con formato consistente para lectura congregacional', 'Ideal para lecturas responsivas, predicaciones y anuncios de referencia'], tip: 'Usa referencias especificas como Juan 3:16 o Salmos 23:1-4 para obtener resultados mas precisos.' },
+        { icon: '⬆️', tag: 'Importacion', title: 'Agrega PDF, PowerPoint, imagenes y videos', desc: 'Las funciones nuevas permiten llevar material externo directamente al flujo de presentacion.', color: ['#1d4ed8', '#4338ca', '#6d28d9'], items: ['Importa presentaciones PowerPoint (.pptx) para convertirlas en diapositivas', 'Carga PDF para usarlos dentro del servicio o presentacion', 'Sube imagenes y videos locales para eventos sin conexion', 'Los medios pesados se manejan mejor mediante almacenamiento local optimizado', 'Puedes organizar el material importado junto con canciones y textos'], tip: 'Antes de un evento, abre cada archivo importado una vez para confirmar que se ve correctamente en la vista previa.' },
+        { icon: '🎨', tag: 'Diseño', title: 'Personaliza la apariencia de cada proyeccion', desc: 'El editor permite ajustar el estilo visual antes de enviar contenido en vivo.', color: ['#9333ea', '#db2777', '#e11d48'], items: ['Temas predefinidos para estilos modernos, elegantes y especiales', 'Fuentes, tamanos, alineacion, sombras, colores y espaciado', 'Fondos solidos, degradados, imagenes y animaciones de ambiente', 'Editor de texto enriquecido para resaltar palabras o frases importantes', 'Vista previa inmediata para validar cambios antes de proyectar'], tip: 'Mantener pocos estilos por servicio ayuda a que la pantalla se vea profesional y facil de leer.' },
+        { icon: '🧾', tag: 'Orden del servicio', title: 'Organiza la playlist como una escaleta completa', desc: 'La lista del servicio funciona como el orden operativo de todo lo que se proyectara.', color: ['#059669', '#0d9488', '#0891b2'], items: ['Arrastra elementos para reordenar el servicio en segundos', 'Edita titulos para mantener la lista clara para el operador', 'Agrupa canciones, lecturas, avisos, videos y presentaciones', 'Activa musica de fondo cuando un elemento lo requiera', 'Usa proyectos para separar servicios, eventos o reuniones diferentes'], tip: 'Nombra cada elemento como lo diria el equipo en cabina: Cancion 1, Lectura, Anuncios, Predica, Ofrenda.' },
+        { icon: '▦', tag: 'Diapositivas', title: 'Trabaja cada elemento slide por slide', desc: 'Cuando seleccionas un elemento, puedes revisar sus diapositivas antes de enviarlas al proyector.', color: ['#7c3aed', '#4f46e5', '#1d4ed8'], items: ['Clic: previsualiza la diapositiva seleccionada', 'Doble clic: envia la diapositiva en vivo al proyector', 'Flechas del teclado: navega rapidamente entre slides', 'Etiquetas como verso, coro o lectura ayudan a identificar cada parte', 'Los PDF y PowerPoint importados tambien entran en este flujo de slides'], tip: 'Usa la vista previa como filtro final antes de mandar algo a la pantalla principal.' },
+        { icon: '📽️', tag: 'En vivo', title: 'Controla lo que ve la audiencia', desc: 'Los controles de proyeccion estan pensados para operar rapido durante momentos sensibles del servicio.', color: ['#ea580c', '#d97706', '#ca8a04'], items: ['Black: apaga la salida visual con pantalla negra', 'Clear: oculta texto manteniendo el fondo disponible', 'Logo: muestra solo la identidad visual de la iglesia', 'Split: divide la pantalla para mostrar dos contenidos', 'Proyector: abre la ventana dedicada para la pantalla secundaria'], tip: 'Black, Clear y Logo son tus botones de seguridad durante transiciones, errores o momentos de pausa.' },
+        { icon: '📱', tag: 'Remoto movil', title: 'Maneja el servicio desde un celular o tablet', desc: 'El control remoto permite operar el proyector sin estar pegado a la computadora principal.', color: ['#0891b2', '#2563eb', '#4338ca'], items: ['Conecta el dispositivo movil mediante QR o URL local', 'Cambia slides, activa contenido y revisa la playlist desde el telefono', 'Busca elementos del servicio sin interrumpir la pantalla principal', 'Agrega imagenes desde el movil cuando sea necesario', 'Cambia entre control, playlist, proyectos y agregar contenido'], tip: 'Manten el presentador principal abierto; el movil envia comandos, pero la computadora sigue siendo el centro de control.' },
+        { icon: '🔎', tag: 'Zoom remoto', title: 'Ajusta imagenes y diapositivas en pantalla completa', desc: 'Las herramientas nuevas de zoom ayudan a encuadrar contenido visual directamente desde el remoto.', color: ['#c026d3', '#9333ea', '#4f46e5'], items: ['Acerca o aleja imagenes proyectadas sin rehacer la diapositiva', 'Mueve el encuadre horizontal o verticalmente desde el panel movil', 'Usa gestos tactiles para paneo y zoom en dispositivos compatibles', 'Reinicia el encuadre para volver rapidamente a la vista original', 'Util para imagenes, documentos y detalles que necesitan verse mas grandes'], tip: 'Si una imagen no llena bien la pantalla, ajustala desde el remoto antes de que la audiencia pierda el foco.' },
+        { icon: '☁️', tag: 'Sincronizacion', title: 'Trabaja localmente y sincroniza cuando convenga', desc: 'Oasis prioriza estabilidad local y permite sincronizacion cloud para respaldo o trabajo entre equipos.', color: ['#334155', '#1d4ed8', '#0891b2'], items: ['Modo local-first para no depender de internet durante el evento', 'Sincronizacion con Supabase cuando esta configurado', 'Modo manual recomendado para controlar cuando se suben cambios', 'Exportacion e importacion para respaldar playlists, temas y proyectos', 'Los archivos .oasis.json facilitan mover configuraciones entre equipos'], tip: 'Antes de cambios grandes, exporta una copia del servicio. Es una forma sencilla de tener un punto de retorno.' },
+        { icon: '🕘', tag: 'Recuperacion', title: 'Corrige errores sin detener el servicio', desc: 'Las herramientas de historial y restauracion ayudan a recuperarse rapido si algo cambia por accidente.', color: ['#be123c', '#b91c1c', '#ea580c'], items: ['Historial de acciones para revisar cambios recientes', 'Restauracion de elementos cuando sea necesario volver atras', 'Importacion selectiva para mezclar o reemplazar datos con control', 'Proyectos separados para mantener cada evento ordenado', 'Calendario y temporizador para planificar y apoyar la operacion en vivo'], tip: 'Durante un evento, resolver rapido vale mas que editar perfecto. Usa historial, clear o logo para ganar tiempo.' },
+        { icon: '⌨️', tag: 'Atajos', title: 'Opera como un presentador profesional', desc: 'Los atajos reducen clics y hacen que la operacion en vivo sea mas fluida.', color: ['#3f3f46', '#334155', '#111827'], items: ['Espacio: siguiente diapositiva', 'Flechas izquierda/derecha: navegar entre slides', 'B: activar o desactivar blackout', 'C: activar o desactivar clear', 'L: mostrar u ocultar logo', 'P: abrir o cerrar proyector', 'F: pantalla completa'], tip: 'Practica los atajos antes del servicio. Cuando ya estan en memoria, el flujo se siente mucho mas natural.' },
+        { icon: '▶', tag: 'Listo', title: 'Ya puedes comenzar a proyectar', desc: 'El flujo recomendado es preparar, revisar, abrir proyector, conectar remoto y operar desde la playlist.', color: ['#16a34a', '#059669', '#0f766e'], items: ['Prepara todo el contenido antes de salir en vivo', 'Revisa la vista previa antes de enviar al proyector', 'Usa Black, Clear o Logo para transiciones limpias', 'Controla slides y zoom desde el remoto movil', 'Exporta respaldo al terminar si hiciste cambios importantes'], tip: 'La mejor proyeccion es la que se siente invisible: contenido claro, transiciones limpias y operador tranquilo.' }
+      ];
+
+      var index = 0;
+      var tour = document.getElementById('oasis-pro-tour');
+      var active = false;
+
+      function oldTourNode() {
+        var titles = Array.prototype.slice.call(document.querySelectorAll('h2'));
+        var title = titles.find(function (node) {
+          return /FlujoEclesial Studio|Listo para Proyectar|Panel de Contenido|Editor de Estilos/.test(node.textContent || '');
+        });
+        return title ? title.closest('[class*="fixed"][class*="inset-0"]') : null;
+      }
+
+      function finish() {
+        localStorage.setItem('oasis_onboarding_complete', 'true');
+        active = false;
+        tour.classList.remove('is-visible');
+        var old = oldTourNode();
+        if (old) old.style.display = 'none';
+        setTimeout(function () { window.location.reload(); }, 80);
+      }
+
+      function render() {
+        var step = steps[index];
+        tour.style.setProperty('--tour-from', step.color[0]);
+        tour.style.setProperty('--tour-mid', step.color[1]);
+        tour.style.setProperty('--tour-to', step.color[2]);
+        tour.innerHTML = '<section class="oasis-pro-card" role="dialog" aria-modal="true" aria-label="Tutorial profesional de FlujoEclesial">' +
+          '<header class="oasis-pro-head">' +
+          '<button class="oasis-pro-skip" data-action="finish">Saltar tutorial</button>' +
+          '<div class="oasis-pro-kicker"><span>' + step.tag + '</span><span>•</span><span>Paso ' + (index + 1) + ' de ' + steps.length + '</span></div>' +
+          '<div class="oasis-pro-icon">' + step.icon + '</div>' +
+          '<h2 class="oasis-pro-title">' + step.title + '</h2>' +
+          '<p class="oasis-pro-description">' + step.desc + '</p>' +
+          '</header>' +
+          '<div class="oasis-pro-body">' +
+          '<div class="oasis-pro-grid">' + step.items.map(function (item) { return '<div class="oasis-pro-item"><span class="oasis-pro-check">✓</span><span>' + item + '</span></div>'; }).join('') + '</div>' +
+          '<div class="oasis-pro-tip">' + step.tip + '</div>' +
+          '</div>' +
+          '<div class="oasis-pro-progress"><div class="oasis-pro-dots">' + steps.map(function (_, i) { return '<button class="oasis-pro-dot ' + (i === index ? 'active' : i < index ? 'done' : '') + '" data-step="' + i + '" aria-label="Ir al paso ' + (i + 1) + '"></button>'; }).join('') + '</div><div class="oasis-pro-count">' + Math.round(((index + 1) / steps.length) * 100) + '% completado</div></div>' +
+          '<div class="oasis-pro-actions"><button class="oasis-pro-button oasis-pro-prev" data-action="prev" ' + (index === 0 ? 'style="visibility:hidden"' : '') + '>Anterior</button><button class="oasis-pro-button oasis-pro-next" data-action="next">' + (index === steps.length - 1 ? 'Comenzar a usar' : 'Siguiente') + '</button></div>' +
+          '</section>';
+      }
+
+      tour.addEventListener('click', function (event) {
+        var target = event.target.closest('[data-action], [data-step]');
+        if (!target) return;
+        if (target.dataset.step) {
+          index = Number(target.dataset.step);
+          render();
+          return;
+        }
+        if (target.dataset.action === 'prev') {
+          index = Math.max(0, index - 1);
+          render();
+          return;
+        }
+        if (target.dataset.action === 'next') {
+          if (index === steps.length - 1) finish();
+          else {
+            index += 1;
+            render();
+          }
+          return;
+        }
+        if (target.dataset.action === 'finish') finish();
+      });
+
+      function activateIfNeeded() {
+        if (active || localStorage.getItem('oasis_onboarding_complete') === 'true') return;
+        var old = oldTourNode();
+        if (!old) return;
+        old.style.display = 'none';
+        active = true;
+        render();
+        tour.classList.add('is-visible');
+      }
+
+      var observer = new MutationObserver(activateIfNeeded);
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      document.addEventListener('DOMContentLoaded', activateIfNeeded);
+      setTimeout(activateIfNeeded, 1200);
+    })();
+  </script>
 </body>
 
 </html>
