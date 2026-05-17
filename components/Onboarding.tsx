@@ -1,31 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     ArrowRight,
-    BookOpen,
-    CalendarDays,
-    Cast,
     Check,
     ChevronLeft,
-    Clock,
     Cloud,
-    FileJson,
-    FileText,
-    History,
     Keyboard,
     Layout,
-    Library,
     List,
     MonitorSmartphone,
     Palette,
     Play,
-    ShieldCheck,
-    Sliders,
     Sparkles,
     UploadCloud,
-    Wand2,
     X,
-    Youtube,
-    ZoomIn
+    ZoomIn,
+    BookOpen,
+    Cast,
+    History,
+    Library
 } from 'lucide-react';
 
 interface OnboardingProps {
@@ -34,454 +26,252 @@ interface OnboardingProps {
 
 interface TutorialStep {
     icon: React.ElementType;
-    eyebrow: string;
+    tag: string;
     title: string;
     description: string;
-    details: string[];
-    tip?: string;
-    highlightId: string | null;
+    focus: string[];
+    tip: string;
     color: string;
-    actionLabel: string;
 }
 
 const STEPS: TutorialStep[] = [
     {
         icon: Sparkles,
-        eyebrow: 'Bienvenida',
+        tag: 'Bienvenida',
         title: 'Bienvenido a FlujoEclesial Studio',
-        description: 'Un recorrido rapido para dominar la preparacion, proyeccion y control del servicio desde el primer uso.',
-        details: [
-            'Interfaz moderna para operar sin distracciones',
-            'Modo local-first para trabajar incluso sin internet',
-            'Control remoto movil para manejar la pantalla en vivo',
-            'Herramientas profesionales para Biblia, multimedia, temas y presentaciones'
-        ],
-        tip: 'Puedes saltar el tutorial cuando quieras y volver a activar la ayuda desde la configuracion si la necesitas.',
-        highlightId: null,
-        color: 'from-indigo-600 via-violet-600 to-fuchsia-700',
-        actionLabel: 'Comenzar tour'
+        description: 'Aprende el flujo completo sin detenerte en detalles innecesarios.',
+        focus: ['Preparar contenido antes del servicio', 'Proyectar con una salida limpia', 'Controlar desde celular o tablet', 'Trabajar aunque falle internet'],
+        tip: 'El tour esta pensado para cabina: corto, directo y facil de seguir.',
+        color: 'from-indigo-600 via-violet-600 to-fuchsia-700'
     },
     {
         icon: Library,
-        eyebrow: 'Contenido',
-        title: 'Crea y prepara todo desde el panel principal',
-        description: 'El panel de contenido es el punto de partida para agregar canciones, textos, lecturas biblicas, videos e imagenes.',
-        details: [
-            'YouTube: busca o pega enlaces para videos y musica de fondo',
-            'Manual: escribe avisos, oraciones, lecturas o cualquier texto libre',
-            'Biblia: busca pasajes por libro, capitulo, versiculo y version',
-            'Imagenes: sube recursos visuales para enviarlos al proyector',
-            'Nuevo elemento: crea bloques vacios cuando quieras preparar algo desde cero'
-        ],
-        tip: 'Prepara el contenido antes del servicio para que durante la proyeccion solo tengas que seleccionar y enviar.',
-        highlightId: 'control-panel',
-        color: 'from-sky-600 via-cyan-600 to-teal-600',
-        actionLabel: 'Ver editor'
+        tag: 'Contenido',
+        title: 'Prepara canciones, textos y recursos',
+        description: 'Todo comienza en el panel de contenido.',
+        focus: ['YouTube para videos y musica de fondo', 'Manual para avisos, lecturas y textos libres', 'Biblia para pasajes listos para proyectar', 'Imagenes y elementos nuevos desde cero'],
+        tip: 'Prepara primero, proyecta despues. Ese orden evita carreras durante el servicio.',
+        color: 'from-sky-600 via-cyan-600 to-teal-700'
     },
     {
         icon: BookOpen,
-        eyebrow: 'Biblia',
-        title: 'Busca pasajes biblicos listos para proyectar',
-        description: 'El modulo de Biblia esta pensado para crear diapositivas limpias a partir de una referencia biblica.',
-        details: [
-            'Versiones disponibles: Reina Valera 1960, NVI, NTV, LBLA, NIV, KJV y NKJV',
-            'Autocompletado de libros para evitar errores al escribir',
-            'Generacion de slides con formato consistente para lectura congregacional',
-            'Ideal para lecturas responsivas, predicaciones y anuncios de referencia'
-        ],
-        tip: 'Usa referencias especificas como Juan 3:16 o Salmos 23:1-4 para obtener resultados mas precisos.',
-        highlightId: 'control-panel',
-        color: 'from-amber-600 via-orange-600 to-rose-600',
-        actionLabel: 'Siguiente'
+        tag: 'Biblia',
+        title: 'Crea lecturas biblicas en segundos',
+        description: 'Busca una referencia y conviertela en diapositivas limpias.',
+        focus: ['RV1960, NVI, NTV, LBLA, NIV, KJV y NKJV', 'Autocompletado de libros', 'Formato consistente para lectura publica', 'Util para predicacion, lecturas y anuncios'],
+        tip: 'Usa referencias claras como Juan 3:16 o Salmos 23:1-4.',
+        color: 'from-amber-600 via-orange-600 to-rose-600'
     },
     {
         icon: UploadCloud,
-        eyebrow: 'Importacion',
-        title: 'Agrega PDF, PowerPoint, imagenes y videos',
-        description: 'Las funciones nuevas permiten llevar material externo directamente al flujo de presentacion.',
-        details: [
-            'Importa presentaciones PowerPoint (.pptx) para convertirlas en diapositivas',
-            'Carga PDF para usarlos dentro del servicio o presentacion',
-            'Sube imagenes y videos locales para eventos sin conexion',
-            'Los medios pesados se manejan mejor mediante almacenamiento local optimizado',
-            'Puedes organizar el material importado junto con canciones y textos'
-        ],
-        tip: 'Antes de un evento, abre cada archivo importado una vez para confirmar que se ve correctamente en la vista previa.',
-        highlightId: 'control-panel',
-        color: 'from-blue-700 via-indigo-700 to-violet-700',
-        actionLabel: 'Continuar'
+        tag: 'Importacion',
+        title: 'Agrega PDF, PowerPoint y multimedia',
+        description: 'El material externo entra al mismo flujo de presentacion.',
+        focus: ['PowerPoint convertido en slides', 'PDF integrado al servicio', 'Imagenes y videos locales', 'Medios organizados junto a canciones y textos'],
+        tip: 'Revisa cada archivo importado en vista previa antes de salir en vivo.',
+        color: 'from-blue-700 via-indigo-700 to-violet-700'
     },
     {
-        icon: Sliders,
-        eyebrow: 'Diseno',
-        title: 'Personaliza la apariencia de cada proyeccion',
-        description: 'El editor permite ajustar el estilo visual antes de enviar contenido en vivo.',
-        details: [
-            'Temas predefinidos para estilos modernos, elegantes y especiales',
-            'Fuentes, tamanos, alineacion, sombras, colores y espaciado',
-            'Fondos solidos, degradados, imagenes y animaciones de ambiente',
-            'Editor de texto enriquecido para resaltar palabras o frases importantes',
-            'Vista previa inmediata para validar cambios antes de proyectar'
-        ],
-        tip: 'Mantener pocos estilos por servicio ayuda a que la pantalla se vea profesional y facil de leer.',
-        highlightId: 'control-panel',
-        color: 'from-purple-600 via-pink-600 to-rose-600',
-        actionLabel: 'Ver lista'
+        icon: Palette,
+        tag: 'Diseno',
+        title: 'Ajusta el estilo antes de proyectar',
+        description: 'Controla la apariencia sin perder velocidad.',
+        focus: ['Temas predefinidos', 'Fuentes, tamanos, sombras y colores', 'Fondos, degradados e imagenes', 'Vista previa antes de enviar'],
+        tip: 'Un estilo simple y consistente casi siempre se ve mas profesional.',
+        color: 'from-purple-600 via-pink-600 to-rose-600'
     },
     {
         icon: List,
-        eyebrow: 'Orden del servicio',
-        title: 'Organiza la playlist como una escaleta completa',
-        description: 'La lista del servicio funciona como el orden operativo de todo lo que se proyectara.',
-        details: [
-            'Arrastra elementos para reordenar el servicio en segundos',
-            'Edita titulos para mantener la lista clara para el operador',
-            'Agrupa canciones, lecturas, avisos, videos y presentaciones',
-            'Activa musica de fondo cuando un elemento lo requiera',
-            'Usa proyectos para separar servicios, eventos o reuniones diferentes'
-        ],
-        tip: 'Nombra cada elemento como lo diria el equipo en cabina: Cancion 1, Lectura, Anuncios, Predica, Ofrenda.',
-        highlightId: 'playlist-panel',
-        color: 'from-emerald-600 via-teal-600 to-cyan-700',
-        actionLabel: 'Ver slides'
+        tag: 'Playlist',
+        title: 'Ordena el servicio completo',
+        description: 'La playlist funciona como la escaleta de cabina.',
+        focus: ['Arrastra para reordenar', 'Edita titulos para claridad', 'Agrupa canciones, lecturas y avisos', 'Separa eventos usando proyectos'],
+        tip: 'Nombra los elementos como los diria el equipo: Cancion 1, Lectura, Anuncios, Predica.',
+        color: 'from-emerald-600 via-teal-600 to-cyan-700'
     },
     {
         icon: Layout,
-        eyebrow: 'Diapositivas',
-        title: 'Trabaja cada elemento slide por slide',
-        description: 'Cuando seleccionas un elemento, puedes revisar sus diapositivas antes de enviarlas al proyector.',
-        details: [
-            'Clic: previsualiza la diapositiva seleccionada',
-            'Doble clic: envia la diapositiva en vivo al proyector',
-            'Flechas del teclado: navega rapidamente entre slides',
-            'Etiquetas como verso, coro o lectura ayudan a identificar cada parte',
-            'Los PDF y PowerPoint importados tambien entran en este flujo de slides'
-        ],
-        tip: 'Usa la vista previa como filtro final antes de mandar algo a la pantalla principal.',
-        highlightId: 'slide-grid',
-        color: 'from-violet-600 via-indigo-600 to-blue-700',
-        actionLabel: 'Vista previa'
+        tag: 'Slides',
+        title: 'Revisa cada diapositiva antes de enviarla',
+        description: 'Selecciona, previsualiza y manda al vivo cuando este lista.',
+        focus: ['Clic para previsualizar', 'Doble clic para enviar en vivo', 'Flechas para navegar rapido', 'PDF y PPTX entran en este flujo'],
+        tip: 'La vista previa es tu ultimo filtro antes de que lo vea la audiencia.',
+        color: 'from-violet-600 via-indigo-600 to-blue-700'
     },
     {
         icon: Cast,
-        eyebrow: 'En vivo',
-        title: 'Controla lo que ve la audiencia',
-        description: 'Los controles de proyeccion estan pensados para operar rapido durante momentos sensibles del servicio.',
-        details: [
-            'Black: apaga la salida visual con pantalla negra',
-            'Clear: oculta texto manteniendo el fondo disponible',
-            'Logo: muestra solo la identidad visual de la iglesia',
-            'Split: divide la pantalla para mostrar dos contenidos',
-            'Proyector: abre la ventana dedicada para la pantalla secundaria'
-        ],
-        tip: 'Black, Clear y Logo son tus botones de seguridad durante transiciones, errores o momentos de pausa.',
-        highlightId: 'live-action-controls',
-        color: 'from-orange-600 via-amber-600 to-yellow-600',
-        actionLabel: 'Control movil'
+        tag: 'En vivo',
+        title: 'Controla la salida del proyector',
+        description: 'Usa los botones de seguridad para transiciones limpias.',
+        focus: ['Black para pantalla negra', 'Clear para ocultar texto', 'Logo para pausa visual', 'Split y Proyector para salidas especiales'],
+        tip: 'Black, Clear y Logo salvan momentos cuando necesitas corregir algo rapido.',
+        color: 'from-orange-600 via-amber-600 to-yellow-600'
     },
     {
         icon: MonitorSmartphone,
-        eyebrow: 'Remoto movil',
-        title: 'Maneja el servicio desde un celular o tablet',
-        description: 'El control remoto permite operar el proyector sin estar pegado a la computadora principal.',
-        details: [
-            'Conecta el dispositivo movil mediante QR o URL local',
-            'Cambia slides, activa contenido y revisa la playlist desde el telefono',
-            'Busca elementos del servicio sin interrumpir la pantalla principal',
-            'Agrega imagenes desde el movil cuando sea necesario',
-            'Cambia entre control, playlist, proyectos y agregar contenido'
-        ],
-        tip: 'Mantén el presentador principal abierto; el movil envia comandos, pero la computadora sigue siendo el centro de control.',
-        highlightId: null,
-        color: 'from-cyan-600 via-blue-600 to-indigo-700',
-        actionLabel: 'Ver zoom'
+        tag: 'Remoto',
+        title: 'Opera desde celular o tablet',
+        description: 'El remoto te libera de estar pegado a la computadora.',
+        focus: ['Conexion por QR o URL local', 'Cambio de slides desde el movil', 'Busqueda dentro de la playlist', 'Agregar imagenes desde el dispositivo'],
+        tip: 'La computadora principal sigue abierta; el telefono solo envia comandos.',
+        color: 'from-cyan-600 via-blue-600 to-indigo-700'
     },
     {
         icon: ZoomIn,
-        eyebrow: 'Zoom remoto',
-        title: 'Ajusta imagenes y diapositivas en pantalla completa',
-        description: 'Las herramientas nuevas de zoom ayudan a encuadrar contenido visual directamente desde el remoto.',
-        details: [
-            'Acerca o aleja imagenes proyectadas sin rehacer la diapositiva',
-            'Mueve el encuadre horizontal o verticalmente desde el panel movil',
-            'Usa gestos tactiles para paneo y zoom en dispositivos compatibles',
-            'Reinicia el encuadre para volver rapidamente a la vista original',
-            'Util para imagenes, documentos y detalles que necesitan verse mas grandes'
-        ],
-        tip: 'Si una imagen no llena bien la pantalla, ajustala desde el remoto antes de que la audiencia pierda el foco.',
-        highlightId: null,
-        color: 'from-fuchsia-600 via-purple-600 to-indigo-700',
-        actionLabel: 'Herramientas'
+        tag: 'Zoom',
+        title: 'Ajusta el encuadre desde el remoto',
+        description: 'Corrige imagenes o documentos sin rehacer la diapositiva.',
+        focus: ['Acercar y alejar', 'Mover el encuadre', 'Gestos tactiles compatibles', 'Reiniciar la vista original'],
+        tip: 'Util cuando una imagen o documento necesita leerse mejor en pantalla grande.',
+        color: 'from-fuchsia-600 via-purple-600 to-indigo-700'
     },
     {
         icon: Cloud,
-        eyebrow: 'Sincronizacion',
-        title: 'Trabaja localmente y sincroniza cuando convenga',
-        description: 'Oasis prioriza estabilidad local y permite sincronizacion cloud para respaldo o trabajo entre equipos.',
-        details: [
-            'Modo local-first para no depender de internet durante el evento',
-            'Sincronizacion con Supabase cuando esta configurado',
-            'Modo manual recomendado para controlar cuando se suben cambios',
-            'Exportacion e importacion para respaldar playlists, temas y proyectos',
-            'Los archivos .oasis.json facilitan mover configuraciones entre equipos'
-        ],
-        tip: 'Antes de cambios grandes, exporta una copia del servicio. Es una forma sencilla de tener un punto de retorno.',
-        highlightId: null,
-        color: 'from-slate-700 via-blue-700 to-cyan-700',
-        actionLabel: 'Seguridad'
+        tag: 'Respaldo',
+        title: 'Trabaja local y sincroniza con control',
+        description: 'Prioriza estabilidad durante el evento y respalda cuando convenga.',
+        focus: ['Modo local-first', 'Supabase cuando esta configurado', 'Sincronizacion manual recomendada', 'Exportar e importar .oasis.json'],
+        tip: 'Antes de cambios grandes, exporta una copia del servicio.',
+        color: 'from-slate-700 via-blue-700 to-cyan-700'
     },
     {
         icon: History,
-        eyebrow: 'Recuperacion',
-        title: 'Corrige errores sin detener el servicio',
-        description: 'Las herramientas de historial y restauracion ayudan a recuperarse rapido si algo cambia por accidente.',
-        details: [
-            'Historial de acciones para revisar cambios recientes',
-            'Restauracion de elementos cuando sea necesario volver atras',
-            'Importacion selectiva para mezclar o reemplazar datos con control',
-            'Proyectos separados para mantener cada evento ordenado',
-            'Calendario y temporizador para planificar y apoyar la operacion en vivo'
-        ],
-        tip: 'Durante un evento, resolver rapido vale mas que editar perfecto. Usa historial, clear o logo para ganar tiempo.',
-        highlightId: null,
-        color: 'from-rose-700 via-red-700 to-orange-700',
-        actionLabel: 'Atajos'
+        tag: 'Recuperacion',
+        title: 'Corrige errores sin detener el flujo',
+        description: 'Historial, proyectos y respaldo ayudan a volver al camino.',
+        focus: ['Historial de acciones', 'Restauracion cuando haga falta', 'Importacion selectiva', 'Calendario y temporizador de apoyo'],
+        tip: 'En vivo, resolver rapido vale mas que editar perfecto.',
+        color: 'from-rose-700 via-red-700 to-orange-700'
     },
     {
         icon: Keyboard,
-        eyebrow: 'Atajos',
-        title: 'Opera como un presentador profesional',
-        description: 'Los atajos reducen clics y hacen que la operacion en vivo sea mas fluida.',
-        details: [
-            'Espacio: siguiente diapositiva',
-            'Flechas izquierda/derecha: navegar entre slides',
-            'B: activar o desactivar blackout',
-            'C: activar o desactivar clear',
-            'L: mostrar u ocultar logo',
-            'P: abrir o cerrar proyector',
-            'F: pantalla completa'
-        ],
-        tip: 'Practica los atajos antes del servicio. Cuando ya estan en memoria, el flujo se siente mucho mas natural.',
-        highlightId: null,
-        color: 'from-zinc-700 via-slate-700 to-gray-800',
-        actionLabel: 'Finalizar'
+        tag: 'Atajos',
+        title: 'Maneja la proyeccion con teclado',
+        description: 'Reduce clics y gana velocidad durante el servicio.',
+        focus: ['Espacio: siguiente slide', 'Flechas: navegar slides', 'B: blackout', 'C: clear', 'L: logo', 'P: proyector', 'F: pantalla completa'],
+        tip: 'Practica los atajos una vez antes del servicio y el flujo se siente mucho mas natural.',
+        color: 'from-zinc-700 via-slate-700 to-gray-800'
     },
     {
         icon: Play,
-        eyebrow: 'Listo',
-        title: 'Ya puedes comenzar a proyectar',
-        description: 'El flujo recomendado es preparar, revisar, abrir proyector, conectar remoto y operar desde la playlist.',
-        details: [
-            'Prepara todo el contenido antes de salir en vivo',
-            'Revisa la vista previa antes de enviar al proyector',
-            'Usa Black, Clear o Logo para transiciones limpias',
-            'Controla slides y zoom desde el remoto movil',
-            'Exporta respaldo al terminar si hiciste cambios importantes'
-        ],
-        tip: 'La mejor proyeccion es la que se siente invisible: contenido claro, transiciones limpias y operador tranquilo.',
-        highlightId: null,
-        color: 'from-green-600 via-emerald-600 to-teal-700',
-        actionLabel: 'Comenzar a usar'
+        tag: 'Listo',
+        title: 'Comienza con confianza',
+        description: 'Prepara, revisa, abre proyector, conecta remoto y opera desde la playlist.',
+        focus: ['Contenido listo antes de salir en vivo', 'Vista previa antes de enviar', 'Transiciones con Black, Clear o Logo', 'Respaldo al terminar'],
+        tip: 'La mejor proyeccion se siente invisible: clara, tranquila y sin distracciones.',
+        color: 'from-green-600 via-emerald-600 to-teal-700'
     }
 ];
 
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [isExiting, setIsExiting] = useState(false);
-    const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
 
     const step = STEPS[currentStep];
     const Icon = step.icon;
     const isLast = currentStep === STEPS.length - 1;
-
-    useEffect(() => {
-        if (step.highlightId) {
-            const element = document.getElementById(step.highlightId);
-            if (element) {
-                const rect = element.getBoundingClientRect();
-                setHighlightRect(rect);
-            } else {
-                setHighlightRect(null);
-            }
-        } else {
-            setHighlightRect(null);
-        }
-    }, [currentStep, step.highlightId]);
+    const progress = Math.round(((currentStep + 1) / STEPS.length) * 100);
 
     const handleNext = () => {
-        if (currentStep < STEPS.length - 1) {
-            setCurrentStep(prev => prev + 1);
-        } else {
+        if (isLast) {
             handleComplete();
+            return;
         }
+        setCurrentStep(prev => prev + 1);
     };
 
     const handlePrev = () => {
-        if (currentStep > 0) {
-            setCurrentStep(prev => prev - 1);
-        }
+        if (currentStep > 0) setCurrentStep(prev => prev - 1);
     };
 
     const handleComplete = () => {
         setIsExiting(true);
         localStorage.setItem('oasis_onboarding_complete', 'true');
-        setTimeout(() => {
-            onComplete();
-        }, 300);
+        setTimeout(onComplete, 250);
     };
 
     return (
-        <div
-            className={`fixed inset-0 z-[9999] flex items-center justify-center transition-all duration-500 ${isExiting ? 'opacity-0' : 'opacity-100'}`}
-        >
-            <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 1 }}>
-                <defs>
-                    <mask id="spotlight-mask">
-                        <rect x="0" y="0" width="100%" height="100%" fill="white" />
-                        {highlightRect && (
-                            <rect
-                                x={highlightRect.left - 16}
-                                y={highlightRect.top - 16}
-                                width={highlightRect.width + 32}
-                                height={highlightRect.height + 32}
-                                rx="20"
-                                fill="black"
-                            />
-                        )}
-                    </mask>
-                </defs>
-                <rect
-                    x="0" y="0" width="100%" height="100%"
-                    fill="rgba(0,0,0,0.9)"
-                    mask="url(#spotlight-mask)"
-                />
-            </svg>
-
-            {highlightRect && (
-                <div
-                    className="absolute pointer-events-none"
-                    style={{
-                        zIndex: 2,
-                        left: highlightRect.left - 16,
-                        top: highlightRect.top - 16,
-                        width: highlightRect.width + 32,
-                        height: highlightRect.height + 32,
-                        borderRadius: 20,
-                        border: '4px solid rgba(99, 102, 241, 1)',
-                        boxShadow: '0 0 50px rgba(99, 102, 241, 0.8), 0 0 100px rgba(99, 102, 241, 0.4), inset 0 0 30px rgba(99,102,241,0.1)',
-                        animation: 'pulseGlow 2s infinite'
-                    }}
-                />
-            )}
-
-            <div className="relative z-10 w-full max-w-3xl mx-4" style={{ zIndex: 10 }}>
-                <button
-                    onClick={handleComplete}
-                    className="absolute -top-14 right-0 text-white/65 hover:text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition-all uppercase tracking-widest bg-black/45 px-4 py-2 rounded-full hover:bg-black/70"
-                >
-                    Saltar tutorial <X size={16} />
-                </button>
-
-                <div className="bg-slate-950/98 backdrop-blur-xl rounded-[2rem] border border-white/10 overflow-hidden shadow-[0_0_90px_rgba(0,0,0,0.7)]">
-                    <div className={`relative bg-gradient-to-br ${step.color} px-6 sm:px-10 py-8 flex flex-col items-center text-center overflow-hidden`}>
-                        <div className="absolute top-0 right-0 w-56 h-56 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-                        <div className="absolute bottom-0 left-0 w-40 h-40 bg-black/20 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl" />
-                        <div className="absolute inset-x-0 bottom-0 h-px bg-white/25" />
-
-                        <div className="relative z-10 mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-white/85 backdrop-blur-md">
-                            <span>{step.eyebrow}</span>
-                            <span className="h-1 w-1 rounded-full bg-white/70" />
+        <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 p-3 sm:p-5 backdrop-blur-md transition-opacity duration-300 ${isExiting ? 'opacity-0' : 'opacity-100'}`}>
+            <section className="grid w-full max-w-5xl overflow-hidden rounded-[1.4rem] border border-white/10 bg-slate-950 shadow-[0_30px_100px_rgba(0,0,0,0.65)] lg:grid-cols-[330px_minmax(0,1fr)]">
+                <aside className={`relative flex flex-col justify-between overflow-hidden bg-gradient-to-br ${step.color} p-5 sm:p-7 lg:min-h-[560px]`}>
+                    <div className="absolute -right-16 -bottom-16 h-56 w-56 rounded-full bg-white/15 blur-3xl" />
+                    <div className="relative z-10">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/85">
+                            <span>{step.tag}</span>
+                            <span>•</span>
                             <span>Paso {currentStep + 1} de {STEPS.length}</span>
                         </div>
-
-                        <div className="relative z-10 w-20 h-20 bg-white/15 rounded-3xl flex items-center justify-center mb-5 backdrop-blur-md border border-white/25 shadow-2xl">
-                            <Icon size={40} className="text-white drop-shadow-lg" />
+                        <div className="mt-5 grid h-16 w-16 place-items-center rounded-2xl border border-white/25 bg-white/15 shadow-2xl">
+                            <Icon size={34} className="text-white" />
                         </div>
-
-                        <h2 className="relative z-10 text-2xl sm:text-3xl font-black text-white mb-3 tracking-tight leading-tight">
+                        <h2 className="mt-5 max-w-sm text-2xl font-black leading-tight text-white sm:text-3xl lg:max-w-[280px]">
                             {step.title}
                         </h2>
-                        <p className="relative z-10 text-white/92 text-base sm:text-lg leading-relaxed max-w-2xl">
+                        <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/88 lg:max-w-[280px]">
                             {step.description}
                         </p>
                     </div>
+                    <div className="relative z-10 mt-5">
+                        <div className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-white/80">{progress}% completado</div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-white/20">
+                            <div className="h-full rounded-full bg-white transition-all duration-300" style={{ width: `${progress}%` }} />
+                        </div>
+                    </div>
+                </aside>
 
-                    <div className="px-6 sm:px-8 py-6 bg-slate-900/70 border-b border-white/5 max-h-[42vh] overflow-y-auto">
+                <main className="flex min-h-0 flex-col bg-gradient-to-b from-slate-900 to-slate-950 lg:min-h-[560px]">
+                    <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-slate-900/80 px-5 py-4 sm:px-6">
+                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Guia rapida de operacion</span>
+                        <button onClick={handleComplete} className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-300 hover:bg-white/10 hover:text-white">
+                            Saltar <X size={14} className="ml-1 inline" />
+                        </button>
+                    </div>
+
+                    <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+                        <p className="mb-4 text-base leading-relaxed text-slate-200 sm:text-lg">Puntos clave de este paso:</p>
                         <div className="grid gap-3 sm:grid-cols-2">
-                            {step.details.map((detail, idx) => (
-                                <div key={idx} className="flex items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.035] p-3.5 text-sm text-slate-200">
-                                    <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-400/15 text-indigo-200">
-                                        <Check size={13} />
+                            {step.focus.map((item, index) => (
+                                <div key={index} className="flex min-h-[68px] items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-sm leading-relaxed text-slate-300">
+                                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-indigo-400/15 text-indigo-200">
+                                        <Check size={14} />
                                     </span>
-                                    <span className="leading-relaxed text-slate-300">{detail}</span>
+                                    <span>{item}</span>
                                 </div>
                             ))}
                         </div>
-
-                        {step.tip && (
-                            <div className="mt-5 flex items-start gap-3 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.055] p-4 text-sm text-cyan-50">
-                                <Wand2 size={18} className="mt-0.5 shrink-0 text-cyan-200" />
-                                <p className="leading-relaxed text-cyan-50/90">{step.tip}</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex items-center justify-between gap-5 px-6 sm:px-8 py-4 bg-slate-950/90 border-b border-white/5">
-                        <div className="flex flex-wrap gap-1.5">
-                            {STEPS.map((_, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => setCurrentStep(index)}
-                                    aria-label={`Ir al paso ${index + 1}`}
-                                    className={`h-2 rounded-full transition-all duration-300 ${index === currentStep
-                                        ? 'bg-indigo-400 w-8'
-                                        : index < currentStep
-                                            ? 'bg-indigo-400/55 w-4'
-                                            : 'bg-slate-600 w-3 hover:bg-slate-500'
-                                        }`}
-                                />
-                            ))}
+                        <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.07] p-4 text-sm leading-relaxed text-cyan-50/90">
+                            {step.tip}
                         </div>
-                        <span className="hidden sm:inline text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                            {Math.round(((currentStep + 1) / STEPS.length) * 100)}% completado
-                        </span>
                     </div>
 
-                    <div className="flex gap-3 p-5 bg-slate-950">
+                    <div className="flex flex-wrap gap-1.5 border-t border-white/10 bg-slate-950 px-5 py-4 sm:px-6">
+                        {STEPS.map((_, index) => (
+                            <button
+                                key={index}
+                                onClick={() => setCurrentStep(index)}
+                                aria-label={`Ir al paso ${index + 1}`}
+                                className={`h-2 rounded-full transition-all ${index === currentStep ? 'w-8 bg-indigo-400' : index < currentStep ? 'w-4 bg-indigo-400/60' : 'w-3 bg-slate-600 hover:bg-slate-500'}`}
+                            />
+                        ))}
+                    </div>
+
+                    <div className="flex gap-3 bg-slate-950 px-5 pb-5 sm:px-6">
                         <button
                             onClick={handlePrev}
                             disabled={currentStep === 0}
-                            className={`flex-1 py-3.5 rounded-2xl border border-white/10 text-white/65 font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-all ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'hover:bg-white/5 hover:text-white active:scale-95'
-                                }`}
+                            className={`h-12 flex-1 rounded-2xl border border-white/10 bg-white/[0.045] text-sm font-black uppercase tracking-wide text-slate-300 transition-all hover:bg-white/10 hover:text-white ${currentStep === 0 ? 'invisible' : ''}`}
                         >
-                            <ChevronLeft size={18} /> Anterior
+                            <ChevronLeft size={17} className="mr-1 inline" /> Anterior
                         </button>
                         <button
                             onClick={handleNext}
-                            className={`flex-[1.6] py-3.5 rounded-2xl font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-all text-white bg-gradient-to-r ${step.color} shadow-xl hover:brightness-110 active:scale-95`}
+                            className={`h-12 flex-[1.35] rounded-2xl bg-gradient-to-r ${step.color} text-sm font-black uppercase tracking-wide text-white shadow-xl transition-all hover:brightness-110 active:scale-[0.99]`}
                         >
-                            {step.actionLabel} {isLast ? <Check size={18} /> : <ArrowRight size={18} />}
+                            {isLast ? 'Comenzar' : 'Siguiente'} {isLast ? <Check size={17} className="ml-1 inline" /> : <ArrowRight size={17} className="ml-1 inline" />}
                         </button>
                     </div>
-                </div>
-
-                {highlightRect && (
-                    <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center text-indigo-300">
-                        <span className="text-xs font-black uppercase tracking-widest mb-2 bg-indigo-600 text-white px-4 py-1.5 rounded-full shadow-lg">Mira aqui</span>
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="animate-bounce">
-                            <path d="M12 5v14M5 12l7 7 7-7" />
-                        </svg>
-                    </div>
-                )}
-            </div>
-
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                @keyframes pulseGlow {
-                    0%, 100% { opacity: 1; box-shadow: 0 0 50px rgba(99, 102, 241, 0.8), 0 0 100px rgba(99, 102, 241, 0.4); }
-                    50% { opacity: 0.8; box-shadow: 0 0 30px rgba(99, 102, 241, 0.6), 0 0 60px rgba(99, 102, 241, 0.3); }
-                }
-            `}} />
+                </main>
+            </section>
         </div>
     );
 };
