@@ -73,16 +73,7 @@ export const DEFAULT_THEME: Theme = {
   logoSize: 78,
   logoOpacity: 1,
   logoGlow: true,
-  logoBgAnimation: {
-    type: 'cross-light',
-    speed: 1,
-    color: '#6366f1',
-    color2: '#f59e0b',
-    intensity: 70,
-    size: 18,
-    direction: 'center',
-    shape: 'cross'
-  }
+  logoBgAnimation: undefined
 };
 
 export const THEME_PRESETS: Theme[] = [
