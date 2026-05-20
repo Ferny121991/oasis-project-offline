@@ -255,6 +255,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [youtubeSearchError, setYoutubeSearchError] = useState<string | null>(null);
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
   const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
+  const [isYoutubeFullBrowserOpen, setIsYoutubeFullBrowserOpen] = useState(false);
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text'));
 
   // Bible book autocomplete suggestions
@@ -442,6 +443,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     setShowBibleSuggestions(false);
   };
 
+  // Close YouTube full browser on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsYoutubeFullBrowserOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Apply pending changes to projector
   const applyChanges = () => {
     onUpdateTheme(currentTheme);
@@ -464,6 +476,34 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const presentationFileInputRef = useRef<HTMLInputElement>(null);
 
   // No secondary preview effect for audio, it stays in the list.
+
+  const handleYoutubeFullSearch = async (query: string) => {
+    if (!query.trim()) return;
+    setIsYoutubeFullBrowserOpen(true);
+    setInputText(query);
+    
+    const videoId = query.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1];
+    if (videoId) {
+      setPreviewVideoId(videoId);
+      setYoutubeResults([]);
+      return;
+    }
+
+    setIsSearchingYoutube(true);
+    setHasSearchedYoutube(true);
+    setYoutubeSearchError(null);
+    try {
+      const results = await searchYouTube(query);
+      setYoutubeResults(results);
+      if (results.length === 0) {
+        setYoutubeSearchError("No se encontraron resultados en los servidores de YouTube.");
+      }
+    } catch (err) {
+      setYoutubeSearchError("Error de conexión al buscar en YouTube.");
+    } finally {
+      setIsSearchingYoutube(false);
+    }
+  };
 
   const handleSearch = async () => {
     if (!inputText.trim()) return;
@@ -492,22 +532,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         }
         setInputText('');
       } else {
-        // Search mode
-        setYoutubeSearchQuery(inputText);
-        setIsSearchingYoutube(true);
-        setHasSearchedYoutube(true);
-        setYoutubeSearchError(null);
-        try {
-          const results = await searchYouTube(inputText);
-          setYoutubeResults(results);
-          if (results.length === 0) {
-            setYoutubeSearchError("No se encontraron resultados en los servidores de YouTube.");
-          }
-        } catch (err) {
-          setYoutubeSearchError("Error de conexión al buscar en YouTube.");
-        } finally {
-          setIsSearchingYoutube(false);
-        }
+        // Search mode - open fullscreen browser
+        handleYoutubeFullSearch(inputText);
       }
       return;
     }
@@ -920,6 +946,334 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     </div>
   );
 
+  const renderYoutubeFullBrowser = () => {
+    if (!isYoutubeFullBrowserOpen) return null;
+
+    const selectedVideo = youtubeResults.find(v => v.id === previewVideoId);
+
+    return (
+      <div className="fixed inset-0 z-50 bg-[#050913]/97 backdrop-blur-xl flex flex-col p-6 overflow-hidden animate-fade-in text-white font-sans">
+        {/* Header section */}
+        <div className="flex flex-col gap-4 border-b border-white/10 pb-5 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-red-600/10 border border-red-500/30 flex items-center justify-center text-red-500 shadow-lg shadow-red-950/20">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-red-500 stroke-none" strokeWidth="0">
+                  <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.388.556a3.003 3.003 0 0 0-2.11 2.107C0 8.05 0 12 0 12s0 3.95.502 5.837a3.003 3.003 0 0 0 2.11 2.107C4.5 20.5 12 20.5 12 20.5s7.5 0 9.388-.556a3.003 3.003 0 0 0 2.11-2.107C24 15.95 24 12 24 12s0-3.95-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-sm font-black uppercase tracking-widest text-white">Portal de Búsqueda de YouTube</h1>
+                <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">Busca, previsualiza y proyecta videos en pantalla completa sin salir de la app</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsYoutubeFullBrowserOpen(false)}
+              className="w-10 h-10 rounded-full bg-white/5 hover:bg-red-600 hover:text-white border border-white/10 hover:border-red-500/40 flex items-center justify-center transition-all duration-300 active:scale-90"
+              title="Cerrar (Esc)"
+              type="button"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Search bar & quick chips row */}
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative flex-1 w-full">
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="Escribe palabras clave o pega un enlace de YouTube..."
+                className="w-full bg-slate-950/80 rounded-2xl pl-12 pr-32 py-4 text-sm text-white border border-gray-700/60 focus:border-red-500/50 outline-none transition-all shadow-inner focus:shadow-[0_0_15px_rgba(239,68,68,0.15)]"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleYoutubeFullSearch(inputText);
+                  }
+                }}
+              />
+              <Search className="absolute left-4 top-4.5 text-gray-500" size={18} />
+              <button
+                onClick={() => handleYoutubeFullSearch(inputText)}
+                disabled={isSearchingYoutube}
+                className="absolute right-2 top-2 bg-red-600 hover:bg-red-500 disabled:bg-gray-800 disabled:text-gray-500 text-white font-black text-xs uppercase px-5 py-2.5 rounded-xl transition-all shadow-lg active:scale-95 flex items-center gap-2 border border-red-500/20"
+                type="button"
+              >
+                {isSearchingYoutube ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                BUSCAR
+              </button>
+            </div>
+
+            {/* Quick chips */}
+            <div className="flex gap-1.5 shrink-0 self-start md:self-auto overflow-x-auto max-w-full pb-1 md:pb-0 no-scrollbar">
+              {[
+                { label: '🔥 Adoración', query: 'Musica de adoracion cristiana' },
+                { label: '🎹 Instrumental', query: 'Piano instrumental cristiano' },
+                { label: '🙌 Alabanza', query: 'Alabanza y adoracion cristiana' },
+                { label: '🎤 Pistas', query: 'Pistas de piano cristiano para cantar' },
+                { label: '⛪ Himnos', query: 'Himnos cristianos clasicos' }
+              ].map((chip) => (
+                <button
+                  key={chip.label}
+                  onClick={() => handleYoutubeFullSearch(chip.query)}
+                  className="text-[10px] font-black bg-white/5 hover:bg-red-600/20 border border-white/10 hover:border-red-500/40 text-slate-300 hover:text-white px-3.5 py-2 rounded-xl transition-all active:scale-95 shrink-0"
+                  type="button"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex gap-6 mt-6 min-h-0 overflow-hidden">
+          {/* Left Grid Area */}
+          <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar min-w-0 bg-slate-950/30 rounded-3xl border border-white/5 p-4">
+            {isSearchingYoutube ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-12">
+                <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 mb-4 shadow-xl shadow-red-950/20">
+                  <Loader2 size={32} className="animate-spin text-red-500" />
+                </div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Escaneando YouTube...</h3>
+                <p className="text-xs text-slate-400 mt-2 font-medium">Buscando los mejores videos en servidores de alto rendimiento</p>
+              </div>
+            ) : youtubeSearchError ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-12 text-center px-6">
+                <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 mb-4">
+                  <AlertCircle size={28} />
+                </div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Sin Resultados</h3>
+                <p className="text-xs text-red-400 mt-1 max-w-sm leading-relaxed">{youtubeSearchError}</p>
+                <button
+                  onClick={() => handleYoutubeFullSearch(inputText || 'adoracion')}
+                  className="mt-4 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold rounded-lg transition-all"
+                  type="button"
+                >
+                  Reintentar búsqueda
+                </button>
+              </div>
+            ) : youtubeResults.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-12 text-center px-6">
+                <div className="w-16 h-16 rounded-3xl bg-red-500/5 border border-red-500/10 flex items-center justify-center text-red-500/60 mb-4 animate-pulse">
+                  <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current stroke-none" strokeWidth="0">
+                    <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.388.556a3.003 3.003 0 0 0-2.11 2.107C0 8.05 0 12 0 12s0 3.95.502 5.837a3.003 3.003 0 0 0 2.11 2.107C4.5 20.5 12 20.5 12 20.5s7.5 0 9.388-.556a3.003 3.003 0 0 0 2.11-2.107C24 15.95 24 12 24 12s0-3.95-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Comienza a buscar</h3>
+                <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed font-medium">Ingresa palabras clave arriba o haz clic en las sugerencias de búsqueda rápida.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">
+                {youtubeResults.map((result) => {
+                  const isActivePreview = previewVideoId === result.id;
+                  return (
+                    <div
+                      key={result.id}
+                      className={`group bg-slate-900/50 border rounded-2xl overflow-hidden hover:bg-slate-900/90 transition-all duration-300 flex flex-col shadow-lg hover:shadow-black/40 ${
+                        isActivePreview ? 'border-red-500/80 ring-2 ring-red-500/20' : 'border-white/5 hover:border-red-500/30'
+                      }`}
+                    >
+                      {/* Thumbnail frame */}
+                      <div
+                        className="relative aspect-video overflow-hidden cursor-pointer"
+                        onClick={() => setPreviewVideoId(result.id)}
+                      >
+                        <img
+                          src={result.thumbnail}
+                          alt={result.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <PlayCircle size={32} className="text-white drop-shadow-lg" />
+                        </div>
+                        {result.duration && (
+                          <span className="absolute bottom-2 right-2 bg-black/80 text-[9px] text-white px-2 py-0.5 rounded-md font-black tracking-wide">
+                            {result.duration}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Content block */}
+                      <div className="p-4 flex flex-col justify-between flex-1 gap-3">
+                        <div className="cursor-pointer" onClick={() => setPreviewVideoId(result.id)}>
+                          <h4 className="text-xs font-black text-white line-clamp-2 leading-snug group-hover:text-red-400 transition-colors">
+                            {result.title}
+                          </h4>
+                          <p className="text-[10px] text-slate-400 mt-1.5 font-bold">{result.author}</p>
+                        </div>
+
+                        {/* Quick action buttons on card */}
+                        <div className="flex gap-2 border-t border-white/5 pt-3 mt-auto">
+                          <button
+                            onClick={() => {
+                              const newSlide: Slide = {
+                                id: Math.random().toString(36).substr(2, 9),
+                                type: 'youtube',
+                                content: `https://www.youtube.com/watch?v=${result.id}`,
+                                videoId: result.id,
+                                label: 'YOUTUBE'
+                              };
+                              if (addYouTubeToCurrent && hasActiveItem) {
+                                onAddSlide(newSlide);
+                                alert("¡Agregado exitosamente a la diapositiva!");
+                              } else {
+                                onAddItem({
+                                  id: Math.random().toString(36).substr(2, 9),
+                                  title: result.title,
+                                  type: 'custom',
+                                  slides: [newSlide],
+                                  theme: currentTheme
+                                });
+                                alert("¡Elemento de YouTube creado y agregado a la lista!");
+                              }
+                            }}
+                            className="flex-1 bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 shadow-md shadow-red-950/20"
+                            type="button"
+                          >
+                            <Plus size={10} /> PROYECTOR
+                          </button>
+                          <button
+                            onClick={() => {
+                              onSetBackgroundAudio?.(result.id, result.title);
+                              alert("¡Establecido como música de fondo!");
+                            }}
+                            className="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 shadow-md shadow-indigo-950/20"
+                            type="button"
+                          >
+                            <Music size={10} /> FONDO
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Right Preview Drawer */}
+          <div className="w-[380px] bg-slate-900/60 border border-white/10 rounded-3xl p-5 flex flex-col justify-between shrink-0 shadow-2xl relative backdrop-blur-md">
+            {previewVideoId ? (
+              <div className="flex-1 flex flex-col gap-4 min-h-0">
+                <span className="text-[10px] text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                  <PlayCircle size={14} className="text-red-500 animate-pulse" /> Vista Previa
+                </span>
+                
+                {/* Embed video container */}
+                <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shrink-0 shadow-inner">
+                  <iframe
+                    className="absolute inset-0 w-full h-full border-0"
+                    src={`https://www.youtube.com/embed/${previewVideoId}?autoplay=1&rel=0&playsinline=1`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    title="Reproductor de Vista Previa"
+                  ></iframe>
+                </div>
+
+                <div className="flex-1 overflow-y-auto no-scrollbar pr-1 flex flex-col gap-3 min-h-0">
+                  <h3 className="text-sm font-black text-white leading-snug">
+                    {selectedVideo?.title || `Video de YouTube (${previewVideoId})`}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold">
+                    Canal: <span className="text-red-400">{selectedVideo?.author || 'YouTube Operator'}</span>
+                  </p>
+
+                  <div className="mt-2 bg-slate-950/40 border border-white/5 rounded-2xl p-3 space-y-3">
+                    {/* Add options toggle */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Agregar a diapositiva activa</span>
+                      <button
+                        onClick={() => setAddYouTubeToCurrent(prev => !prev)}
+                        className={`w-12 h-6 rounded-full p-1 transition-all duration-300 ${addYouTubeToCurrent ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                        type="button"
+                      >
+                        <div className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${addYouTubeToCurrent ? 'translate-x-6' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Actions */}
+                <div className="space-y-2 mt-auto shrink-0 border-t border-white/5 pt-4">
+                  <button
+                    onClick={() => {
+                      const newSlide: Slide = {
+                        id: Math.random().toString(36).substr(2, 9),
+                        type: 'youtube',
+                        content: `https://www.youtube.com/watch?v=${previewVideoId}`,
+                        videoId: previewVideoId,
+                        label: 'YOUTUBE'
+                      };
+                      if (addYouTubeToCurrent && hasActiveItem) {
+                        onAddSlide(newSlide);
+                        alert("¡Agregado exitosamente a la diapositiva actual!");
+                      } else {
+                        onAddItem({
+                          id: Math.random().toString(36).substr(2, 9),
+                          title: selectedVideo?.title || `Video Importado (${previewVideoId})`,
+                          type: 'custom',
+                          slides: [newSlide],
+                          theme: currentTheme
+                        });
+                        alert("¡Elemento de YouTube agregado exitosamente a tu lista!");
+                      }
+                    }}
+                    className="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-950/20 active:scale-95 border border-red-500/20"
+                    type="button"
+                  >
+                    <Plus size={16} /> PROYECTAR ESTE VIDEO
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onSetBackgroundAudio?.(previewVideoId, selectedVideo?.title || `Audio de Fondo (${previewVideoId})`);
+                      alert("¡Agregado exitosamente a la música de fondo!");
+                    }}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/20 active:scale-95 border border-indigo-500/20"
+                    type="button"
+                  >
+                    <Music size={14} /> ESTABLECER FONDO DE AUDIO
+                  </button>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${previewVideoId}`);
+                        alert("¡Enlace copiado al portapapeles!");
+                      }}
+                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      type="button"
+                    >
+                      <Copy size={12} /> Copiar Link
+                    </button>
+                    <button
+                      onClick={() => setPreviewVideoId(null)}
+                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-slate-300 hover:text-white text-[10px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center"
+                      type="button"
+                    >
+                      Cerrar Vista
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                <div className="w-16 h-16 rounded-full bg-slate-950/80 border border-white/5 flex items-center justify-center text-slate-500 mb-4 animate-pulse">
+                  <PlayCircle size={32} />
+                </div>
+                <h4 className="text-xs font-black text-white uppercase tracking-wider">Centro de Vista Previa</h4>
+                <p className="text-[10px] text-slate-400 mt-2 leading-relaxed max-w-[240px] font-medium">
+                  Haz clic en cualquier video de la lista para cargarlo en el reproductor de alta definición, verificar su contenido y proyectarlo al instante.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="h-full flex flex-col bg-[#080d17] border-r border-white/10 font-sans">
       <div className="p-3 border-b border-white/10 bg-[#080d17]/95">
@@ -1073,16 +1427,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 rounded-full blur-3xl pointer-events-none"></div>
                     <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-red-500/5 rounded-full blur-2xl pointer-events-none"></div>
 
-                    <div className="flex items-center gap-2.5 mb-4">
-                      <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500">
-                        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-red-500 stroke-none" strokeWidth="0">
-                          <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.388.556a3.003 3.003 0 0 0-2.11 2.107C0 8.05 0 12 0 12s0 3.95.502 5.837a3.003 3.003 0 0 0 2.11 2.107C4.5 20.5 12 20.5 12 20.5s7.5 0 9.388-.556a3.003 3.003 0 0 0 2.11-2.107C24 15.95 24 12 24 12s0-3.95-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                        </svg>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-white/5 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500">
+                          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-red-500 stroke-none" strokeWidth="0">
+                            <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.388.556a3.003 3.003 0 0 0-2.11 2.107C0 8.05 0 12 0 12s0 3.95.502 5.837a3.003 3.003 0 0 0 2.11 2.107C4.5 20.5 12 20.5 12 20.5s7.5 0 9.388-.556a3.003 3.003 0 0 0 2.11-2.107C24 15.95 24 12 24 12s0-3.95-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-black text-white uppercase tracking-wider">Asistente de Búsqueda y Pegado</h3>
+                          <p className="text-[9px] text-red-400 font-bold uppercase tracking-widest">¡Busca en YouTube y agrega con un Click!</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-xs font-black text-white uppercase tracking-wider">Asistente de Búsqueda y Pegado</h3>
-                        <p className="text-[9px] text-red-400 font-bold uppercase tracking-widest">¡Busca en YouTube y agrega con un Click!</p>
-                      </div>
+                      <button
+                        onClick={() => {
+                          const query = inputText.trim() || 'musica cristiana';
+                          handleYoutubeFullSearch(query);
+                        }}
+                        className="bg-red-600 hover:bg-red-500 text-white text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-950/20 active:scale-95 border border-red-500/30 w-full sm:w-auto"
+                        type="button"
+                      >
+                        <Maximize2 size={12} /> BUSCADOR COMPLETO 🌐
+                      </button>
                     </div>
 
                     <div className="space-y-4">
@@ -1101,8 +1467,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <button
                             onClick={() => {
                               const query = inputText.trim() || 'musica cristiana';
-                              setYoutubeSearchQuery(query);
-                              handleSearch();
+                              handleYoutubeFullSearch(query);
                             }}
                             className="bg-red-600 hover:bg-red-500 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-md active:scale-95 border border-red-500/30"
                             type="button"
@@ -1223,8 +1588,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <button
                             key={chip.label}
                             onClick={() => {
-                              setInputText(chip.query);
-                              setYoutubeSearchQuery(chip.query);
+                              handleYoutubeFullSearch(chip.query);
                             }}
                             className="text-[8px] font-bold bg-gray-800/40 hover:bg-red-600/35 border border-gray-700/60 hover:border-red-500/40 text-slate-400 hover:text-white px-2 py-0.5 rounded-md transition-all active:scale-95"
                             type="button"
@@ -1612,7 +1976,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <button
                           onClick={() => {
                             const query = inputText.trim() || 'musica cristiana';
-                            setYoutubeSearchQuery(query);
+                            handleYoutubeFullSearch(query);
                           }}
                           className="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 text-red-400 text-[10px] font-black uppercase py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                           type="button"
@@ -2790,6 +3154,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           setShowHistoryPanel(false);
         }}
       />
+
+      {/* YouTube Full-Screen Browser Portal */}
+      {renderYoutubeFullBrowser()}
     </div>
   );
 };
