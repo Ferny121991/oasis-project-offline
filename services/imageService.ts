@@ -35,9 +35,19 @@ export const compressImage = (dataUrl: string, maxWidth = 1280, maxHeight = 720,
 
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Compress to JPEG with specified quality
-            // This significantly reduces the size of base64 strings
-            resolve(canvas.toDataURL('image/jpeg', quality));
+            // Check if the input is a format that supports transparency
+            const isTransparentFormat = dataUrl.startsWith('data:image/png') ||
+                                         dataUrl.startsWith('data:image/svg+xml') ||
+                                         dataUrl.startsWith('data:image/gif') ||
+                                         dataUrl.startsWith('data:image/webp');
+
+            if (isTransparentFormat) {
+                // Export as PNG to preserve transparency
+                resolve(canvas.toDataURL('image/png'));
+            } else {
+                // Compress to JPEG with specified quality
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            }
         };
         img.onerror = (e) => reject(e);
     });

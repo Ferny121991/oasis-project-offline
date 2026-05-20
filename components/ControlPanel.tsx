@@ -815,12 +815,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">Logo y Proyector</p>
             <h2 className="mt-1 text-lg font-black text-white">Pantalla de bienvenida</h2>
           </div>
-          <button
-            onClick={() => logoFileInputRef.current?.click()}
-            className="rounded-xl bg-cyan-400 px-3 py-2 text-[11px] font-black uppercase text-slate-950 transition hover:bg-cyan-300 flex items-center gap-2"
-          >
-            <Upload size={14} /> Logo
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => logoFileInputRef.current?.click()}
+              className="rounded-xl bg-cyan-400 px-3 py-2 text-[11px] font-black uppercase text-slate-950 transition hover:bg-cyan-300 flex items-center gap-2"
+            >
+              <Upload size={14} /> Logo
+            </button>
+            {currentTheme.logoUrl && (
+              <button
+                onClick={() => updatePendingTheme({ ...currentTheme, logoUrl: undefined })}
+                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-black uppercase text-red-200 transition hover:bg-red-500/20 flex items-center gap-2"
+                title="Restablecer al logo predeterminado"
+              >
+                <Trash2 size={14} /> Restablecer
+              </button>
+            )}
+          </div>
         </div>
 
         <div
