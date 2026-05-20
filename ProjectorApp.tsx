@@ -134,7 +134,7 @@ const ProjectorApp: React.FC = () => {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data === 'TOGGLE_FULLSCREEN' && !document.fullscreenElement) {
+      if (typeof event.data === 'string' && event.data === 'OASIS_TOGGLE_FULLSCREEN' && !document.fullscreenElement) {
         setShowStartOverlay(false);
         document.documentElement.requestFullscreen().catch(() => undefined);
       }

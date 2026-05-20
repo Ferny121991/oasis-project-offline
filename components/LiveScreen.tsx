@@ -404,7 +404,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                       <iframe
                         ref={iframeRef}
                         className="w-full h-full"
-                        src={`https://www.youtube-nocookie.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&origin=${window.location.origin}&rel=0&playsinline=1`}
+                        src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&rel=0&playsinline=1`}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
                         title="YouTube video"

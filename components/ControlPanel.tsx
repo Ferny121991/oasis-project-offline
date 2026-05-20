@@ -254,6 +254,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [hasSearchedYoutube, setHasSearchedYoutube] = useState(false);
   const [youtubeSearchError, setYoutubeSearchError] = useState<string | null>(null);
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
+  const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text'));
 
   // Bible book autocomplete suggestions
@@ -492,6 +493,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         setInputText('');
       } else {
         // Search mode
+        setYoutubeSearchQuery(inputText);
         setIsSearchingYoutube(true);
         setHasSearchedYoutube(true);
         setYoutubeSearchError(null);
@@ -1056,7 +1058,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       <div className="relative aspect-video bg-black">
                         <iframe
                           className="w-full h-full"
-                          src={`https://www.youtube.com/embed/${previewVideoId}?autoplay=1&origin=${window.location.protocol}//${window.location.host}`}
+                          src={`https://www.youtube.com/embed/${previewVideoId}?autoplay=1&rel=0&playsinline=1`}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           allowFullScreen
                           title="Preview Video"
@@ -1235,6 +1237,127 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                   {/* YouTube Browser / Search Results */}
                   <div className="mb-4">
+                    {/* YouTube Integrated Iframe Search Panel */}
+                    {youtubeSearchQuery && (
+                      <div className="mb-5 bg-gradient-to-b from-gray-950 to-slate-900 border border-red-500/30 rounded-2xl overflow-hidden shadow-2xl relative animate-fade-in text-left">
+                        <div className="flex items-center justify-between p-3.5 border-b border-gray-800 bg-red-950/20">
+                          <span className="text-xs text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5">
+                            <PlayCircle size={14} className="text-red-500 animate-pulse" /> Panel de Búsqueda de YouTube
+                          </span>
+                          <button
+                            onClick={() => setYoutubeSearchQuery('')}
+                            className="text-gray-400 hover:text-white transition-colors bg-white/5 p-1 rounded-full hover:bg-white/10"
+                            type="button"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                        
+                        <div className="relative aspect-video bg-black">
+                          <iframe
+                            className="absolute inset-0 w-full h-full border-0"
+                            src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(youtubeSearchQuery)}&autoplay=1&mute=0&controls=1&rel=0`}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                            title="Búsqueda de YouTube"
+                          ></iframe>
+                        </div>
+                        
+                        <div className="p-4 bg-slate-900/60 border-t border-gray-800/80 flex flex-col gap-3">
+                          <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
+                            📺 <strong>Navegador de Resultados Integrado:</strong>
+                            <br />
+                            1. Reproduce el video deseado en la pantalla de arriba.
+                            <br />
+                            2. Haz clic en el icono de <strong>compartir/YouTube</strong> dentro del video para copiar el enlace, o cópialo desde tu navegador.
+                            <br />
+                            3. Presiona uno de los botones verdes/azules de abajo para capturarlo automáticamente:
+                          </p>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  let urlText = '';
+                                  try {
+                                    urlText = await navigator.clipboard.readText();
+                                  } catch (e) {
+                                    console.warn("Could not read clipboard", e);
+                                  }
+                                  urlText = urlText.trim() || inputText.trim();
+                                  
+                                  const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                                  
+                                  if (!vId) {
+                                    alert("Por favor copia primero el enlace del video de YouTube (usa el botón de compartir del video de arriba o cópialo al portapapeles).");
+                                    return;
+                                  }
+
+                                  const newSlide: Slide = {
+                                    id: Math.random().toString(36).substr(2, 9),
+                                    type: 'youtube',
+                                    content: `https://www.youtube.com/watch?v=${vId}`,
+                                    videoId: vId,
+                                    label: 'YOUTUBE'
+                                  };
+
+                                  if (addYouTubeToCurrent && hasActiveItem) {
+                                    onAddSlide(newSlide);
+                                    alert("¡Video agregado exitosamente a la diapositiva actual!");
+                                  } else {
+                                    onAddItem({
+                                      id: Math.random().toString(36).substr(2, 9),
+                                      title: `Video Importado (${vId})`,
+                                      type: 'custom',
+                                      slides: [newSlide],
+                                      theme: currentTheme
+                                    });
+                                    alert("¡Elemento de YouTube agregado exitosamente a tu lista!");
+                                  }
+                                } catch (err) {
+                                  alert("Error al pegar. Asegúrate de tener copiado un enlace de YouTube o pégalo en el buscador superior.");
+                                }
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/20 border border-emerald-500/20"
+                              type="button"
+                            >
+                              <Plus size={12} /> Pegar a Playlist
+                            </button>
+                            
+                            <button
+                              onClick={async () => {
+                                try {
+                                  let urlText = '';
+                                  try {
+                                    urlText = await navigator.clipboard.readText();
+                                  } catch (e) {
+                                    console.warn("Could not read clipboard", e);
+                                  }
+                                  urlText = urlText.trim() || inputText.trim();
+                                  
+                                  const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                                  
+                                  if (!vId) {
+                                    alert("Por favor copia primero el enlace del video de YouTube (usa el botón de compartir del video de arriba o cópialo al portapapeles).");
+                                    return;
+                                  }
+
+                                  onSetBackgroundAudio?.(vId, `Audio Importado (${vId})`);
+                                  alert("¡Agregado exitosamente a la música de fondo!");
+                                } catch (err) {
+                                  alert("Error al pegar. Asegúrate de tener copiado un enlace de YouTube o pégalo en el buscador superior.");
+                                }
+                              }}
+                              className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/20 border border-indigo-500/20"
+                              type="button"
+                            >
+                              <Music size={12} /> Pegar a Fondo
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {isSearchingYoutube ? (
                       /* Premium YouTube loading screen */
                       <div className="bg-gradient-to-b from-gray-900/65 to-slate-950/75 border border-red-500/20 rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[220px] relative overflow-hidden shadow-xl animate-fade-in">

@@ -524,7 +524,7 @@ const App: React.FC = () => {
 
     if (projectorKey === 'true') {
       const handleMessage = (e: MessageEvent) => {
-        if (e.data === 'TOGGLE_FULLSCREEN') {
+        if (typeof e.data === 'string' && e.data === 'OASIS_TOGGLE_FULLSCREEN') {
           if (!document.fullscreenElement) {
             setShowProjectorStartOverlay(false);
             document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen auto-block:", err));
@@ -2079,7 +2079,7 @@ const App: React.FC = () => {
       setTimeout(() => {
         if (newWindow && !newWindow.closed) {
           newWindow.focus();
-          newWindow.postMessage('TOGGLE_FULLSCREEN', '*');
+          newWindow.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
         }
       }, 1000);
 
@@ -2098,7 +2098,7 @@ const App: React.FC = () => {
   const toggleProjectorFullscreen = useCallback(() => {
     if (externalWindow && !externalWindow.closed) {
       sendSyncState(true);
-      externalWindow.postMessage('TOGGLE_FULLSCREEN', '*');
+      externalWindow.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
       externalWindow.focus();
     } else {
       setExternalWindow(null);
@@ -2280,7 +2280,7 @@ const App: React.FC = () => {
                 // Second attempt slightly later to ensure DOM is settled
                 setTimeout(() => {
                   win.focus();
-                  win.postMessage('TOGGLE_FULLSCREEN', '*');
+                  win.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
                 }, 600);
               }
             });
