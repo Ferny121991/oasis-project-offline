@@ -3,7 +3,7 @@ import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, Den
 import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry, BackgroundAnimationConfig, BackgroundAnimationType } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
-import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star } from 'lucide-react';
+import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star, AlertCircle, ArrowLeft } from 'lucide-react';
 import RichTextEditor, { textToSegments, segmentsToText } from './RichTextEditor';
 import HistoryPanel from './HistoryPanel';
 
@@ -251,6 +251,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [youtubeResults, setYoutubeResults] = useState<YouTubeSearchResult[]>([]);
   const [isSearchingSongs, setIsSearchingSongs] = useState(false);
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
+  const [hasSearchedYoutube, setHasSearchedYoutube] = useState(false);
+  const [youtubeSearchError, setYoutubeSearchError] = useState<string | null>(null);
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text'));
 
@@ -491,11 +493,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       } else {
         // Search mode
         setIsSearchingYoutube(true);
+        setHasSearchedYoutube(true);
+        setYoutubeSearchError(null);
         try {
           const results = await searchYouTube(inputText);
           setYoutubeResults(results);
+          if (results.length === 0) {
+            setYoutubeSearchError("No se encontraron resultados en los servidores de YouTube.");
+          }
         } catch (err) {
-          alert("Error al buscar en YouTube.");
+          setYoutubeSearchError("Error de conexión al buscar en YouTube.");
         } finally {
           setIsSearchingYoutube(false);
         }
@@ -1064,7 +1071,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">📺 Resultados de Búsqueda</span>
-                          <button onClick={() => setYoutubeResults([])} className="text-[10px] text-gray-500 hover:text-white transition-colors flex items-center gap-1 font-bold">
+                          <button
+                            onClick={() => {
+                              setYoutubeResults([]);
+                              setHasSearchedYoutube(false);
+                              setYoutubeSearchError(null);
+                            }}
+                            className="text-[10px] text-gray-500 hover:text-white transition-colors flex items-center gap-1 font-bold"
+                          >
                             <X size={10} /> LIMPIAR
                           </button>
                         </div>
@@ -1133,8 +1147,54 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           ))}
                         </div>
                       </div>
+                    ) : hasSearchedYoutube ? (
+                      /* Beautiful, premium "No Results Found" or Error view */
+                      <div className="bg-gradient-to-b from-gray-900/65 to-slate-950/75 border border-red-500/20 rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[220px] relative overflow-hidden shadow-xl animate-fade-in">
+                        {/* Soft glowing background elements */}
+                        <div className="absolute -top-12 -left-12 w-24 h-24 bg-red-500/5 rounded-full blur-2xl"></div>
+                        <div className="absolute -bottom-12 -right-12 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl"></div>
+
+                        <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 mb-3.5 shadow-lg shadow-red-950/10">
+                          <AlertCircle size={26} className="animate-pulse" />
+                        </div>
+                        
+                        <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                          {youtubeSearchError ? "Error de Búsqueda" : "Sin Resultados"}
+                        </h3>
+                        
+                        <p className="text-[10px] text-gray-400 max-w-[240px] mt-1.5 leading-relaxed font-medium">
+                          No pudimos obtener videos para tu búsqueda. Las APIs públicas podrían estar saturadas o desconectadas temporalmente.
+                        </p>
+
+                        {/* Interactive tip */}
+                        <div className="mt-4 p-2.5 rounded-xl bg-indigo-950/20 border border-indigo-500/10 max-w-[280px]">
+                          <p className="text-[9px] text-indigo-300 font-medium leading-relaxed">
+                            💡 <span className="font-bold text-indigo-200">Consejo rápido:</span> Puedes copiar y pegar el enlace directo de cualquier video de YouTube en el cuadro de búsqueda superior y se agregará al instante.
+                          </p>
+                        </div>
+
+                        {/* Buttons to reset or try again */}
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={() => {
+                              setHasSearchedYoutube(false);
+                              setYoutubeSearchError(null);
+                              setInputText('');
+                            }}
+                            className="text-[9px] font-bold bg-gray-800 hover:bg-gray-700 border border-gray-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg transition-all active:scale-95 flex items-center gap-1 shadow-sm"
+                          >
+                            <ArrowLeft size={10} /> VOLVER
+                          </button>
+                          <button
+                            onClick={() => handleSearch()}
+                            className="text-[9px] font-bold bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white px-3 py-1.5 rounded-lg transition-all active:scale-95 flex items-center gap-1 shadow-md shadow-red-950/20"
+                          >
+                            <RefreshCw size={10} /> REINTENTAR
+                          </button>
+                        </div>
+                      </div>
                     ) : (
-                      /* YouTube Browser Dashboard (Replaces broken embed) */
+                      /* YouTube Browser Dashboard (Replaces broken embed) - Default View */
                       <div className="bg-gray-800/30 border border-gray-700/30 rounded-2xl p-5 text-center flex flex-col items-center justify-center aspect-video relative group overflow-hidden shadow-inner">
                         <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-3 shadow-lg shadow-red-950/20 group-hover:scale-110 transition-transform duration-500">
                           <PlayCircle size={28} />
@@ -1159,11 +1219,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 onClick={async () => {
                                   setInputText(chip.query);
                                   setIsSearchingYoutube(true);
+                                  setHasSearchedYoutube(true);
+                                  setYoutubeSearchError(null);
                                   try {
                                     const results = await searchYouTube(chip.query);
                                     setYoutubeResults(results);
+                                    if (results.length === 0) {
+                                      setYoutubeSearchError("No se encontraron resultados en los servidores de YouTube.");
+                                    }
                                   } catch (err) {
-                                    alert("Error al buscar en YouTube.");
+                                    setYoutubeSearchError("Error de conexión al buscar en YouTube.");
                                   } finally {
                                     setIsSearchingYoutube(false);
                                   }

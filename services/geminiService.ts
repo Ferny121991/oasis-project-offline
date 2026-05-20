@@ -808,8 +808,65 @@ export interface YouTubeSearchResult {
   duration?: string;
 }
 
+// Helper to perform fetch with CORS proxy fallback
+const fetchWithCorsProxy = async (url: string, timeoutMs = 6500): Promise<any> => {
+  // 1. Try direct fetch first
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.warn(`Direct fetch failed for ${url}, attempting CORS proxy fallback...`, e);
+  }
+
+  // 2. Fallback to api.allorigins.win public CORS proxy
+  try {
+    const proxiedUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxiedUrl, { signal: AbortSignal.timeout(timeoutMs + 2000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.contents) {
+        // allorigins wraps the raw text response in the "contents" field
+        return JSON.parse(data.contents);
+      }
+    }
+  } catch (e) {
+    console.error(`CORS proxy fetch failed for ${url}:`, e);
+  }
+  
+  throw new Error(`Failed to fetch ${url} directly or via CORS proxy.`);
+};
+
+// Robust helper to extract 11-character YouTube video ID
+const extractVideoId = (str: string): string => {
+  if (!str) return '';
+  const trimmed = str.trim();
+  if (trimmed.length === 11) return trimmed;
+
+  // Extract from standard watch/embed URLs
+  const match = trimmed.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1];
+  if (match) return match;
+
+  // Try extracting from query params
+  try {
+    const urlParts = trimmed.split('?');
+    if (urlParts.length > 1) {
+      const urlParams = new URLSearchParams(urlParts[1]);
+      const v = urlParams.get('v');
+      if (v && v.length === 11) return v;
+    }
+  } catch (_) {}
+
+  // Fallback: match any 11-char alphanumeric pattern at the end
+  const endMatch = trimmed.match(/([\w-]{11})$/)?.[1];
+  if (endMatch) return endMatch;
+
+  return '';
+};
+
 export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
-  // Strategy 1: Try Piped API (public, no API key needed)
+  // Strategy 1: Try Piped API (using CORS proxy fallback)
   const pipedInstances = [
     'https://pipedapi.kavin.rocks',
     'https://pipedapi.adminforge.de',
@@ -818,31 +875,25 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
 
   for (const instance of pipedInstances) {
     try {
-      const res = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`, {
-        signal: AbortSignal.timeout(6000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.items && data.items.length > 0) {
-          return data.items.slice(0, 8).map((item: any) => {
-            // Extract video ID from the URL (format: /watch?v=XXXX)
-            const videoId = item.url?.replace('/watch?v=', '') || '';
-            return {
-              id: videoId,
-              title: item.title || 'Sin título',
-              author: item.uploaderName || item.uploader || 'Desconocido',
-              thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-              duration: item.duration ? formatDuration(item.duration) : undefined
-            };
-          }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
-        }
+      const data = await fetchWithCorsProxy(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`);
+      if (data && data.items && data.items.length > 0) {
+        return data.items.slice(0, 8).map((item: any) => {
+          const videoId = extractVideoId(item.url || '');
+          return {
+            id: videoId,
+            title: item.title || 'Sin título',
+            author: item.uploaderName || item.uploader || 'Desconocido',
+            thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+            duration: item.duration ? formatDuration(item.duration) : undefined
+          };
+        }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
       }
     } catch (e) {
-      console.warn(`Piped instance ${instance} failed:`, e);
+      console.warn(`Piped instance ${instance} failed to search:`, e);
     }
   }
 
-  // Strategy 2: Try Invidious API
+  // Strategy 2: Try Invidious API (using CORS proxy fallback)
   const invidiousInstances = [
     'https://inv.nadeko.net',
     'https://invidious.nerdvpn.de',
@@ -851,34 +902,32 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
 
   for (const instance of invidiousInstances) {
     try {
-      const res = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, {
-        signal: AbortSignal.timeout(6000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          return data.slice(0, 8).map((item: any) => ({
-            id: item.videoId,
+      const data = await fetchWithCorsProxy(`${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+      if (data && Array.isArray(data) && data.length > 0) {
+        return data.slice(0, 8).map((item: any) => {
+          const videoId = extractVideoId(item.videoId || '');
+          return {
+            id: videoId,
             title: item.title || 'Sin título',
             author: item.author || 'Desconocido',
-            thumbnail: `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`,
+            thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
             duration: item.lengthSeconds ? formatDuration(item.lengthSeconds) : undefined
-          })).filter((item: YouTubeSearchResult) => item.id);
-        }
+          };
+        }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
       }
     } catch (e) {
-      console.warn(`Invidious instance ${instance} failed:`, e);
+      console.warn(`Invidious instance ${instance} failed to search:`, e);
     }
   }
 
-  // Strategy 3: Fallback to Gemini AI (requires API key)
+  // Strategy 3: Fallback to Gemini AI (with Google Search Grounding)
   if (apiKey) {
     try {
       const model = ai.models;
       const prompt = `
-        Actúa como un buscador de YouTube. El usuario busca: "${query}".
-        Devuelve los 6 resultados más relevantes.
-        IMPORTANTE: Debes devolver los IDs de YouTube REALES si los conoces.
+        Actúa como un buscador en tiempo real de YouTube. El usuario busca: "${query}".
+        Busca en Google y obtén los 6 videos más relevantes de YouTube correspondientes a esta búsqueda.
+        IMPORTANTE: Debes buscar en la web para obtener los IDs reales (de 11 caracteres) de YouTube de los videos reales.
         FORMATO JSON.
       `;
 
@@ -886,6 +935,7 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
         model: 'gemini-1.5-flash',
         contents: prompt,
         config: {
+          tools: [{ googleSearch: {} }] as any, // Enable live web search grounding
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.ARRAY,
@@ -903,12 +953,18 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
       });
 
       const data = JSON.parse(response.text || '[]');
-      return data.map((item: any) => ({
-        ...item,
-        thumbnail: `https://img.youtube.com/vi/${item.id}/mqdefault.jpg`
-      }));
+      return data.map((item: any) => {
+        const videoId = extractVideoId(item.id || '');
+        return {
+          id: videoId,
+          title: item.title || 'Sin título',
+          author: item.author || 'Desconocido',
+          duration: item.duration || undefined,
+          thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+        };
+      }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
     } catch (error) {
-      console.error("Error in AI YouTube search:", error);
+      console.error("Error in AI YouTube search grounding:", error);
     }
   }
 
