@@ -1089,7 +1089,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {/* Paso 1 */}
                       <div className="relative pl-6">
                         <div className="absolute left-0 top-0.5 w-4 h-4 rounded-full bg-red-500/10 border border-red-500/40 flex items-center justify-center text-[9px] font-black text-red-400">1</div>
-                        <p className="text-[10px] text-white font-bold mb-1.5">Escribe tu búsqueda o presiona para abrir YouTube:</p>
+                        <p className="text-[10px] text-white font-bold mb-1.5">Escribe tu búsqueda y presiona Buscar:</p>
                         <div className="flex gap-2">
                           <input
                             type="text"
@@ -1101,12 +1101,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <button
                             onClick={() => {
                               const query = inputText.trim() || 'musica cristiana';
-                              window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank');
+                              setYoutubeSearchQuery(query);
+                              handleSearch();
                             }}
-                            className="bg-red-600 hover:bg-red-500 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-md active:scale-95 border border-red-500/30 animate-pulse hover:animate-none"
+                            className="bg-red-600 hover:bg-red-500 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-md active:scale-95 border border-red-500/30"
                             type="button"
                           >
-                            <ExternalLink size={10} /> ABRIR YOUTUBE
+                            <Search size={10} /> BUSCAR INTEGRADO
                           </button>
                         </div>
                       </div>
@@ -1223,7 +1224,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             key={chip.label}
                             onClick={() => {
                               setInputText(chip.query);
-                              window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(chip.query)}`, '_blank');
+                              setYoutubeSearchQuery(chip.query);
                             }}
                             className="text-[8px] font-bold bg-gray-800/40 hover:bg-red-600/35 border border-gray-700/60 hover:border-red-500/40 text-slate-400 hover:text-white px-2 py-0.5 rounded-md transition-all active:scale-95"
                             type="button"
@@ -1611,13 +1612,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <button
                           onClick={() => {
                             const query = inputText.trim() || 'musica cristiana';
-                            window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank');
+                            setYoutubeSearchQuery(query);
                           }}
                           className="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 text-red-400 text-[10px] font-black uppercase py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                           type="button"
                         >
-                          <ExternalLink size={12} className="text-red-500" />
-                          Buscar en YouTube.com
+                          <Search size={12} className="text-red-500" />
+                          Buscar en Aplicación
                         </button>
                         <button
                           onClick={async () => {
