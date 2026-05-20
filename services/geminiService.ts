@@ -609,11 +609,13 @@ export const searchSongs = async (query: string): Promise<SongSearchResult[]> =>
     FORMATO JSON.
   `;
 
+  // Try with Google Search Grounding first for real-time web search
   try {
     const response = await model.generateContent({
       model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
+        tools: [{ googleSearch: {} }] as any,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -633,8 +635,34 @@ export const searchSongs = async (query: string): Promise<SongSearchResult[]> =>
     const data = JSON.parse(response.text || '[]');
     return data;
   } catch (error) {
-    console.error("Error searching songs:", error);
-    return [];
+    console.warn("Song search with Google Grounding failed, falling back to standard Gemini search:", error);
+    
+    // Fallback: standard Gemini query without tools
+    try {
+      const response = await model.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                artist: { type: Type.STRING },
+                album: { type: Type.STRING, nullable: true },
+                snippet: { type: Type.STRING }
+              }
+            }
+          }
+        }
+      });
+      return JSON.parse(response.text || '[]');
+    } catch (e2) {
+      console.error("Standard song search fallback failed:", e2);
+      return [];
+    }
   }
 };
 
@@ -652,11 +680,13 @@ export const fetchSongLyrics = async (songQuery: string, density: DensityMode = 
     FORMATO JSON.
   `;
 
+  // Try with Google Search Grounding first for perfect live lyrics from the internet
   try {
     const response = await model.generateContent({
       model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
+        tools: [{ googleSearch: {} }] as any,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -696,8 +726,56 @@ export const fetchSongLyrics = async (songQuery: string, density: DensityMode = 
     };
 
   } catch (error) {
-    console.error("AI Lyrics Error:", error);
-    throw new Error("No se pudo obtener la letra con IA. Inténtalo pegando el texto en modo 'Manual'.");
+    console.warn("Lyrics search with Google Grounding failed, falling back to standard Gemini search:", error);
+
+    // Fallback: standard Gemini query without tools
+    try {
+      const response = await model.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              author: { type: Type.STRING },
+              slides: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    label: { type: Type.STRING },
+                    lines: { type: Type.STRING }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const data = JSON.parse(response.text || '{}');
+
+      const slides: Slide[] = data.slides.map((s: any) => ({
+        id: generateId(),
+        type: 'text',
+        content: s.lines,
+        label: s.label
+      }));
+
+      return {
+        id: generateId(),
+        title: data.title || songQuery,
+        type: 'song',
+        slides: slides,
+        theme: { ...DEFAULT_THEME }
+      };
+
+    } catch (e2) {
+      console.error("AI Lyrics Fallback Error:", e2);
+      throw new Error("No se pudo obtener la letra con IA. Inténtalo pegando el texto en modo 'Manual'.");
+    }
   }
 };
 
@@ -808,31 +886,47 @@ export interface YouTubeSearchResult {
   duration?: string;
 }
 
+// Backward-compatible helper to perform fetch with custom abort timeout
+const fetchWithTimeout = async (url: string, timeoutMs = 6000, options: RequestInit = {}): Promise<Response> => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+};
+
 // Helper to perform fetch with CORS proxy fallback
-const fetchWithCorsProxy = async (url: string, timeoutMs = 6500): Promise<any> => {
+const fetchWithCorsProxy = async (url: string, timeoutMs = 3000): Promise<any> => {
   // 1. Try direct fetch first
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetchWithTimeout(url, timeoutMs);
     if (res.ok) {
       return await res.json();
     }
   } catch (e) {
-    console.warn(`Direct fetch failed for ${url}, attempting CORS proxy fallback...`, e);
+    console.warn(`Direct fetch failed for ${url}, attempting CORS proxy fallback...`);
   }
 
   // 2. Fallback to api.allorigins.win public CORS proxy
   try {
     const proxiedUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxiedUrl, { signal: AbortSignal.timeout(timeoutMs + 2000) });
+    const res = await fetchWithTimeout(proxiedUrl, timeoutMs + 1500);
     if (res.ok) {
       const data = await res.json();
       if (data && data.contents) {
-        // allorigins wraps the raw text response in the "contents" field
         return JSON.parse(data.contents);
       }
     }
   } catch (e) {
-    console.error(`CORS proxy fetch failed for ${url}:`, e);
+    console.error(`CORS proxy fetch failed for ${url}`);
   }
   
   throw new Error(`Failed to fetch ${url} directly or via CORS proxy.`);
@@ -865,110 +959,239 @@ const extractVideoId = (str: string): string => {
   return '';
 };
 
-export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
-  // Strategy 1: Try Piped API (using CORS proxy fallback)
-  const pipedInstances = [
-    'https://pipedapi.kavin.rocks',
-    'https://pipedapi.adminforge.de',
-    'https://api.piped.projectsegfau.lt',
-  ];
+// Custom lightweight equivalent of Promise.any for wide browser compatibility
+const anySuccessfulPromise = async <T>(promises: Promise<T>[]): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    let rejectedCount = 0;
+    let resolved = false;
 
-  for (const instance of pipedInstances) {
-    try {
-      const data = await fetchWithCorsProxy(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`);
-      if (data && data.items && data.items.length > 0) {
-        return data.items.slice(0, 8).map((item: any) => {
-          const videoId = extractVideoId(item.url || '');
-          return {
-            id: videoId,
-            title: item.title || 'Sin título',
-            author: item.uploaderName || item.uploader || 'Desconocido',
-            thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-            duration: item.duration ? formatDuration(item.duration) : undefined
-          };
-        }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
+    if (promises.length === 0) {
+      reject(new Error("No promises provided."));
+      return;
+    }
+
+    promises.forEach((p) => {
+      p.then((val) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(val);
+        }
+      }).catch((err) => {
+        rejectedCount++;
+        if (rejectedCount === promises.length && !resolved) {
+          reject(new Error("All promises failed."));
+        }
+      });
+    });
+  });
+};
+
+// Direct scrape of YouTube search page HTML via multiple CORS proxies to bypass public instances and API key limits
+const fetchYouTubeDirect = async (query: string, proxyUrl: string, isAllOrigins = false): Promise<YouTubeSearchResult[]> => {
+  const targetUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  const fetchUrl = isAllOrigins 
+    ? `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`
+    : `${proxyUrl}${encodeURIComponent(targetUrl)}`;
+
+  // Strict timeout of 1800ms
+  const res = await fetchWithTimeout(fetchUrl, 1800);
+  if (!res.ok) throw new Error(`Proxy search failed with status ${res.status}`);
+  
+  let html = '';
+  if (isAllOrigins) {
+    const json = await res.json();
+    html = json.contents || '';
+  } else {
+    html = await res.text();
+  }
+
+  if (!html) throw new Error("Empty HTML response");
+
+  // Regex to find ytInitialData JSON
+  const match = html.match(/ytInitialData\s*=\s*({[\s\S]+?});/) || html.match(/ytInitialData\s*=\s*({[\s\S]+?})\s*</);
+  if (!match) throw new Error("Could not find ytInitialData");
+
+  // Clean JSON string in case of extra characters
+  let jsonStr = match[1].trim();
+  if (jsonStr.endsWith(';')) jsonStr = jsonStr.slice(0, -1);
+
+  const json = JSON.parse(jsonStr);
+  const contents = json.contents?.twoColumnSearchResultRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents;
+  if (!Array.isArray(contents)) throw new Error("Invalid ytInitialData contents");
+
+  const results: YouTubeSearchResult[] = [];
+  for (const item of contents) {
+    if (item.videoRenderer) {
+      const vr = item.videoRenderer;
+      const videoId = vr.videoId;
+      if (videoId && videoId.length === 11) {
+        const title = vr.title?.runs?.[0]?.text || vr.title?.accessibility?.accessibilityData?.label || 'Sin título';
+        const author = vr.ownerText?.runs?.[0]?.text || vr.shortBylineText?.runs?.[0]?.text || 'Desconocido';
+        const duration = vr.lengthText?.simpleText || undefined;
+        results.push({
+          id: videoId,
+          title,
+          author,
+          thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+          duration
+        });
       }
-    } catch (e) {
-      console.warn(`Piped instance ${instance} failed to search:`, e);
     }
   }
 
-  // Strategy 2: Try Invidious API (using CORS proxy fallback)
-  const invidiousInstances = [
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
-    'https://yt.cdaut.de',
-  ];
+  if (results.length === 0) throw new Error("No videos found in page");
+  return results.slice(0, 10);
+};
 
-  for (const instance of invidiousInstances) {
+export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
+  // Absolute timeout of 2.2 seconds to guarantee search never hangs
+  const searchTimeoutPromise = new Promise<never>((_, reject) => 
+    setTimeout(() => reject(new Error("Timeout general de búsqueda de YouTube superado.")), 2200)
+  );
+
+  const performSearch = async (): Promise<YouTubeSearchResult[]> => {
+    const pipedInstances = [
+      'https://pipedapi.kavin.rocks',
+      'https://pipedapi.adminforge.de',
+    ];
+    const invidiousInstances = [
+      'https://inv.nadeko.net',
+      'https://invidious.nerdvpn.de',
+    ];
+
+    const fetchPromises: Promise<YouTubeSearchResult[]>[] = [];
+
+    // 1. YouTube Direct HTML Scraping via CORS Proxies (Concurrently launched - HIGH PRIORITY)
+    fetchPromises.push(
+      fetchYouTubeDirect(query, 'https://corsproxy.io/?').catch(err => {
+        console.warn("Direct YouTube search via corsproxy.io failed, trying other scrapers...", err);
+        throw err;
+      })
+    );
+    
+    fetchPromises.push(
+      fetchYouTubeDirect(query, '', true).catch(err => {
+        console.warn("Direct YouTube search via allorigins failed, trying other scrapers...", err);
+        throw err;
+      })
+    );
+
+    // 2. Piped search promises (Concurrently launched)
+    for (const instance of pipedInstances) {
+      fetchPromises.push(
+        (async () => {
+          const data = await fetchWithCorsProxy(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`, 1500);
+          if (data && data.items && data.items.length > 0) {
+            const mapped = data.items.slice(0, 8).map((item: any) => {
+              const videoId = extractVideoId(item.url || '');
+              return {
+                id: videoId,
+                title: item.title || 'Sin título',
+                author: item.uploaderName || item.uploader || 'Desconocido',
+                thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                duration: item.duration ? formatDuration(item.duration) : undefined
+              };
+            }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
+            
+            if (mapped.length > 0) return mapped;
+          }
+          throw new Error("Empty or invalid Piped results.");
+        })()
+      );
+    }
+
+    // 3. Invidious search promises (Concurrently launched)
+    for (const instance of invidiousInstances) {
+      fetchPromises.push(
+        (async () => {
+          const data = await fetchWithCorsProxy(`${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, 1500);
+          if (data && Array.isArray(data) && data.length > 0) {
+            const mapped = data.slice(0, 8).map((item: any) => {
+              const videoId = extractVideoId(item.videoId || '');
+              return {
+                id: videoId,
+                title: item.title || 'Sin título',
+                author: item.author || 'Desconocido',
+                thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                duration: item.lengthSeconds ? formatDuration(item.lengthSeconds) : undefined
+              };
+            }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
+
+            if (mapped.length > 0) return mapped;
+          }
+          throw new Error("Empty or invalid Invidious results.");
+        })()
+      );
+    }
+
     try {
-      const data = await fetchWithCorsProxy(`${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
-      if (data && Array.isArray(data) && data.length > 0) {
-        return data.slice(0, 8).map((item: any) => {
-          const videoId = extractVideoId(item.videoId || '');
+      // Race all active scraping endpoints concurrently
+      const results = await anySuccessfulPromise(fetchPromises);
+      if (results && results.length > 0) {
+        return results;
+      }
+    } catch (e) {
+      console.warn("All parallel public scrapers failed, falling back to Gemini AI...", e);
+    }
+
+    // Strategy 4: Fallback to Gemini AI (with Google Search Grounding & Timeout)
+    if (apiKey) {
+      try {
+        const model = ai.models;
+        const prompt = `
+          Actúa como un buscador en tiempo real de YouTube. El usuario busca: "${query}".
+          Busca en Google y obtén los 6 videos más relevantes de YouTube correspondientes a esta búsqueda.
+          IMPORTANTE: Debes buscar en la web para obtener los IDs reales (de 11 caracteres) de YouTube de los videos reales.
+          FORMATO JSON.
+        `;
+
+        const geminiPromise = model.generateContent({
+          model: 'gemini-1.5-flash',
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }] as any, // Enable live web search grounding
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  title: { type: Type.STRING },
+                  author: { type: Type.STRING },
+                  duration: { type: Type.STRING, nullable: true }
+                }
+              }
+            }
+          }
+        });
+
+        // 1.8 seconds timeout for Gemini API call
+        const geminiTimeoutPromise = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error("Timeout de Gemini")), 1800)
+        );
+
+        const response = await Promise.race([geminiPromise, geminiTimeoutPromise]);
+        const data = JSON.parse(response.text || '[]');
+        return data.map((item: any) => {
+          const videoId = extractVideoId(item.id || '');
           return {
             id: videoId,
             title: item.title || 'Sin título',
             author: item.author || 'Desconocido',
-            thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-            duration: item.lengthSeconds ? formatDuration(item.lengthSeconds) : undefined
+            duration: item.duration || undefined,
+            thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
           };
         }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
+      } catch (error) {
+        console.error("Error in AI YouTube search grounding:", error);
       }
-    } catch (e) {
-      console.warn(`Invidious instance ${instance} failed to search:`, e);
     }
-  }
 
-  // Strategy 3: Fallback to Gemini AI (with Google Search Grounding)
-  if (apiKey) {
-    try {
-      const model = ai.models;
-      const prompt = `
-        Actúa como un buscador en tiempo real de YouTube. El usuario busca: "${query}".
-        Busca en Google y obtén los 6 videos más relevantes de YouTube correspondientes a esta búsqueda.
-        IMPORTANTE: Debes buscar en la web para obtener los IDs reales (de 11 caracteres) de YouTube de los videos reales.
-        FORMATO JSON.
-      `;
+    return [];
+  };
 
-      const response = await model.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }] as any, // Enable live web search grounding
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                title: { type: Type.STRING },
-                author: { type: Type.STRING },
-                duration: { type: Type.STRING, nullable: true }
-              }
-            }
-          }
-        }
-      });
-
-      const data = JSON.parse(response.text || '[]');
-      return data.map((item: any) => {
-        const videoId = extractVideoId(item.id || '');
-        return {
-          id: videoId,
-          title: item.title || 'Sin título',
-          author: item.author || 'Desconocido',
-          duration: item.duration || undefined,
-          thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
-        };
-      }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
-    } catch (error) {
-      console.error("Error in AI YouTube search grounding:", error);
-    }
-  }
-
-  return [];
+  return Promise.race([performSearch(), searchTimeoutPromise]);
 };
 
 // Helper to format seconds to MM:SS

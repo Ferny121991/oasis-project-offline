@@ -3,7 +3,7 @@ import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, Den
 import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry, BackgroundAnimationConfig, BackgroundAnimationType } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
-import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star, AlertCircle, ArrowLeft, Copy } from 'lucide-react';
 import RichTextEditor, { textToSegments, segmentsToText } from './RichTextEditor';
 import HistoryPanel from './HistoryPanel';
 
@@ -1065,9 +1065,195 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
                   )}
 
+                  {/* NEW: Permanent Premium YouTube External Import Assistant Card - Step-by-Step Flow */}
+                  <div className="bg-gradient-to-br from-slate-900/90 via-gray-900 to-red-950/20 border border-red-500/20 rounded-2xl p-5 shadow-xl relative overflow-hidden text-left mb-5">
+                    {/* Decorative red glow */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 rounded-full blur-3xl pointer-events-none"></div>
+                    <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-red-500/5 rounded-full blur-2xl pointer-events-none"></div>
+
+                    <div className="flex items-center gap-2.5 mb-4">
+                      <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500">
+                        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-red-500 stroke-none" strokeWidth="0">
+                          <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.388.556a3.003 3.003 0 0 0-2.11 2.107C0 8.05 0 12 0 12s0 3.95.502 5.837a3.003 3.003 0 0 0 2.11 2.107C4.5 20.5 12 20.5 12 20.5s7.5 0 9.388-.556a3.003 3.003 0 0 0 2.11-2.107C24 15.95 24 12 24 12s0-3.95-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-white uppercase tracking-wider">Asistente de Búsqueda y Pegado</h3>
+                        <p className="text-[9px] text-red-400 font-bold uppercase tracking-widest">¡Busca en YouTube y agrega con un Click!</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Paso 1 */}
+                      <div className="relative pl-6">
+                        <div className="absolute left-0 top-0.5 w-4 h-4 rounded-full bg-red-500/10 border border-red-500/40 flex items-center justify-center text-[9px] font-black text-red-400">1</div>
+                        <p className="text-[10px] text-white font-bold mb-1.5">Escribe tu búsqueda o presiona para abrir YouTube:</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
+                            placeholder="Ej: Musica cristiana adoracion"
+                            className="flex-1 bg-slate-950/80 rounded-lg px-3 py-1.5 text-[10px] text-white border border-gray-700/60 focus:border-red-500/40 outline-none"
+                          />
+                          <button
+                            onClick={() => {
+                              const query = inputText.trim() || 'musica cristiana';
+                              window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank');
+                            }}
+                            className="bg-red-600 hover:bg-red-500 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-md active:scale-95 border border-red-500/30 animate-pulse hover:animate-none"
+                            type="button"
+                          >
+                            <ExternalLink size={10} /> ABRIR YOUTUBE
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Paso 2 */}
+                      <div className="relative pl-6">
+                        <div className="absolute left-0 top-0.5 w-4 h-4 rounded-full bg-red-500/10 border border-red-500/40 flex items-center justify-center text-[9px] font-black text-red-400">2</div>
+                        <p className="text-[10px] text-gray-300 font-medium leading-relaxed">
+                          Busca y abre cualquier video en YouTube, luego <span className="text-white font-black">Copia su enlace</span> desde la barra de direcciones o compartiendo el video.
+                        </p>
+                      </div>
+
+                      {/* Paso 3 */}
+                      <div className="relative pl-6">
+                        <div className="absolute left-0 top-0.5 w-4 h-4 rounded-full bg-red-500/10 border border-red-500/40 flex items-center justify-center text-[9px] font-black text-red-400">3</div>
+                        <p className="text-[10px] text-white font-bold mb-2">Importar al Instante:</p>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={async () => {
+                              try {
+                                let urlText = '';
+                                try {
+                                  urlText = await navigator.clipboard.readText();
+                                } catch (e) {
+                                  console.warn("Could not read clipboard", e);
+                                }
+                                urlText = urlText.trim() || inputText.trim();
+                                
+                                const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                                
+                                if (!vId) {
+                                  alert("Por favor copia primero un enlace de YouTube válido (o pégalo en el buscador superior).");
+                                  return;
+                                }
+
+                                const newSlide: Slide = {
+                                  id: Math.random().toString(36).substr(2, 9),
+                                  type: 'youtube',
+                                  content: `https://www.youtube.com/watch?v=${vId}`,
+                                  videoId: vId,
+                                  label: 'YOUTUBE'
+                                };
+
+                                if (addYouTubeToCurrent && hasActiveItem) {
+                                  onAddSlide(newSlide);
+                                  alert("¡Video agregado exitosamente a la diapositiva actual!");
+                                } else {
+                                  onAddItem({
+                                    id: Math.random().toString(36).substr(2, 9),
+                                    title: `Video Importado (${vId})`,
+                                    type: 'custom',
+                                    slides: [newSlide],
+                                    theme: currentTheme
+                                  });
+                                  alert("¡Elemento de YouTube agregado exitosamente a tu lista!");
+                                }
+                                setInputText('');
+                              } catch (err) {
+                                alert("Error de importación rápida. Copia el enlace, pégalo en el buscador superior y presiona AGREGAR.");
+                              }
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[9px] font-black uppercase py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/20 border border-emerald-500/20"
+                            type="button"
+                          >
+                            <Plus size={12} /> Auto-Pegar y Proyectar
+                          </button>
+
+                          <button
+                            onClick={async () => {
+                              try {
+                                let urlText = '';
+                                try {
+                                  urlText = await navigator.clipboard.readText();
+                                } catch (e) {
+                                  console.warn("Could not read clipboard", e);
+                                }
+                                urlText = urlText.trim() || inputText.trim();
+                                
+                                const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                                
+                                if (!vId) {
+                                  alert("Por favor copia primero un enlace de YouTube válido (o pégalo en el buscador superior).");
+                                  return;
+                                }
+
+                                onSetBackgroundAudio?.(vId, `Audio Importado (${vId})`);
+                                alert("¡Agregado exitosamente a la música de fondo!");
+                                setInputText('');
+                              } catch (err) {
+                                alert("Error de importación rápida. Copia el enlace, pégalo en el buscador superior y presiona AGREGAR.");
+                              }
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/20 border border-indigo-500/20"
+                            type="button"
+                          >
+                            <Music size={12} /> Auto-Pegar y Fondo
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick chips at the very bottom of the card */}
+                    <div className="mt-4 pt-3 border-t border-gray-800/80">
+                      <span className="text-[8px] text-gray-500 font-bold uppercase tracking-wider block mb-1.5">Búsquedas Rápidas en YouTube:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { label: 'Adoración', query: 'Musica de adoracion cristiana' },
+                          { label: 'Instrumental', query: 'Piano instrumental cristiano' },
+                          { label: 'Alabanza', query: 'Alabanza y adoracion cristiana' },
+                          { label: 'Pistas', query: 'Pistas de piano cristiano para cantar' }
+                        ].map((chip) => (
+                          <button
+                            key={chip.label}
+                            onClick={() => {
+                              setInputText(chip.query);
+                              window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(chip.query)}`, '_blank');
+                            }}
+                            className="text-[8px] font-bold bg-gray-800/40 hover:bg-red-600/35 border border-gray-700/60 hover:border-red-500/40 text-slate-400 hover:text-white px-2 py-0.5 rounded-md transition-all active:scale-95"
+                            type="button"
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   {/* YouTube Browser / Search Results */}
                   <div className="mb-4">
-                    {youtubeResults.length > 0 ? (
+                    {isSearchingYoutube ? (
+                      /* Premium YouTube loading screen */
+                      <div className="bg-gradient-to-b from-gray-900/65 to-slate-950/75 border border-red-500/20 rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[220px] relative overflow-hidden shadow-xl animate-fade-in">
+                        <div className="absolute -top-12 -left-12 w-24 h-24 bg-red-500/5 rounded-full blur-2xl"></div>
+                        <div className="absolute -bottom-12 -right-12 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl"></div>
+                        
+                        <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 mb-3.5 shadow-lg shadow-red-950/10">
+                          <Loader2 size={26} className="animate-spin text-red-500" />
+                        </div>
+                        
+                        <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                          Buscando en YouTube...
+                        </h3>
+                        
+                        <p className="text-[10px] text-gray-400 max-w-[240px] mt-1.5 leading-relaxed font-medium">
+                          Buscando en servidores alternativos directos. Por favor, espera un momento.
+                        </p>
+                      </div>
+                    ) : youtubeResults.length > 0 ? (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">📺 Resultados de Búsqueda</span>
@@ -1084,7 +1270,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         </div>
                         <div className="grid grid-cols-1 gap-2 max-h-[360px] overflow-y-auto pr-1 no-scrollbar">
                           {youtubeResults.map((result) => (
-                            <div key={result.id} className="bg-gray-800/60 border border-gray-700/40 rounded-xl overflow-hidden hover:border-red-500/40 hover:bg-gray-800/90 transition-all duration-300 group flex shadow-md">
+                            <div key={result.id} className="bg-gray-800/60 border border-gray-700/40 rounded-xl overflow-hidden hover:border-red-500/40 hover:bg-gray-800/90 transition-all duration-300 group flex shadow-md text-left">
                               {/* Thumbnail with overlay play */}
                               <div
                                 className="relative w-28 sm:w-32 aspect-video flex-shrink-0 cursor-pointer overflow-hidden"
@@ -1141,6 +1327,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   >
                                     <Music size={10} /> FONDO
                                   </button>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${result.id}`);
+                                      alert("¡Enlace de YouTube copiado al portapapeles!");
+                                    }}
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[9px] font-black uppercase py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-emerald-950/20"
+                                    title="Copiar enlace de YouTube"
+                                  >
+                                    <Copy size={10} /> COPIAR
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -1194,52 +1390,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         </div>
                       </div>
                     ) : (
-                      /* YouTube Browser Dashboard (Replaces broken embed) - Default View */
-                      <div className="bg-gray-800/30 border border-gray-700/30 rounded-2xl p-5 text-center flex flex-col items-center justify-center aspect-video relative group overflow-hidden shadow-inner">
-                        <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-3 shadow-lg shadow-red-950/20 group-hover:scale-110 transition-transform duration-500">
-                          <PlayCircle size={28} />
-                        </div>
-                        <h3 className="text-xs font-black text-white uppercase tracking-wider">Buscador Inteligente</h3>
-                        <p className="text-[10px] text-gray-400 max-w-xs mt-1.5 leading-relaxed font-medium">
-                          Escribe palabras clave o pega un enlace de YouTube arriba para buscar y agregar videos.
+                      /* Placeholder discreto de buscador */
+                      <div className="bg-slate-950/40 border border-white/5 rounded-2xl p-5 text-center flex flex-col items-center justify-center min-h-[140px]">
+                        <Search size={22} className="text-gray-600 mb-2" />
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Buscador Directo</p>
+                        <p className="text-[9px] text-gray-500 mt-1 max-w-[200px] leading-relaxed">
+                          Escribe palabras clave en el cuadro de abajo y presiona el botón <span className="text-red-400 font-bold">BUSCAR</span> para encontrar videos directamente.
                         </p>
-                        
-                        {/* Quick-Search Chips */}
-                        <div className="mt-4 w-full">
-                          <p className="text-[8px] text-cyan-400 font-black uppercase tracking-widest mb-2">Búsquedas Rápidas</p>
-                          <div className="flex flex-wrap justify-center gap-1.5">
-                            {[
-                              { label: 'Adoración', query: 'Musica de adoracion cristiana' },
-                              { label: 'Instrumental', query: 'Piano instrumental cristiano' },
-                              { label: 'Alabanza', query: 'Alabanza y adoracion cristiana' },
-                              { label: 'Pistas', query: 'Pistas de piano cristiano para cantar' }
-                            ].map((chip) => (
-                              <button
-                                key={chip.label}
-                                onClick={async () => {
-                                  setInputText(chip.query);
-                                  setIsSearchingYoutube(true);
-                                  setHasSearchedYoutube(true);
-                                  setYoutubeSearchError(null);
-                                  try {
-                                    const results = await searchYouTube(chip.query);
-                                    setYoutubeResults(results);
-                                    if (results.length === 0) {
-                                      setYoutubeSearchError("No se encontraron resultados en los servidores de YouTube.");
-                                    }
-                                  } catch (err) {
-                                    setYoutubeSearchError("Error de conexión al buscar en YouTube.");
-                                  } finally {
-                                    setIsSearchingYoutube(false);
-                                  }
-                                }}
-                                className="text-[9px] font-bold bg-gray-900/60 hover:bg-red-600 border border-gray-700/80 hover:border-red-500 text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-all active:scale-95"
-                              >
-                                {chip.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
                       </div>
                     )}
                   </div>
@@ -1301,7 +1458,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="relative">
+                  <div className="relative flex flex-col">
                     <input
                       type="text"
                       value={inputText}
@@ -1325,6 +1482,39 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         }
                       }}
                     />
+
+                    {inputType === 'youtube' && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => {
+                            const query = inputText.trim() || 'musica cristiana';
+                            window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank');
+                          }}
+                          className="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 text-red-400 text-[10px] font-black uppercase py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                          type="button"
+                        >
+                          <ExternalLink size={12} className="text-red-500" />
+                          Buscar en YouTube.com
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const text = await navigator.clipboard.readText();
+                              if (text) {
+                                setInputText(text);
+                              }
+                            } catch (err) {
+                              alert("Por favor, permite el permiso para leer el portapapeles o pega el enlace manualmente.");
+                            }
+                          }}
+                          className="flex-1 bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-400 text-[10px] font-black uppercase py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                          type="button"
+                        >
+                          <Upload size={12} className="text-indigo-500" />
+                          📋 Auto-Pegar Enlace
+                        </button>
+                      </div>
+                    )}
 
                     {/* Bible Book Suggestions Dropdown */}
                     {showBibleSuggestions && bibleSuggestions.length > 0 && inputType === 'scripture' && (
@@ -1416,6 +1606,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <span className="text-[9px] text-pink-400 font-bold uppercase tracking-widest block mb-1">Música de fondo en vivo</span>
                         <p className="text-sm text-white font-bold truncate">{backgroundAudioItem.title}</p>
                       </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${backgroundAudioItem.videoId}`);
+                          alert("¡Enlace del audio de fondo copiado al portapapeles!");
+                        }}
+                        className="w-8 h-8 rounded-full bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 flex items-center justify-center transition-all"
+                        title="Copiar enlace del audio"
+                      >
+                        <Copy size={14} />
+                      </button>
                       <button
                         onClick={() => onSetBackgroundAudio?.('', '')}
                         className="w-8 h-8 rounded-full bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 flex items-center justify-center transition-all"
