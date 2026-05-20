@@ -256,7 +256,54 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
   const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
   const [isYoutubeFullBrowserOpen, setIsYoutubeFullBrowserOpen] = useState(false);
+  const [activePortalVideoId, setActivePortalVideoId] = useState<string | null>(null);
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text'));
+
+  // Perform Youtube Search using direct scrapers and Gemini fallbacks
+  const performYoutubeSearch = async (query: string) => {
+    if (!query.trim()) return;
+    setIsSearchingYoutube(true);
+    setHasSearchedYoutube(true);
+    setYoutubeSearchError(null);
+    try {
+      const results = await searchYouTube(query);
+      setYoutubeResults(results);
+      if (results.length === 0) {
+        setYoutubeSearchError("No se encontraron videos para tu búsqueda.");
+      }
+    } catch (err) {
+      console.error("YouTube search error", err);
+      setYoutubeSearchError(err instanceof Error ? err.message : 'Error al buscar en YouTube.');
+    } finally {
+      setIsSearchingYoutube(false);
+    }
+  };
+
+  // Toast System for premium alerts
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToast({ message, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
+
+  // Shadow global browser alert with styled premium toast notification
+  const alert = (message: string) => {
+    let toastType: 'success' | 'error' | 'info' = 'info';
+    const lower = message.toLowerCase();
+    if (lower.includes('error') || lower.includes('por favor') || lower.includes('falló') || lower.includes('permiso')) {
+      toastType = 'error';
+    } else if (lower.includes('éxito') || lower.includes('exitosamente') || lower.includes('agregado') || lower.includes('copiado')) {
+      toastType = 'success';
+    }
+    triggerToast(message, toastType);
+  };
 
   // Bible book autocomplete suggestions
   const [bibleSuggestions, setBibleSuggestions] = useState<string[]>([]);
@@ -477,32 +524,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   // No secondary preview effect for audio, it stays in the list.
 
-  const handleYoutubeFullSearch = async (query: string) => {
+  const handleYoutubeFullSearch = (query: string) => {
     if (!query.trim()) return;
     setIsYoutubeFullBrowserOpen(true);
     setInputText(query);
-    
-    const videoId = query.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1];
-    if (videoId) {
-      setPreviewVideoId(videoId);
-      setYoutubeResults([]);
-      return;
-    }
-
-    setIsSearchingYoutube(true);
-    setHasSearchedYoutube(true);
-    setYoutubeSearchError(null);
-    try {
-      const results = await searchYouTube(query);
-      setYoutubeResults(results);
-      if (results.length === 0) {
-        setYoutubeSearchError("No se encontraron resultados en los servidores de YouTube.");
-      }
-    } catch (err) {
-      setYoutubeSearchError("Error de conexión al buscar en YouTube.");
-    } finally {
-      setIsSearchingYoutube(false);
-    }
+    setYoutubeSearchQuery(query);
+    performYoutubeSearch(query);
   };
 
   const handleSearch = async () => {
@@ -521,6 +548,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
         if (addYouTubeToCurrent && hasActiveItem) {
           onAddSlide(newSlide);
+          alert("¡Video agregado exitosamente!");
         } else {
           onAddItem({
             id: Math.random().toString(36).substr(2, 9),
@@ -529,11 +557,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             slides: [newSlide],
             theme: currentTheme
           });
+          alert("¡Video importado exitosamente!");
         }
         setInputText('');
       } else {
-        // Search mode - open fullscreen browser
-        handleYoutubeFullSearch(inputText);
+        // Search mode - open integrated search panel
+        setYoutubeSearchQuery(inputText);
+        performYoutubeSearch(inputText);
       }
       return;
     }
@@ -949,8 +979,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const renderYoutubeFullBrowser = () => {
     if (!isYoutubeFullBrowserOpen) return null;
 
-    const selectedVideo = youtubeResults.find(v => v.id === previewVideoId);
-
     return (
       <div className="fixed inset-0 z-50 bg-[#050913]/97 backdrop-blur-xl flex flex-col p-6 overflow-hidden animate-fade-in text-white font-sans">
         {/* Header section */}
@@ -963,8 +991,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </svg>
               </div>
               <div>
-                <h1 className="text-sm font-black uppercase tracking-widest text-white">Portal de Búsqueda de YouTube</h1>
-                <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">Busca, previsualiza y proyecta videos en pantalla completa sin salir de la app</p>
+                <h1 className="text-sm font-black uppercase tracking-widest text-white">Buscador Oficial de YouTube</h1>
+                <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">Busca y reproduce videos directamente en el reproductor oficial de YouTube</p>
               </div>
             </div>
             <button
@@ -984,7 +1012,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Escribe palabras clave o pega un enlace de YouTube..."
+                placeholder="Escribe palabras clave para buscar en YouTube..."
                 className="w-full bg-slate-950/80 rounded-2xl pl-12 pr-32 py-4 text-sm text-white border border-gray-700/60 focus:border-red-500/50 outline-none transition-all shadow-inner focus:shadow-[0_0_15px_rgba(239,68,68,0.15)]"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -995,11 +1023,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <Search className="absolute left-4 top-4.5 text-gray-500" size={18} />
               <button
                 onClick={() => handleYoutubeFullSearch(inputText)}
-                disabled={isSearchingYoutube}
-                className="absolute right-2 top-2 bg-red-600 hover:bg-red-500 disabled:bg-gray-800 disabled:text-gray-500 text-white font-black text-xs uppercase px-5 py-2.5 rounded-xl transition-all shadow-lg active:scale-95 flex items-center gap-2 border border-red-500/20"
+                className="absolute right-2 top-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase px-5 py-2.5 rounded-xl transition-all shadow-lg active:scale-95 flex items-center gap-2 border border-red-500/20"
                 type="button"
               >
-                {isSearchingYoutube ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                <Search size={14} />
                 BUSCAR
               </button>
             </div>
@@ -1027,247 +1054,332 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex gap-6 mt-6 min-h-0 overflow-hidden">
-          {/* Left Grid Area */}
-          <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar min-w-0 bg-slate-950/30 rounded-3xl border border-white/5 p-4">
-            {isSearchingYoutube ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-12">
-                <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 mb-4 shadow-xl shadow-red-950/20">
-                  <Loader2 size={32} className="animate-spin text-red-500" />
+        <div className="flex-1 flex flex-col lg:flex-row gap-6 mt-6 min-h-0 overflow-hidden">
+          {/* Left Area: Premium Custom YouTube search result grid + player */}
+          <div className="flex-1 bg-[#090e18] rounded-3xl border border-white/10 overflow-hidden relative shadow-2xl min-h-[300px] flex flex-col">
+            {activePortalVideoId && (
+              <div className="w-full bg-black border-b border-white/10 relative flex flex-col animate-slide-down shrink-0">
+                <div className="flex items-center justify-between p-3 bg-slate-950/90 border-b border-white/5">
+                  <span className="text-[10px] text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5">
+                    <PlayCircle size={14} className="text-red-500 animate-pulse" /> REPRODUCTOR EN VIVO DE VISTA PREVIA
+                  </span>
+                  <button
+                    onClick={() => setActivePortalVideoId(null)}
+                    className="text-slate-400 hover:text-white transition-colors bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 hover:bg-red-600 hover:border-red-500/40 text-[9px] font-black uppercase"
+                  >
+                    Cerrar Reproductor
+                  </button>
                 </div>
-                <h3 className="text-sm font-black text-white uppercase tracking-wider">Escaneando YouTube...</h3>
-                <p className="text-xs text-slate-400 mt-2 font-medium">Buscando los mejores videos en servidores de alto rendimiento</p>
-              </div>
-            ) : youtubeSearchError ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-12 text-center px-6">
-                <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 mb-4">
-                  <AlertCircle size={28} />
-                </div>
-                <h3 className="text-sm font-black text-white uppercase tracking-wider">Sin Resultados</h3>
-                <p className="text-xs text-red-400 mt-1 max-w-sm leading-relaxed">{youtubeSearchError}</p>
-                <button
-                  onClick={() => handleYoutubeFullSearch(inputText || 'adoracion')}
-                  className="mt-4 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold rounded-lg transition-all"
-                  type="button"
-                >
-                  Reintentar búsqueda
-                </button>
-              </div>
-            ) : youtubeResults.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-12 text-center px-6">
-                <div className="w-16 h-16 rounded-3xl bg-red-500/5 border border-red-500/10 flex items-center justify-center text-red-500/60 mb-4 animate-pulse">
-                  <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current stroke-none" strokeWidth="0">
-                    <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.388.556a3.003 3.003 0 0 0-2.11 2.107C0 8.05 0 12 0 12s0 3.95.502 5.837a3.003 3.003 0 0 0 2.11 2.107C4.5 20.5 12 20.5 12 20.5s7.5 0 9.388-.556a3.003 3.003 0 0 0 2.11-2.107C24 15.95 24 12 24 12s0-3.95-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                  </svg>
-                </div>
-                <h3 className="text-sm font-black text-white uppercase tracking-wider">Comienza a buscar</h3>
-                <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed font-medium">Ingresa palabras clave arriba o haz clic en las sugerencias de búsqueda rápida.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">
-                {youtubeResults.map((result) => {
-                  const isActivePreview = previewVideoId === result.id;
-                  return (
-                    <div
-                      key={result.id}
-                      className={`group bg-slate-900/50 border rounded-2xl overflow-hidden hover:bg-slate-900/90 transition-all duration-300 flex flex-col shadow-lg hover:shadow-black/40 ${
-                        isActivePreview ? 'border-red-500/80 ring-2 ring-red-500/20' : 'border-white/5 hover:border-red-500/30'
-                      }`}
-                    >
-                      {/* Thumbnail frame */}
-                      <div
-                        className="relative aspect-video overflow-hidden cursor-pointer"
-                        onClick={() => setPreviewVideoId(result.id)}
-                      >
-                        <img
-                          src={result.thumbnail}
-                          alt={result.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <PlayCircle size={32} className="text-white drop-shadow-lg" />
-                        </div>
-                        {result.duration && (
-                          <span className="absolute bottom-2 right-2 bg-black/80 text-[9px] text-white px-2 py-0.5 rounded-md font-black tracking-wide">
-                            {result.duration}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Content block */}
-                      <div className="p-4 flex flex-col justify-between flex-1 gap-3">
-                        <div className="cursor-pointer" onClick={() => setPreviewVideoId(result.id)}>
-                          <h4 className="text-xs font-black text-white line-clamp-2 leading-snug group-hover:text-red-400 transition-colors">
-                            {result.title}
-                          </h4>
-                          <p className="text-[10px] text-slate-400 mt-1.5 font-bold">{result.author}</p>
-                        </div>
-
-                        {/* Quick action buttons on card */}
-                        <div className="flex gap-2 border-t border-white/5 pt-3 mt-auto">
-                          <button
-                            onClick={() => {
-                              const newSlide: Slide = {
-                                id: Math.random().toString(36).substr(2, 9),
-                                type: 'youtube',
-                                content: `https://www.youtube.com/watch?v=${result.id}`,
-                                videoId: result.id,
-                                label: 'YOUTUBE'
-                              };
-                              if (addYouTubeToCurrent && hasActiveItem) {
-                                onAddSlide(newSlide);
-                                alert("¡Agregado exitosamente a la diapositiva!");
-                              } else {
-                                onAddItem({
-                                  id: Math.random().toString(36).substr(2, 9),
-                                  title: result.title,
-                                  type: 'custom',
-                                  slides: [newSlide],
-                                  theme: currentTheme
-                                });
-                                alert("¡Elemento de YouTube creado y agregado a la lista!");
-                              }
-                            }}
-                            className="flex-1 bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 shadow-md shadow-red-950/20"
-                            type="button"
-                          >
-                            <Plus size={10} /> PROYECTOR
-                          </button>
-                          <button
-                            onClick={() => {
-                              onSetBackgroundAudio?.(result.id, result.title);
-                              alert("¡Establecido como música de fondo!");
-                            }}
-                            className="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 shadow-md shadow-indigo-950/20"
-                            type="button"
-                          >
-                            <Music size={10} /> FONDO
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Right Preview Drawer */}
-          <div className="w-[380px] bg-slate-900/60 border border-white/10 rounded-3xl p-5 flex flex-col justify-between shrink-0 shadow-2xl relative backdrop-blur-md">
-            {previewVideoId ? (
-              <div className="flex-1 flex flex-col gap-4 min-h-0">
-                <span className="text-[10px] text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                  <PlayCircle size={14} className="text-red-500 animate-pulse" /> Vista Previa
-                </span>
-                
-                {/* Embed video container */}
-                <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shrink-0 shadow-inner">
+                <div className="relative aspect-video max-h-[320px] w-full bg-black">
                   <iframe
                     className="absolute inset-0 w-full h-full border-0"
-                    src={`https://www.youtube.com/embed/${previewVideoId}?autoplay=1&rel=0&playsinline=1`}
+                    src={`https://www.youtube.com/embed/${activePortalVideoId}?autoplay=1&mute=0&controls=1&rel=0&playsinline=1`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
-                    title="Reproductor de Vista Previa"
+                    title="Oasis YouTube Player"
                   ></iframe>
                 </div>
+              </div>
+            )}
 
-                <div className="flex-1 overflow-y-auto no-scrollbar pr-1 flex flex-col gap-3 min-h-0">
-                  <h3 className="text-sm font-black text-white leading-snug">
-                    {selectedVideo?.title || `Video de YouTube (${previewVideoId})`}
-                  </h3>
-                  <p className="text-xs text-slate-400 font-bold">
-                    Canal: <span className="text-red-400">{selectedVideo?.author || 'YouTube Operator'}</span>
-                  </p>
-
-                  <div className="mt-2 bg-slate-950/40 border border-white/5 rounded-2xl p-3 space-y-3">
-                    {/* Add options toggle */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Agregar a diapositiva activa</span>
-                      <button
-                        onClick={() => setAddYouTubeToCurrent(prev => !prev)}
-                        className={`w-12 h-6 rounded-full p-1 transition-all duration-300 ${addYouTubeToCurrent ? 'bg-emerald-500' : 'bg-slate-700'}`}
-                        type="button"
-                      >
-                        <div className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${addYouTubeToCurrent ? 'translate-x-6' : 'translate-x-0'}`} />
-                      </button>
+            <div className="flex-1 overflow-y-auto p-5 no-scrollbar min-h-0">
+              {isSearchingYoutube ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-center p-8">
+                  <div className="relative w-20 h-20 mb-6">
+                    <div className="absolute inset-0 rounded-full border-4 border-red-500/20 border-t-red-600 animate-spin"></div>
+                    <div className="absolute inset-2 rounded-full border-4 border-indigo-500/10 border-b-indigo-500 animate-spin" style={{ animationDirection: 'reverse' }}></div>
+                    <div className="absolute inset-0 flex items-center justify-center text-red-500">
+                      <svg viewBox="0 0 24 24" className="w-8 h-8 fill-red-500 stroke-none animate-pulse">
+                        <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.388.556a3.003 3.003 0 0 0-2.11 2.107C0 8.05 0 12 0 12s0 3.95.502 5.837a3.003 3.003 0 0 0 2.11 2.107C4.5 20.5 12 20.5 12 20.5s7.5 0 9.388-.556a3.003 3.003 0 0 0 2.11-2.107C24 15.95 24 12 24 12s0-3.95-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                      </svg>
                     </div>
                   </div>
+                  <h3 className="text-base font-black text-white uppercase tracking-widest animate-pulse">ESCANEANDO YOUTUBE...</h3>
+                  <p className="text-xs text-slate-400 mt-2 max-w-sm leading-relaxed">
+                    Buscando los mejores videos en servidores de alto rendimiento
+                  </p>
                 </div>
+              ) : youtubeSearchError ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 mb-4 animate-pulse">
+                    <AlertCircle size={32} />
+                  </div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Error de Búsqueda</h3>
+                  <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed">
+                    {youtubeSearchError}
+                  </p>
+                  <p className="text-[10px] text-indigo-300 bg-indigo-950/30 border border-indigo-500/20 px-4 py-2.5 rounded-xl max-w-sm mt-4 leading-relaxed font-medium">
+                    💡 <strong>Consejo rápido:</strong> Las APIs públicas podrían estar saturadas. Puedes copiar la dirección web (URL) del video que deseas, pegarla en la barra lateral derecha y presionar el botón <strong>PEGAR Y PROYECTAR</strong>.
+                  </p>
+                </div>
+              ) : youtubeResults.length > 0 ? (
+                <div className="space-y-4 h-full flex flex-col min-h-0">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                      📺 RESULTADOS DE BÚSQUEDA ({youtubeResults.length} videos)
+                    </span>
+                    <span className="text-[9px] text-slate-500 italic">Haz clic en un video para reproducir la vista previa</span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto pr-1 no-scrollbar grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pb-8">
+                    {youtubeResults.map((video) => (
+                      <div
+                        key={video.id}
+                        className="bg-slate-950/65 hover:bg-slate-950 border border-white/5 hover:border-red-500/40 rounded-2xl overflow-hidden shadow-xl hover:shadow-[0_12px_24px_rgba(239,68,68,0.06)] transition-all duration-300 group flex flex-col justify-between text-left"
+                      >
+                        <div className="relative aspect-video w-full overflow-hidden cursor-pointer" onClick={() => setActivePortalVideoId(video.id)}>
+                          <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <PlayCircle size={32} className="text-white drop-shadow-xl animate-scale-up" />
+                          </div>
+                          {video.duration && (
+                            <span className="absolute bottom-2.5 right-2.5 bg-black/85 text-[9px] text-white px-2 py-0.5 rounded font-black tracking-wider">
+                              {video.duration}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="p-4 flex-1 flex flex-col justify-between">
+                          <div className="cursor-pointer" onClick={() => setActivePortalVideoId(video.id)}>
+                            <h4 className="text-xs font-black text-white line-clamp-2 leading-tight group-hover:text-red-400 transition-colors" title={video.title}>
+                              {video.title}
+                            </h4>
+                            <p className="text-[10px] text-slate-400 mt-1.5 font-bold uppercase tracking-wider truncate">
+                              👤 {video.author}
+                            </p>
+                          </div>
+                          
+                          <div className="flex flex-col gap-2 mt-4 pt-3 border-t border-white/5">
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => {
+                                  const newSlide: Slide = {
+                                    id: Math.random().toString(36).substr(2, 9),
+                                    type: 'youtube',
+                                    content: `https://www.youtube.com/watch?v=${video.id}`,
+                                    videoId: video.id,
+                                    label: 'YOUTUBE'
+                                  };
+                                  if (addYouTubeToCurrent && hasActiveItem) {
+                                    onAddSlide(newSlide);
+                                    alert("¡Video agregado exitosamente a la diapositiva actual!");
+                                  } else {
+                                    onAddItem({
+                                      id: Math.random().toString(36).substr(2, 9),
+                                      title: video.title,
+                                      type: 'custom',
+                                      slides: [newSlide],
+                                      theme: currentTheme
+                                    });
+                                    alert("¡Elemento de YouTube agregado exitosamente a tu lista!");
+                                  }
+                                }}
+                                className="bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-950/20 border border-red-500/20"
+                                type="button"
+                              >
+                                <Plus size={12} /> PROYECTAR
+                              </button>
+                              <button
+                                onClick={() => {
+                                  onSetBackgroundAudio?.(video.id, video.title);
+                                  alert("¡Agregado exitosamente a la música de fondo!");
+                                }}
+                                className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/20 border border-indigo-500/20"
+                                type="button"
+                              >
+                                <Music size={12} /> AUDIO FONDO
+                              </button>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => setActivePortalVideoId(video.id)}
+                                className="bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white text-[9px] font-black uppercase py-2 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                                type="button"
+                              >
+                                <Eye size={12} className="text-slate-300" /> Vista Previa
+                              </button>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${video.id}`);
+                                  alert("¡Enlace copiado al portapapeles!");
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[9px] font-black uppercase py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md border border-emerald-500/20"
+                                type="button"
+                              >
+                                <Copy size={12} /> Copiar Link
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full w-full flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-16 h-16 rounded-full bg-slate-950/80 border border-white/5 flex items-center justify-center text-red-500 mb-4 animate-pulse">
+                    <PlayCircle size={32} />
+                  </div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Centro de Vista Previa</h3>
+                  <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed">
+                    Ingresa palabras clave en el buscador de arriba o selecciona un chip rápido para cargar el buscador de YouTube en tiempo real.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
 
-                {/* Bottom Actions */}
-                <div className="space-y-2 mt-auto shrink-0 border-t border-white/5 pt-4">
+          {/* Right Control Drawer */}
+          <div className="w-full lg:w-[380px] bg-slate-900/60 border border-white/10 rounded-3xl p-5 flex flex-col justify-between shrink-0 shadow-2xl relative backdrop-blur-md overflow-y-auto">
+            <div className="flex flex-col gap-5">
+              <span className="text-[10px] text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
+                <Sliders size={14} className="text-red-500" /> PANEL DE CONTROL DE IMPORTACIÓN
+              </span>
+
+              {/* Instructions */}
+              <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-3">
+                <h4 className="text-xs font-black text-white uppercase tracking-wider">¿Cómo importar videos?</h4>
+                <ol className="text-[10px] text-slate-300 space-y-2 list-decimal list-inside font-medium leading-relaxed">
+                  <li>Busca y reproduce el video que deseas en la pantalla de la izquierda.</li>
+                  <li>
+                    Haz clic en el icono de <span className="text-white font-bold">compartir</span> o en el logo de <span className="text-white font-bold">YouTube</span> dentro del video para copiar su enlace (o cópialo desde tu navegador).
+                  </li>
+                  <li>
+                    Presiona uno de los botones de importación rápida de abajo para capturarlo automáticamente.
+                  </li>
+                </ol>
+              </div>
+
+              {/* Input for Manual URL Paste */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Enlace de YouTube:</label>
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder="Pega el enlace de YouTube aquí..."
+                  className="w-full bg-slate-950/80 rounded-xl px-3.5 py-2.5 text-xs text-white border border-white/10 focus:border-red-500/50 outline-none transition-all"
+                />
+              </div>
+
+              {/* Add options toggle */}
+              <div className="bg-slate-950/40 border border-white/5 rounded-2xl p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Agregar a diapositiva activa</span>
                   <button
-                    onClick={() => {
+                    onClick={() => setAddYouTubeToCurrent(prev => !prev)}
+                    className={`w-12 h-6 rounded-full p-1 transition-all duration-300 ${addYouTubeToCurrent ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                    type="button"
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${addYouTubeToCurrent ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      let urlText = '';
+                      try {
+                        urlText = await navigator.clipboard.readText();
+                      } catch (e) {
+                        console.warn("Could not read clipboard", e);
+                      }
+                      urlText = urlText.trim() || inputText.trim();
+                      
+                      const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                      
+                      if (!vId) {
+                        alert("Por favor copia primero un enlace de YouTube válido (o pégalo en el buscador superior).");
+                        return;
+                      }
+
                       const newSlide: Slide = {
                         id: Math.random().toString(36).substr(2, 9),
                         type: 'youtube',
-                        content: `https://www.youtube.com/watch?v=${previewVideoId}`,
-                        videoId: previewVideoId,
+                        content: `https://www.youtube.com/watch?v=${vId}`,
+                        videoId: vId,
                         label: 'YOUTUBE'
                       };
+
                       if (addYouTubeToCurrent && hasActiveItem) {
                         onAddSlide(newSlide);
-                        alert("¡Agregado exitosamente a la diapositiva actual!");
+                        alert("¡Video agregado exitosamente a la diapositiva actual!");
                       } else {
                         onAddItem({
                           id: Math.random().toString(36).substr(2, 9),
-                          title: selectedVideo?.title || `Video Importado (${previewVideoId})`,
+                          title: `Video Importado (${vId})`,
                           type: 'custom',
                           slides: [newSlide],
                           theme: currentTheme
                         });
                         alert("¡Elemento de YouTube agregado exitosamente a tu lista!");
                       }
-                    }}
-                    className="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-950/20 active:scale-95 border border-red-500/20"
-                    type="button"
-                  >
-                    <Plus size={16} /> PROYECTAR ESTE VIDEO
-                  </button>
+                      setInputText('');
+                    } catch (err) {
+                      alert("Error de importación rápida. Copia el enlace, pégalo en el buscador superior y presiona AGREGAR.");
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[10px] font-black uppercase py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/20 border border-emerald-500/20"
+                  type="button"
+                >
+                  <Plus size={14} /> PEGAR Y PROYECTAR
+                </button>
 
-                  <button
-                    onClick={() => {
-                      onSetBackgroundAudio?.(previewVideoId, selectedVideo?.title || `Audio de Fondo (${previewVideoId})`);
+                <button
+                  onClick={async () => {
+                    try {
+                      let urlText = '';
+                      try {
+                        urlText = await navigator.clipboard.readText();
+                      } catch (e) {
+                        console.warn("Could not read clipboard", e);
+                      }
+                      urlText = urlText.trim() || inputText.trim();
+                      
+                      const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                      
+                      if (!vId) {
+                        alert("Por favor copia primero un enlace de YouTube válido (o pégalo en el buscador superior).");
+                        return;
+                      }
+
+                      onSetBackgroundAudio?.(vId, `Audio Importado (${vId})`);
                       alert("¡Agregado exitosamente a la música de fondo!");
-                    }}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/20 active:scale-95 border border-indigo-500/20"
-                    type="button"
-                  >
-                    <Music size={14} /> ESTABLECER FONDO DE AUDIO
-                  </button>
+                      setInputText('');
+                    } catch (err) {
+                      alert("Error de importación rápida. Copia el enlace, pégalo en el buscador superior y presiona AGREGAR.");
+                    }
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[10px] font-black uppercase py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/20 border border-indigo-500/20"
+                  type="button"
+                >
+                  <Music size={14} /> ESTABLECER AUDIO DE FONDO
+                </button>
+              </div>
+            </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${previewVideoId}`);
-                        alert("¡Enlace copiado al portapapeles!");
-                      }}
-                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
-                      type="button"
-                    >
-                      <Copy size={12} /> Copiar Link
-                    </button>
-                    <button
-                      onClick={() => setPreviewVideoId(null)}
-                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-slate-300 hover:text-white text-[10px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center"
-                      type="button"
-                    >
-                      Cerrar Vista
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                <div className="w-16 h-16 rounded-full bg-slate-950/80 border border-white/5 flex items-center justify-center text-slate-500 mb-4 animate-pulse">
-                  <PlayCircle size={32} />
-                </div>
-                <h4 className="text-xs font-black text-white uppercase tracking-wider">Centro de Vista Previa</h4>
-                <p className="text-[10px] text-slate-400 mt-2 leading-relaxed max-w-[240px] font-medium">
-                  Haz clic en cualquier video de la lista para cargarlo en el reproductor de alta definición, verificar su contenido y proyectarlo al instante.
-                </p>
-              </div>
-            )}
+            <div className="mt-6 flex gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(inputText);
+                  alert("¡Enlace copiado al portapapeles!");
+                }}
+                className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase py-3 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                type="button"
+              >
+                <Copy size={12} /> Copiar Link
+              </button>
+              <button
+                onClick={() => setIsYoutubeFullBrowserOpen(false)}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-slate-300 hover:text-white text-[10px] font-black uppercase py-3 rounded-xl transition-all flex items-center justify-center"
+                type="button"
+              >
+                Cerrar Buscador
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1467,7 +1579,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <button
                             onClick={() => {
                               const query = inputText.trim() || 'musica cristiana';
-                              handleYoutubeFullSearch(query);
+                              setYoutubeSearchQuery(query);
                             }}
                             className="bg-red-600 hover:bg-red-500 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-md active:scale-95 border border-red-500/30"
                             type="button"
@@ -3154,6 +3266,30 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           setShowHistoryPanel(false);
         }}
       />
+
+      {/* Toast Notification HUD */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[99999] pointer-events-auto">
+          <div className={`px-5 py-3.5 rounded-2xl backdrop-blur-xl border flex items-center gap-3 shadow-2xl transition-all duration-300 animate-fade-in ${
+            toast.type === 'success' 
+              ? 'bg-emerald-950/85 border-emerald-500/30 text-emerald-300' 
+              : toast.type === 'error'
+              ? 'bg-rose-950/85 border-rose-500/30 text-rose-300'
+              : 'bg-slate-900/85 border-slate-700/50 text-slate-200'
+          }`}>
+            {toast.type === 'success' && <Check size={14} className="text-emerald-400 shrink-0" />}
+            {toast.type === 'error' && <AlertCircle size={14} className="text-rose-400 shrink-0" />}
+            <span className="text-[10px] font-black uppercase tracking-wider">{toast.message}</span>
+            <button 
+              onClick={() => setToast(null)} 
+              className="text-slate-400 hover:text-white ml-2 shrink-0 transition-colors"
+              type="button"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* YouTube Full-Screen Browser Portal */}
       {renderYoutubeFullBrowser()}

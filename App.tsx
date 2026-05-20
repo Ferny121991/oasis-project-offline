@@ -14,7 +14,7 @@ import CalendarView from './components/CalendarView';
 import ActionHistoryPanel from './components/ActionHistoryPanel';
 import { PresentationItem, Theme, Slide, Project } from './types';
 import { DEFAULT_THEME } from './constants';
-import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle, Lock, Download, Upload, Calendar, LayoutGrid, Smartphone, History } from 'lucide-react';
+import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle, Lock, Download, Upload, Calendar, LayoutGrid, Smartphone, History, AlertCircle } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
@@ -206,6 +206,29 @@ const App: React.FC = () => {
     return localStorage.getItem('oasis_auto_cloud_sync') === 'true';
   });
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  // ── Premium Toast HUD System (replaces all native browser alerts) ──
+  const [appToast, setAppToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const appToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerAppToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    if (appToastTimeoutRef.current) clearTimeout(appToastTimeoutRef.current);
+    setAppToast({ message, type });
+    appToastTimeoutRef.current = setTimeout(() => setAppToast(null), 4500);
+  };
+
+  // Shadow global browser alert — all alert() calls in this component
+  // will use this premium in-app notification instead of the ugly browser popup
+  const alert = (message: string) => {
+    let toastType: 'success' | 'error' | 'info' = 'info';
+    const lower = message.toLowerCase();
+    if (lower.includes('error') || lower.includes('por favor') || lower.includes('falló') || lower.includes('permiso')) {
+      toastType = 'error';
+    } else if (lower.includes('éxito') || lower.includes('exitosamente') || lower.includes('agregado') || lower.includes('copiado') || lower.includes('guardado')) {
+      toastType = 'success';
+    }
+    triggerAppToast(message, toastType);
+  };
   const dataLoaded = useRef(!initialIsProjectorMode && !initialIsRemoteControlMode);
   const lastAuthUserId = useRef<string | null>(null);
   const isSwitchingProject = useRef(false);
@@ -3130,6 +3153,54 @@ const App: React.FC = () => {
         isOpen={showActionHistory}
         onClose={() => setShowActionHistory(false)}
       />
+
+      {/* ── Premium Toast Notification HUD ── */}
+      {appToast && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 999999,
+          pointerEvents: 'auto',
+          animation: 'toastSlideIn 0.35s cubic-bezier(0.16,1,0.3,1)'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '14px 22px',
+            borderRadius: '16px',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: `1px solid ${appToast.type === 'success' ? 'rgba(16,185,129,0.3)' : appToast.type === 'error' ? 'rgba(244,63,94,0.3)' : 'rgba(100,116,139,0.35)'}`,
+            background: appToast.type === 'success' ? 'rgba(6,78,59,0.88)' : appToast.type === 'error' ? 'rgba(76,5,25,0.88)' : 'rgba(15,23,42,0.88)',
+            color: appToast.type === 'success' ? '#6ee7b7' : appToast.type === 'error' ? '#fda4af' : '#e2e8f0',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
+          }}>
+            {appToast.type === 'success' && <Check size={15} style={{ color: '#34d399', flexShrink: 0 }} />}
+            {appToast.type === 'error' && <AlertCircle size={15} style={{ color: '#fb7185', flexShrink: 0 }} />}
+            <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{appToast.message}</span>
+            <button
+              onClick={() => setAppToast(null)}
+              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', marginLeft: '8px', padding: '2px', flexShrink: 0, transition: 'color 0.2s' }}
+              onMouseOver={(e) => (e.currentTarget.style.color = '#fff')}
+              onMouseOut={(e) => (e.currentTarget.style.color = '#94a3b8')}
+              type="button"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast slide-in animation */}
+      <style>{`
+        @keyframes toastSlideIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(-18px) scale(0.92); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+        }
+      `}</style>
     </div>
   );
 };
