@@ -251,6 +251,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [youtubeResults, setYoutubeResults] = useState<YouTubeSearchResult[]>([]);
   const [isSearchingSongs, setIsSearchingSongs] = useState(false);
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
+  const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text'));
 
   // Bible book autocomplete suggestions
@@ -1031,79 +1032,149 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
               {inputType === 'youtube' && (
                 <div className="mb-4">
+                  {/* Active Preview Player */}
+                  {previewVideoId && (
+                    <div className="mb-4 bg-gray-900/90 rounded-2xl border border-red-500/30 overflow-hidden shadow-2xl relative animate-fade-in">
+                      <div className="flex items-center justify-between p-3 border-b border-gray-800/80 bg-red-950/20">
+                        <span className="text-[10px] text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5">
+                          <PlayCircle size={14} className="text-red-500 animate-pulse" /> Vista Previa
+                        </span>
+                        <button
+                          onClick={() => setPreviewVideoId(null)}
+                          className="text-gray-400 hover:text-white transition-colors bg-white/5 p-1 rounded-full hover:bg-white/10"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div className="relative aspect-video bg-black">
+                        <iframe
+                          className="w-full h-full"
+                          src={`https://www.youtube.com/embed/${previewVideoId}?autoplay=1&origin=${window.location.protocol}//${window.location.host}`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          title="Preview Video"
+                        ></iframe>
+                      </div>
+                    </div>
+                  )}
+
                   {/* YouTube Browser / Search Results */}
                   <div className="mb-4">
                     {youtubeResults.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-2 mb-3 max-h-[400px] overflow-y-auto pr-1">
-                        <div className="flex items-center justify-between mb-2">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
                           <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">📺 Resultados de Búsqueda</span>
-                          <button onClick={() => setYoutubeResults([])} className="text-gray-500 hover:text-white transition-colors">
-                            <X size={14} />
+                          <button onClick={() => setYoutubeResults([])} className="text-[10px] text-gray-500 hover:text-white transition-colors flex items-center gap-1 font-bold">
+                            <X size={10} /> LIMPIAR
                           </button>
                         </div>
-                        {youtubeResults.map((result) => (
-                          <div key={result.id} className="bg-gray-800/80 border border-gray-700/50 rounded-xl overflow-hidden hover:border-red-500/50 transition-all group flex flex-col sm:flex-row shadow-lg">
-                            <div className="relative aspect-video sm:w-40 flex-shrink-0 cursor-pointer overflow-hidden" onClick={() => setInputText(`https://www.youtube.com/watch?v=${result.id}`)}>
-                              <img src={result.thumbnail} alt={result.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                <PlayCircle size={32} className="text-white drop-shadow-lg" />
+                        <div className="grid grid-cols-1 gap-2 max-h-[360px] overflow-y-auto pr-1 no-scrollbar">
+                          {youtubeResults.map((result) => (
+                            <div key={result.id} className="bg-gray-800/60 border border-gray-700/40 rounded-xl overflow-hidden hover:border-red-500/40 hover:bg-gray-800/90 transition-all duration-300 group flex shadow-md">
+                              {/* Thumbnail with overlay play */}
+                              <div
+                                className="relative w-28 sm:w-32 aspect-video flex-shrink-0 cursor-pointer overflow-hidden"
+                                onClick={() => setPreviewVideoId(result.id)}
+                                title="Click para ver vista previa"
+                              >
+                                <img src={result.thumbnail} alt={result.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <PlayCircle size={24} className="text-white drop-shadow-lg" />
+                                </div>
+                                {result.duration && (
+                                  <span className="absolute bottom-1 right-1 bg-black/85 text-[8px] text-white px-1 py-0.5 rounded font-black tracking-wide">
+                                    {result.duration}
+                                  </span>
+                                )}
                               </div>
-                              {result.duration && <span className="absolute bottom-1 right-1 bg-black/80 text-[10px] text-white px-1.5 py-0.5 rounded font-bold">{result.duration}</span>}
-                            </div>
-                            <div className="p-3 flex flex-col justify-between flex-1 min-w-0">
-                              <div>
-                                <h4 className="text-xs font-bold text-white line-clamp-2 leading-tight mb-1">{result.title}</h4>
-                                <p className="text-[10px] text-gray-400 truncate">{result.author}</p>
-                              </div>
-                              <div className="flex gap-2 mt-3">
-                                <button
-                                  onClick={() => {
-                                    const newSlide: Slide = {
-                                      id: Math.random().toString(36).substr(2, 9),
-                                      type: 'youtube',
-                                      content: `https://www.youtube.com/watch?v=${result.id}`,
-                                      videoId: result.id,
-                                      label: 'YOUTUBE'
-                                    };
-                                    if (addYouTubeToCurrent && hasActiveItem) {
-                                      onAddSlide(newSlide);
-                                    } else {
-                                      onAddItem({
+                              
+                              {/* Meta and Action Buttons */}
+                              <div className="p-2.5 flex flex-col justify-between flex-1 min-w-0">
+                                <div className="cursor-pointer" onClick={() => setPreviewVideoId(result.id)}>
+                                  <h4 className="text-[11px] font-black text-white line-clamp-2 leading-tight group-hover:text-red-400 transition-colors">{result.title}</h4>
+                                  <p className="text-[9px] text-slate-400 truncate mt-0.5 font-medium">{result.author}</p>
+                                </div>
+                                
+                                <div className="flex gap-1.5 mt-2">
+                                  <button
+                                    onClick={() => {
+                                      const newSlide: Slide = {
                                         id: Math.random().toString(36).substr(2, 9),
-                                        title: result.title,
-                                        type: 'custom',
-                                        slides: [newSlide],
-                                        theme: currentTheme
-                                      });
-                                    }
-                                  }}
-                                  className="flex-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all"
-                                >
-                                  + PROYECTOR
-                                </button>
-                                <button
-                                  onClick={() => onSetBackgroundAudio?.(result.id, result.title)}
-                                  className="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all flex items-center justify-center gap-1"
-                                >
-                                  <Music size={12} /> + FONDO
-                                </button>
+                                        type: 'youtube',
+                                        content: `https://www.youtube.com/watch?v=${result.id}`,
+                                        videoId: result.id,
+                                        label: 'YOUTUBE'
+                                      };
+                                      if (addYouTubeToCurrent && hasActiveItem) {
+                                        onAddSlide(newSlide);
+                                      } else {
+                                        onAddItem({
+                                          id: Math.random().toString(36).substr(2, 9),
+                                          title: result.title,
+                                          type: 'custom',
+                                          slides: [newSlide],
+                                          theme: currentTheme
+                                        });
+                                      }
+                                    }}
+                                    className="flex-1 bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[9px] font-black uppercase py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-red-950/20"
+                                  >
+                                    <Plus size={10} /> PROYECTOR
+                                  </button>
+                                  <button
+                                    onClick={() => onSetBackgroundAudio?.(result.id, result.title)}
+                                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-indigo-950/20"
+                                  >
+                                    <Music size={10} /> FONDO
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     ) : (
-                      <div className="relative group overflow-hidden rounded-xl border border-gray-700 bg-black aspect-video mb-3 shadow-inner">
-                        <iframe
-                          id="youtube-browser-iframe"
-                          className="w-full h-full"
-                          src={inputText.includes('v=') || inputText.includes('youtu.be') ? `https://www.youtube.com/embed/${inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || ''}?autoplay=0&mute=1&origin=${window.location.protocol}//${window.location.host}` : `https://www.youtube.com/embed?listType=search&list=${inputText || 'Musica Cristiana'}&origin=${window.location.protocol}//${window.location.host}`}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                        ></iframe>
-                        {!inputText && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none group-hover:opacity-0 transition-opacity">
-                          <p className="text-gray-400 text-xs italic">Escribe arriba para navegar...</p>
-                        </div>}
+                      /* YouTube Browser Dashboard (Replaces broken embed) */
+                      <div className="bg-gray-800/30 border border-gray-700/30 rounded-2xl p-5 text-center flex flex-col items-center justify-center aspect-video relative group overflow-hidden shadow-inner">
+                        <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-3 shadow-lg shadow-red-950/20 group-hover:scale-110 transition-transform duration-500">
+                          <PlayCircle size={28} />
+                        </div>
+                        <h3 className="text-xs font-black text-white uppercase tracking-wider">Buscador Inteligente</h3>
+                        <p className="text-[10px] text-gray-400 max-w-xs mt-1.5 leading-relaxed font-medium">
+                          Escribe palabras clave o pega un enlace de YouTube arriba para buscar y agregar videos.
+                        </p>
+                        
+                        {/* Quick-Search Chips */}
+                        <div className="mt-4 w-full">
+                          <p className="text-[8px] text-cyan-400 font-black uppercase tracking-widest mb-2">Búsquedas Rápidas</p>
+                          <div className="flex flex-wrap justify-center gap-1.5">
+                            {[
+                              { label: 'Adoración', query: 'Musica de adoracion cristiana' },
+                              { label: 'Instrumental', query: 'Piano instrumental cristiano' },
+                              { label: 'Alabanza', query: 'Alabanza y adoracion cristiana' },
+                              { label: 'Pistas', query: 'Pistas de piano cristiano para cantar' }
+                            ].map((chip) => (
+                              <button
+                                key={chip.label}
+                                onClick={async () => {
+                                  setInputText(chip.query);
+                                  setIsSearchingYoutube(true);
+                                  try {
+                                    const results = await searchYouTube(chip.query);
+                                    setYoutubeResults(results);
+                                  } catch (err) {
+                                    alert("Error al buscar en YouTube.");
+                                  } finally {
+                                    setIsSearchingYoutube(false);
+                                  }
+                                }}
+                                className="text-[9px] font-bold bg-gray-900/60 hover:bg-red-600 border border-gray-700/80 hover:border-red-500 text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-all active:scale-95"
+                              >
+                                {chip.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
