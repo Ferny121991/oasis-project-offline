@@ -2,22 +2,15 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Slide, PresentationItem } from "../types";
 import { DEFAULT_THEME } from "../constants";
 import { compressImage } from './imageService';
-import rv1960Data from '../data/bibles/es_rvr.json';
-import nviData from '../data/bibles/es_nvi.json';
-import lblaData from '../data/bibles/es_lbla.json';
-import ntvData from '../data/bibles/es_ntv.json';
-import nivEnglishData from '../data/bibles/en_niv.json';
-import kjvData from '../data/bibles/en_kjv.json';
-import nkjvData from '../data/bibles/en_nkjv.json';
 
-const BIBLE_DATA_MAP: Record<string, any> = {
-  'Reina Valera 1960': rv1960Data,
-  'Nueva Versión Internacional': nviData,
-  'Nueva Traducción Viviente': ntvData,
-  'La Biblia de las Américas': lblaData,
-  'New International Version': nivEnglishData,
-  'King James Version': kjvData,
-  'New King James Version': nkjvData
+const BIBLE_DATA_LOADERS: Record<string, () => Promise<any>> = {
+  'Reina Valera 1960': () => import('../data/bibles/es_rvr.json').then(m => m.default),
+  'Nueva Versión Internacional': () => import('../data/bibles/es_nvi.json').then(m => m.default),
+  'Nueva Traducción Viviente': () => import('../data/bibles/es_ntv.json').then(m => m.default),
+  'La Biblia de las Américas': () => import('../data/bibles/es_lbla.json').then(m => m.default),
+  'New International Version': () => import('../data/bibles/en_niv.json').then(m => m.default),
+  'King James Version': () => import('../data/bibles/en_kjv.json').then(m => m.default),
+  'New King James Version': () => import('../data/bibles/en_nkjv.json').then(m => m.default)
 };
 
 // Safety check for environment variable
@@ -469,9 +462,10 @@ export const fetchBiblePassage = async (reference: string, version: string = 'Re
 
     // 3. OFFLINE JSON SEARCH (Local Data)
     // Prioritized because it is faster and offline-capable.
-    const offlineData = BIBLE_DATA_MAP[version];
-    if (offlineData) {
+    const loadOfflineData = BIBLE_DATA_LOADERS[version];
+    if (loadOfflineData) {
       try {
+        const offlineData = await loadOfflineData();
         const bookIndex = BIBLE_BOOKS_ORDER.findIndex(b =>
           b === bookName || normalizeBookKey(b) === bookName
         );
