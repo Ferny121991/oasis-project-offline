@@ -257,6 +257,61 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
   const [isYoutubeFullBrowserOpen, setIsYoutubeFullBrowserOpen] = useState(false);
   const [activePortalVideoId, setActivePortalVideoId] = useState<string | null>(null);
+
+  // ── Rename-before-import system ──
+  // When user clicks auto-paste, we capture the videoId and action type,
+  // then show a naming prompt so they can type a custom title before adding.
+  const [pendingVideoImport, setPendingVideoImport] = useState<{
+    videoId: string;
+    action: 'project' | 'background';
+    defaultName: string;
+  } | null>(null);
+  const [importName, setImportName] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // Confirm the pending import with the user-typed name
+  const confirmVideoImport = () => {
+    if (!pendingVideoImport) return;
+    const { videoId, action } = pendingVideoImport;
+    const finalName = importName.trim() || pendingVideoImport.defaultName;
+
+    if (action === 'project') {
+      const newSlide: Slide = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'youtube',
+        content: `https://www.youtube.com/watch?v=${videoId}`,
+        videoId: videoId,
+        label: 'YOUTUBE'
+      };
+
+      if (addYouTubeToCurrent && hasActiveItem) {
+        onAddSlide(newSlide);
+        alert("¡Video agregado exitosamente a la diapositiva actual!");
+      } else {
+        onAddItem({
+          id: Math.random().toString(36).substr(2, 9),
+          title: finalName,
+          type: 'custom',
+          slides: [newSlide],
+          theme: currentTheme
+        });
+        alert("¡Video agregado exitosamente!");
+      }
+    } else {
+      onSetBackgroundAudio?.(videoId, finalName);
+      alert("¡Agregado exitosamente a la música de fondo!");
+    }
+
+    setInputText('');
+    setPendingVideoImport(null);
+    setImportName('');
+  };
+
+  const cancelVideoImport = () => {
+    setPendingVideoImport(null);
+    setImportName('');
+  };
+
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text'));
 
   // Perform Youtube Search using direct scrapers and Gemini fallbacks
@@ -1621,28 +1676,27 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   return;
                                 }
 
-                                const newSlide: Slide = {
-                                  id: Math.random().toString(36).substr(2, 9),
-                                  type: 'youtube',
-                                  content: `https://www.youtube.com/watch?v=${vId}`,
-                                  videoId: vId,
-                                  label: 'YOUTUBE'
-                                };
-
                                 if (addYouTubeToCurrent && hasActiveItem) {
+                                  // Si se agrega al elemento actual, no necesita nombre general de item, se agrega la diapositiva directa
+                                  const newSlide: Slide = {
+                                    id: Math.random().toString(36).substr(2, 9),
+                                    type: 'youtube',
+                                    content: `https://www.youtube.com/watch?v=${vId}`,
+                                    videoId: vId,
+                                    label: 'YOUTUBE'
+                                  };
                                   onAddSlide(newSlide);
                                   alert("¡Video agregado exitosamente a la diapositiva actual!");
+                                  setInputText('');
                                 } else {
-                                  onAddItem({
-                                    id: Math.random().toString(36).substr(2, 9),
-                                    title: `Video Importado (${vId})`,
-                                    type: 'custom',
-                                    slides: [newSlide],
-                                    theme: currentTheme
+                                  // Si es un item nuevo, pedir nombre
+                                  setPendingVideoImport({
+                                    videoId: vId,
+                                    action: 'project',
+                                    defaultName: 'Video de YouTube'
                                   });
-                                  alert("¡Elemento de YouTube agregado exitosamente a tu lista!");
+                                  setImportName('');
                                 }
-                                setInputText('');
                               } catch (err) {
                                 alert("Error de importación rápida. Copia el enlace, pégalo en el buscador superior y presiona AGREGAR.");
                               }
@@ -1671,9 +1725,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   return;
                                 }
 
-                                onSetBackgroundAudio?.(vId, `Audio Importado (${vId})`);
-                                alert("¡Agregado exitosamente a la música de fondo!");
-                                setInputText('');
+                                setPendingVideoImport({
+                                  videoId: vId,
+                                  action: 'background',
+                                  defaultName: 'Audio de YouTube'
+                                });
+                                setImportName('');
                               } catch (err) {
                                 alert("Error de importación rápida. Copia el enlace, pégalo en el buscador superior y presiona AGREGAR.");
                               }
@@ -1714,126 +1771,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                   {/* YouTube Browser / Search Results */}
                   <div className="mb-4">
-                    {/* YouTube Integrated Iframe Search Panel */}
-                    {youtubeSearchQuery && (
-                      <div className="mb-5 bg-gradient-to-b from-gray-950 to-slate-900 border border-red-500/30 rounded-2xl overflow-hidden shadow-2xl relative animate-fade-in text-left">
-                        <div className="flex items-center justify-between p-3.5 border-b border-gray-800 bg-red-950/20">
-                          <span className="text-xs text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5">
-                            <PlayCircle size={14} className="text-red-500 animate-pulse" /> Panel de Búsqueda de YouTube
-                          </span>
-                          <button
-                            onClick={() => setYoutubeSearchQuery('')}
-                            className="text-gray-400 hover:text-white transition-colors bg-white/5 p-1 rounded-full hover:bg-white/10"
-                            type="button"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                        
-                        <div className="relative aspect-video bg-black">
-                          <iframe
-                            className="absolute inset-0 w-full h-full border-0"
-                            src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(youtubeSearchQuery)}&autoplay=1&mute=0&controls=1&rel=0`}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            allowFullScreen
-                            title="Búsqueda de YouTube"
-                          ></iframe>
-                        </div>
-                        
-                        <div className="p-4 bg-slate-900/60 border-t border-gray-800/80 flex flex-col gap-3">
-                          <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
-                            📺 <strong>Navegador de Resultados Integrado:</strong>
-                            <br />
-                            1. Reproduce el video deseado en la pantalla de arriba.
-                            <br />
-                            2. Haz clic en el icono de <strong>compartir/YouTube</strong> dentro del video para copiar el enlace, o cópialo desde tu navegador.
-                            <br />
-                            3. Presiona uno de los botones verdes/azules de abajo para capturarlo automáticamente:
-                          </p>
-                          
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={async () => {
-                                try {
-                                  let urlText = '';
-                                  try {
-                                    urlText = await navigator.clipboard.readText();
-                                  } catch (e) {
-                                    console.warn("Could not read clipboard", e);
-                                  }
-                                  urlText = urlText.trim() || inputText.trim();
-                                  
-                                  const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
-                                  
-                                  if (!vId) {
-                                    alert("Por favor copia primero el enlace del video de YouTube (usa el botón de compartir del video de arriba o cópialo al portapapeles).");
-                                    return;
-                                  }
 
-                                  const newSlide: Slide = {
-                                    id: Math.random().toString(36).substr(2, 9),
-                                    type: 'youtube',
-                                    content: `https://www.youtube.com/watch?v=${vId}`,
-                                    videoId: vId,
-                                    label: 'YOUTUBE'
-                                  };
-
-                                  if (addYouTubeToCurrent && hasActiveItem) {
-                                    onAddSlide(newSlide);
-                                    alert("¡Video agregado exitosamente a la diapositiva actual!");
-                                  } else {
-                                    onAddItem({
-                                      id: Math.random().toString(36).substr(2, 9),
-                                      title: `Video Importado (${vId})`,
-                                      type: 'custom',
-                                      slides: [newSlide],
-                                      theme: currentTheme
-                                    });
-                                    alert("¡Elemento de YouTube agregado exitosamente a tu lista!");
-                                  }
-                                } catch (err) {
-                                  alert("Error al pegar. Asegúrate de tener copiado un enlace de YouTube o pégalo en el buscador superior.");
-                                }
-                              }}
-                              className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/20 border border-emerald-500/20"
-                              type="button"
-                            >
-                              <Plus size={12} /> Pegar a Playlist
-                            </button>
-                            
-                            <button
-                              onClick={async () => {
-                                try {
-                                  let urlText = '';
-                                  try {
-                                    urlText = await navigator.clipboard.readText();
-                                  } catch (e) {
-                                    console.warn("Could not read clipboard", e);
-                                  }
-                                  urlText = urlText.trim() || inputText.trim();
-                                  
-                                  const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
-                                  
-                                  if (!vId) {
-                                    alert("Por favor copia primero el enlace del video de YouTube (usa el botón de compartir del video de arriba o cópialo al portapapeles).");
-                                    return;
-                                  }
-
-                                  onSetBackgroundAudio?.(vId, `Audio Importado (${vId})`);
-                                  alert("¡Agregado exitosamente a la música de fondo!");
-                                } catch (err) {
-                                  alert("Error al pegar. Asegúrate de tener copiado un enlace de YouTube o pégalo en el buscador superior.");
-                                }
-                              }}
-                              className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/20 border border-indigo-500/20"
-                              type="button"
-                            >
-                              <Music size={12} /> Pegar a Fondo
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     {isSearchingYoutube ? (
                       /* Premium YouTube loading screen */
@@ -3287,6 +3225,82 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             >
               <X size={12} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Import Modal */}
+      {pendingVideoImport && (
+        <div className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700/60 rounded-3xl p-6 w-full max-w-md shadow-2xl text-left relative overflow-hidden">
+            {/* Elemento decorativo del fondo */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                pendingVideoImport.action === 'project' 
+                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' 
+                  : 'bg-indigo-500/10 border border-indigo-500/30 text-indigo-400'
+              }`}>
+                {pendingVideoImport.action === 'project' ? <Plus size={18} /> : <Music size={18} />}
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white">
+                  {pendingVideoImport.action === 'project' ? 'Personalizar Nombre de Video' : 'Personalizar Nombre de Audio'}
+                </h3>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                  Establece un título descriptivo para la lista
+                </p>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-slate-300 font-medium leading-relaxed mb-4">
+              Escribe cómo deseas que aparezca este elemento en el proyector y el panel de control:
+            </p>
+
+            <div className="space-y-4 mb-5">
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={importName}
+                onChange={(e) => setImportName(e.target.value)}
+                placeholder={pendingVideoImport.defaultName}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    confirmVideoImport();
+                  } else if (e.key === 'Escape') {
+                    cancelVideoImport();
+                  }
+                }}
+                className="w-full bg-slate-950/70 border border-slate-700 text-white placeholder-slate-500 rounded-xl px-4 py-3 text-xs outline-none focus:border-violet-500/80 transition-all font-bold"
+                autoFocus
+              />
+              <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider block">
+                ID del Video: <span className="text-slate-400 font-mono">{pendingVideoImport.videoId}</span>
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={cancelVideoImport}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 bg-white/5 active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmVideoImport}
+                className={`flex-1 py-2.5 rounded-xl text-white active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider ${
+                  pendingVideoImport.action === 'project'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/30'
+                    : 'bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-950/30'
+                }`}
+              >
+                Guardar y Aplicar
+              </button>
+            </div>
           </div>
         </div>
       )}
