@@ -988,8 +988,8 @@ const fetchYouTubeDirect = async (query: string, proxyUrl: string, isAllOrigins 
     ? `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`
     : `${proxyUrl}${encodeURIComponent(targetUrl)}`;
 
-  // Strict timeout of 1800ms
-  const res = await fetchWithTimeout(fetchUrl, 1800);
+  // Public CORS proxies are inconsistent, so allow enough time for a usable response.
+  const res = await fetchWithTimeout(fetchUrl, 4500);
   if (!res.ok) throw new Error(`Proxy search failed with status ${res.status}`);
   
   let html = '';
@@ -1084,6 +1084,56 @@ const fetchYouTubeOfficial = async (query: string): Promise<YouTubeSearchResult[
   return results;
 };
 
+const mapInvidiousResults = (data: any[]): YouTubeSearchResult[] => {
+  return data.slice(0, 10).map((item: any) => {
+    const videoId = extractVideoId(item.videoId || item.url || '');
+    return {
+      id: videoId,
+      title: item.title || 'Sin titulo',
+      author: item.author || item.authorId || 'Desconocido',
+      thumbnail: item.videoThumbnails?.find?.((thumb: any) => thumb.quality === 'medium')?.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+      duration: item.lengthSeconds ? formatDuration(Number(item.lengthSeconds)) : undefined
+    };
+  }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
+};
+
+const fetchInvidiousFromInstance = async (query: string, instance: string, timeoutMs = 6000): Promise<YouTubeSearchResult[]> => {
+  const baseUrl = instance.replace(/\/$/, '');
+  const data = await fetchWithCorsProxy(`${baseUrl}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, timeoutMs);
+  if (data && Array.isArray(data) && data.length > 0) {
+    const mapped = mapInvidiousResults(data);
+    if (mapped.length > 0) return mapped;
+  }
+  throw new Error(`Empty or invalid Invidious results from ${baseUrl}.`);
+};
+
+const fetchInvidiousDiscovered = async (query: string): Promise<YouTubeSearchResult[]> => {
+  const instances = await fetchWithCorsProxy('https://api.invidious.io/instances.json', 5000);
+  if (!Array.isArray(instances)) {
+    throw new Error("Invalid Invidious instance directory response.");
+  }
+
+  const candidates = instances
+    .map((entry: any[]) => entry?.[1])
+    .filter((meta: any) => meta?.type === 'https' && meta?.uri && !meta?.down)
+    .sort((a: any, b: any) => {
+      const aScore = (a.api ? 1000 : 0) + (a.cors ? 500 : 0) + Number(a.monitor?.uptime || 0);
+      const bScore = (b.api ? 1000 : 0) + (b.cors ? 500 : 0) + Number(b.monitor?.uptime || 0);
+      return bScore - aScore;
+    })
+    .slice(0, 12)
+    .map((meta: any) => String(meta.uri).replace(/\/$/, ''));
+
+  const providerPromises = Array.from(new Set(candidates)).map((instance) =>
+    fetchInvidiousFromInstance(query, instance, 6000).catch((err) => {
+      console.warn(`Discovered Invidious provider failed: ${instance}`, err);
+      throw err;
+    })
+  );
+
+  return anySuccessfulPromise(providerPromises);
+};
+
 export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
   if (youtubeApiKey) {
     try {
@@ -1107,6 +1157,7 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
       'https://pipedapi.kavin.rocks',
     ];
     const invidiousInstances = [
+      'https://inv.thepixora.com',
       'https://inv.nadeko.net',
       'https://invidious.nerdvpn.de',
       'https://invidious.fdn.fr',
@@ -1115,6 +1166,13 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
     ];
 
     const fetchPromises: Promise<YouTubeSearchResult[]>[] = [];
+
+    fetchPromises.push(
+      fetchInvidiousDiscovered(query).catch(err => {
+        console.warn("Dynamic Invidious provider discovery failed, trying static providers...", err);
+        throw err;
+      })
+    );
 
     // 1. YouTube Direct HTML Scraping via CORS Proxies (Concurrently launched - HIGH PRIORITY)
     fetchPromises.push(
