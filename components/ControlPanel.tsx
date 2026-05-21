@@ -258,6 +258,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [youtubeBrowserMode, setYoutubeBrowserMode] = useState<'cards' | 'iframe'>('cards');
   const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
   const [activePortalVideoId, setActivePortalVideoId] = useState<string | null>(null);
+  const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
 
   // Rename-before-import system
   const [pendingVideoImport, setPendingVideoImport] = useState<{
