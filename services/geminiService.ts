@@ -15,6 +15,7 @@ const BIBLE_DATA_LOADERS: Record<string, () => Promise<any>> = {
 
 // Safety check for environment variable
 const apiKey = "AIzaSyAGOmu0CL4VFuz82Jd-jCfIrKj4j9kMAfg";
+const youtubeApiKey = process.env.YOUTUBE_API_KEY || '';
 
 const ai = new GoogleGenAI({ apiKey });
 
@@ -1037,8 +1038,62 @@ const fetchYouTubeDirect = async (query: string, proxyUrl: string, isAllOrigins 
   return results.slice(0, 10);
 };
 
+const fetchYouTubeOfficial = async (query: string): Promise<YouTubeSearchResult[]> => {
+  if (!youtubeApiKey) throw new Error("YouTube API key is not configured.");
+
+  const params = new URLSearchParams({
+    key: youtubeApiKey,
+    part: 'snippet',
+    type: 'video',
+    q: query,
+    maxResults: '12',
+    order: 'relevance',
+    safeSearch: 'moderate',
+    relevanceLanguage: 'es',
+    regionCode: 'US',
+    videoEmbeddable: 'true'
+  });
+
+  const res = await fetchWithTimeout(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`, 4500);
+  if (!res.ok) {
+    let message = `YouTube Data API failed with status ${res.status}`;
+    try {
+      const errorJson = await res.json();
+      message = errorJson?.error?.message || message;
+    } catch (_) {}
+    throw new Error(message);
+  }
+
+  const data = await res.json();
+  const items = Array.isArray(data.items) ? data.items : [];
+  const results = items
+    .map((item: any) => {
+      const videoId = item?.id?.videoId;
+      if (!videoId || videoId.length !== 11) return null;
+      const snippet = item.snippet || {};
+      return {
+        id: videoId,
+        title: snippet.title || 'Sin titulo',
+        author: snippet.channelTitle || 'Desconocido',
+        thumbnail: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+      } as YouTubeSearchResult;
+    })
+    .filter(Boolean) as YouTubeSearchResult[];
+
+  if (results.length === 0) throw new Error("No official YouTube results found.");
+  return results;
+};
+
 export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
-  // Absolute timeout of 2.2 seconds to guarantee search never hangs
+  if (youtubeApiKey) {
+    try {
+      return await fetchYouTubeOfficial(query);
+    } catch (error) {
+      console.warn("Official YouTube Data API search failed, using fallback providers.", error);
+    }
+  }
+
+  // Absolute timeout of 2.2 seconds to guarantee fallback search never hangs
   const searchTimeoutPromise = new Promise<never>((_, reject) => 
     setTimeout(() => reject(new Error("Timeout general de búsqueda de YouTube superado.")), 2200)
   );
