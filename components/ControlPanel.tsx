@@ -50,9 +50,9 @@ interface ControlPanelProps {
 // Updated Bible Versions as requested
 const BIBLE_VERSIONS = [
   'Reina Valera 1960',
-  'Nueva VersiÃƒÂ³n Internacional',
-  'Nueva TraducciÃƒÂ³n Viviente',
-  'La Biblia de las AmÃƒÂ©ricas',
+  'Nueva VersiÃƒÆ’Ã‚Â³n Internacional',
+  'Nueva TraducciÃƒÆ’Ã‚Â³n Viviente',
+  'La Biblia de las AmÃƒÆ’Ã‚Â©ricas',
   'New International Version',
   'King James Version',
   'New King James Version'
@@ -88,41 +88,41 @@ const FONTS = [
 ];
 
 const ANIMATIONS: { name: string; value: AnimationType }[] = [
-  // BÃƒÂ¡sicas
-  { name: 'Ã°Å¸Å¡Â« Ninguna', value: 'none' },
-  { name: 'Ã¢Å“Â¨ Desvanecer (Fade)', value: 'fade' },
+  // BÃƒÆ’Ã‚Â¡sicas
+  { name: 'ÃƒÂ°Ã…Â¸Ã…Â¡Ã‚Â« Ninguna', value: 'none' },
+  { name: 'ÃƒÂ¢Ã…â€œÃ‚Â¨ Desvanecer (Fade)', value: 'fade' },
 
-  // Fade + DirecciÃƒÂ³n
-  { name: 'Ã¢Â¬â€ Ã¯Â¸Â Fade + Subir', value: 'fade-slide-up' },
-  { name: 'Ã¢Â¬â€¡Ã¯Â¸Â Fade + Bajar', value: 'fade-slide-down' },
-  { name: 'Ã¢Â¬â€¦Ã¯Â¸Â Fade + Izquierda', value: 'fade-slide-left' },
-  { name: 'Ã¢Å¾Â¡Ã¯Â¸Â Fade + Derecha', value: 'fade-slide-right' },
+  // Fade + DirecciÃƒÆ’Ã‚Â³n
+  { name: 'ÃƒÂ¢Ã‚Â¬Ã¢â‚¬Â ÃƒÂ¯Ã‚Â¸Ã‚Â Fade + Subir', value: 'fade-slide-up' },
+  { name: 'ÃƒÂ¢Ã‚Â¬Ã¢â‚¬Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â Fade + Bajar', value: 'fade-slide-down' },
+  { name: 'ÃƒÂ¢Ã‚Â¬Ã¢â‚¬Â¦ÃƒÂ¯Ã‚Â¸Ã‚Â Fade + Izquierda', value: 'fade-slide-left' },
+  { name: 'ÃƒÂ¢Ã…Â¾Ã‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â Fade + Derecha', value: 'fade-slide-right' },
 
   // Zoom
-  { name: 'Ã°Å¸â€Â Zoom Entrada', value: 'zoom-in' },
-  { name: 'Ã°Å¸â€Å½ Zoom Salida', value: 'zoom-out' },
-  { name: 'Ã°Å¸Å½Â¯ Zoom ElÃƒÂ¡stico', value: 'zoom-elastic' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â Zoom Entrada', value: 'zoom-in' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ…Â½ Zoom Salida', value: 'zoom-out' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯ Zoom ElÃƒÆ’Ã‚Â¡stico', value: 'zoom-elastic' },
 
   // Blur & Focus
-  { name: 'Ã°Å¸â€™Â¨ Desenfoque (Blur)', value: 'blur-in' },
-  { name: 'Ã°Å¸Å½Â¬ Focus Expand', value: 'focus-in-expand' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â¨ Desenfoque (Blur)', value: 'blur-in' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¬ Focus Expand', value: 'focus-in-expand' },
 
   // Especiales
-  { name: 'Ã¢Å’Â¨Ã¯Â¸Â MÃƒÂ¡quina Escribir', value: 'typewriter' },
-  { name: 'Ã°Å¸Å’â‚¬ RotaciÃƒÂ³n', value: 'rotate-in' },
-  { name: 'Ã°Å¸â€â€ž Giro 3D Horizontal', value: 'flip-in-x' },
-  { name: 'Ã°Å¸â€Æ’ Giro 3D Vertical', value: 'flip-in-y' },
+  { name: 'ÃƒÂ¢Ã…â€™Ã‚Â¨ÃƒÂ¯Ã‚Â¸Ã‚Â MÃƒÆ’Ã‚Â¡quina Escribir', value: 'typewriter' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã…â€™Ã¢â€šÂ¬ RotaciÃƒÆ’Ã‚Â³n', value: 'rotate-in' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Å¾ Giro 3D Horizontal', value: 'flip-in-x' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ†â€™ Giro 3D Vertical', value: 'flip-in-y' },
 
   // Bounce & Elastic
-  { name: 'Ã°Å¸Ââ‚¬ Rebote (Bounce)', value: 'bounce-in' },
-  { name: 'Ã¢Â¬â€¡Ã¯Â¸Â Rebote desde Arriba', value: 'bounce-in-top' },
-  { name: 'Ã°Å¸Å½Â¢ ElÃƒÂ¡stico Slide', value: 'elastic-slide' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã‚ÂÃ¢â€šÂ¬ Rebote (Bounce)', value: 'bounce-in' },
+  { name: 'ÃƒÂ¢Ã‚Â¬Ã¢â‚¬Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â Rebote desde Arriba', value: 'bounce-in-top' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¢ ElÃƒÆ’Ã‚Â¡stico Slide', value: 'elastic-slide' },
 
-  // DramÃƒÂ¡ticas
-  { name: 'Ã°Å¸Å½Â­ Swing (Balanceo)', value: 'swing-in' },
-  { name: 'Ã°Å¸Å½Â² Roll In (Rodar)', value: 'roll-in' },
-  { name: 'Ã°Å¸â€œÂ Slit Vertical', value: 'slit-in-vertical' },
-  { name: 'Ã°Å¸â€™Â¥ Puff In (ExplosiÃƒÂ³n)', value: 'puff-in' },
+  // DramÃƒÆ’Ã‚Â¡ticas
+  { name: 'ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â­ Swing (Balanceo)', value: 'swing-in' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â² Roll In (Rodar)', value: 'roll-in' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Slit Vertical', value: 'slit-in-vertical' },
+  { name: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â¥ Puff In (ExplosiÃƒÆ’Ã‚Â³n)', value: 'puff-in' },
 ];
 
 const FONT_SIZES = [
@@ -186,19 +186,19 @@ const DEFAULT_BG_ANIMATION: BackgroundAnimationConfig = {
 // Complete list of Bible books in Spanish
 const BIBLE_BOOKS = [
   // Antiguo Testamento
-  'GÃƒÂ©nesis', 'Ãƒâ€°xodo', 'LevÃƒÂ­tico', 'NÃƒÂºmeros', 'Deuteronomio',
-  'JosuÃƒÂ©', 'Jueces', 'Rut', '1 Samuel', '2 Samuel',
-  '1 Reyes', '2 Reyes', '1 CrÃƒÂ³nicas', '2 CrÃƒÂ³nicas', 'Esdras',
-  'NehemÃƒÂ­as', 'Ester', 'Job', 'Salmos', 'Proverbios',
-  'EclesiastÃƒÂ©s', 'Cantares', 'IsaÃƒÂ­as', 'JeremÃƒÂ­as', 'Lamentaciones',
-  'Ezequiel', 'Daniel', 'Oseas', 'Joel', 'AmÃƒÂ³s',
-  'AbdÃƒÂ­as', 'JonÃƒÂ¡s', 'Miqueas', 'NahÃƒÂºm', 'Habacuc',
-  'SofonÃƒÂ­as', 'Hageo', 'ZacarÃƒÂ­as', 'MalaquÃƒÂ­as',
+  'GÃƒÆ’Ã‚Â©nesis', 'ÃƒÆ’Ã¢â‚¬Â°xodo', 'LevÃƒÆ’Ã‚Â­tico', 'NÃƒÆ’Ã‚Âºmeros', 'Deuteronomio',
+  'JosuÃƒÆ’Ã‚Â©', 'Jueces', 'Rut', '1 Samuel', '2 Samuel',
+  '1 Reyes', '2 Reyes', '1 CrÃƒÆ’Ã‚Â³nicas', '2 CrÃƒÆ’Ã‚Â³nicas', 'Esdras',
+  'NehemÃƒÆ’Ã‚Â­as', 'Ester', 'Job', 'Salmos', 'Proverbios',
+  'EclesiastÃƒÆ’Ã‚Â©s', 'Cantares', 'IsaÃƒÆ’Ã‚Â­as', 'JeremÃƒÆ’Ã‚Â­as', 'Lamentaciones',
+  'Ezequiel', 'Daniel', 'Oseas', 'Joel', 'AmÃƒÆ’Ã‚Â³s',
+  'AbdÃƒÆ’Ã‚Â­as', 'JonÃƒÆ’Ã‚Â¡s', 'Miqueas', 'NahÃƒÆ’Ã‚Âºm', 'Habacuc',
+  'SofonÃƒÆ’Ã‚Â­as', 'Hageo', 'ZacarÃƒÆ’Ã‚Â­as', 'MalaquÃƒÆ’Ã‚Â­as',
   // Nuevo Testamento
   'Mateo', 'Marcos', 'Lucas', 'Juan', 'Hechos',
-  'Romanos', '1 Corintios', '2 Corintios', 'GÃƒÂ¡latas', 'Efesios',
+  'Romanos', '1 Corintios', '2 Corintios', 'GÃƒÆ’Ã‚Â¡latas', 'Efesios',
   'Filipenses', 'Colosenses', '1 Tesalonicenses', '2 Tesalonicenses',
-  '1 Timoteo', '2 Timoteo', 'Tito', 'FilemÃƒÂ³n', 'Hebreos',
+  '1 Timoteo', '2 Timoteo', 'Tito', 'FilemÃƒÆ’Ã‚Â³n', 'Hebreos',
   'Santiago', '1 Pedro', '2 Pedro', '1 Juan', '2 Juan', '3 Juan',
   'Judas', 'Apocalipsis'
 ];
@@ -295,7 +295,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
       if (shouldAddToCurrent) {
         onAddSlide(newSlide);
-        alert("Ã‚Â¡Video agregado exitosamente a la diapositiva actual!");
+        alert("Ãƒâ€šÃ‚Â¡Video agregado exitosamente a la diapositiva actual!");
       } else {
         onAddItem({
           id: Math.random().toString(36).substr(2, 9),
@@ -304,11 +304,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           slides: [newSlide],
           theme: currentTheme
         });
-        alert("Ã‚Â¡Video agregado exitosamente!");
+        alert("Ãƒâ€šÃ‚Â¡Video agregado exitosamente!");
       }
     } else {
       onSetBackgroundAudio?.(videoId, finalName);
-      alert("Ã‚Â¡Agregado exitosamente a la mÃƒÂºsica de fondo!");
+      alert("Ãƒâ€šÃ‚Â¡Agregado exitosamente a la mÃƒÆ’Ã‚Âºsica de fondo!");
     }
 
     setInputText('');
@@ -334,7 +334,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       const results = await searchYouTube(query);
       setYoutubeResults(results);
       if (results.length === 0) {
-        setYoutubeSearchError("No se encontraron videos para tu bÃƒÂºsqueda.");
+        setYoutubeSearchError("No se encontraron videos para tu bÃƒÆ’Ã‚Âºsqueda.");
       }
     } catch (err) {
       console.error("YouTube search error", err);
@@ -362,9 +362,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const alert = (message: string) => {
     let toastType: 'success' | 'error' | 'info' = 'info';
     const lower = message.toLowerCase();
-    if (lower.includes('error') || lower.includes('por favor') || lower.includes('fallÃƒÂ³') || lower.includes('permiso')) {
+    if (lower.includes('error') || lower.includes('por favor') || lower.includes('fallÃƒÆ’Ã‚Â³') || lower.includes('permiso')) {
       toastType = 'error';
-    } else if (lower.includes('ÃƒÂ©xito') || lower.includes('exitosamente') || lower.includes('agregado') || lower.includes('copiado')) {
+    } else if (lower.includes('ÃƒÆ’Ã‚Â©xito') || lower.includes('exitosamente') || lower.includes('agregado') || lower.includes('copiado')) {
       toastType = 'success';
     }
     triggerToast(message, toastType);
@@ -1070,7 +1070,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 }`}
                 type="button"
               >
-                Servidor RÃƒÂ¡pido Ã¢Å¡Â¡
+                Servidor Rapido
               </button>
               <button
                 onClick={() => setYoutubeBrowserMode('iframe')}
@@ -1124,11 +1124,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             {/* Quick chips */}
             <div className="flex gap-1.5 shrink-0 self-start md:self-auto overflow-x-auto max-w-full pb-1 md:pb-0 no-scrollbar">
               {[
-                { label: 'Ã°Å¸â€Â¥ AdoraciÃƒÂ³n', query: 'Musica de adoracion cristiana' },
-                { label: 'Ã°Å¸Å½Â¹ Instrumental', query: 'Piano instrumental cristiano' },
-                { label: 'Ã°Å¸â„¢Å’ Alabanza', query: 'Alabanza y adoracion cristiana' },
-                { label: 'Ã°Å¸Å½Â¤ Pistas', query: 'Pistas de piano cristiano para cantar' },
-                { label: 'Ã¢â€ºÂª Himnos', query: 'Himnos cristianos clasicos' }
+                { label: 'Adoracion', query: 'Musica de adoracion cristiana' },
+                { label: 'Instrumental', query: 'Piano instrumental cristiano' },
+                { label: 'Alabanza', query: 'Alabanza y adoracion cristiana' },
+                { label: 'Pistas', query: 'Pistas de piano cristiano para cantar' },
+                { label: 'Himnos', query: 'Himnos cristianos clasicos' }
               ].map((chip) => (
                 <button
                   key={chip.label}
@@ -1226,7 +1226,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 mb-4 animate-pulse">
                     <AlertCircle size={32} />
                   </div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Error de BÃƒÂºsqueda</h3>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Error de Busqueda</h3>
                   <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed">
                     {youtubeSearchError}
                   </p>
@@ -1245,7 +1245,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <div className="space-y-4 h-full flex flex-col min-h-0">
                   <div className="flex items-center justify-between border-b border-white/5 pb-3">
                     <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
-                      Ã°Å¸â€œÂº RESULTADOS DE BÃƒÅ¡SQUEDA ({youtubeResults.length} videos)
+                      RESULTADOS DE BUSQUEDA ({youtubeResults.length} videos)
                     </span>
                     <span className="text-[9px] text-slate-500 italic">Haz clic en un video para reproducir la vista previa</span>
                   </div>
@@ -1273,7 +1273,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               {video.title}
                             </h4>
                             <p className="text-[10px] text-slate-400 mt-1.5 font-bold uppercase tracking-wider truncate">
-                              Ã°Å¸â€˜Â¤ {video.author}
+                              {video.author}
                             </p>
                           </div>
                           
@@ -1321,7 +1321,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               <button
                                 onClick={() => {
                                   navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${video.id}`);
-                                  alert("Ã‚Â¡Enlace copiado al portapapeles!");
+                                  alert("Enlace copiado al portapapeles.");
                                 }}
                                 className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[9px] font-black uppercase py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md border border-emerald-500/20"
                                 type="button"
@@ -1342,7 +1342,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </div>
                   <h3 className="text-sm font-black text-white uppercase tracking-wider">Centro de Vista Previa</h3>
                   <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed">
-                    Ingresa palabras clave en el buscador de arriba o selecciona un chip rÃƒÂ¡pido para cargar el buscador de YouTube en tiempo real.
+                    Ingresa palabras clave en el buscador de arriba o selecciona un chip rapido para cargar el buscador de YouTube en tiempo real.
                   </p>
                 </div>
               )}
@@ -1353,19 +1353,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <div className="w-full lg:w-[380px] bg-slate-900/60 border border-white/10 rounded-3xl p-5 flex flex-col justify-between shrink-0 shadow-2xl relative backdrop-blur-md overflow-y-auto">
             <div className="flex flex-col gap-5">
               <span className="text-[10px] text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
-                <Sliders size={14} className="text-red-500" /> PANEL DE CONTROL DE IMPORTACIÃƒâ€œN
+                <Sliders size={14} className="text-red-500" /> PANEL DE CONTROL DE IMPORTACION
               </span>
 
               {/* Instructions */}
               <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-3">
-                <h4 className="text-xs font-black text-white uppercase tracking-wider">Ã‚Â¿CÃƒÂ³mo importar videos?</h4>
+                <h4 className="text-xs font-black text-white uppercase tracking-wider">Como importar videos?</h4>
                 <ol className="text-[10px] text-slate-300 space-y-2 list-decimal list-inside font-medium leading-relaxed">
                   <li>Busca y reproduce el video que deseas en la pantalla de la izquierda.</li>
                   <li>
-                    Haz clic en el icono de <span className="text-white font-bold">compartir</span> o en el logo de <span className="text-white font-bold">YouTube</span> dentro del video para copiar su enlace (o cÃƒÂ³pialo desde tu navegador).
+                    Haz clic en el icono de <span className="text-white font-bold">compartir</span> o en el logo de <span className="text-white font-bold">YouTube</span> dentro del video para copiar su enlace (o copialo desde tu navegador).
                   </li>
                   <li>
-                    Presiona uno de los botones de importaciÃƒÂ³n rÃƒÂ¡pida de abajo para capturarlo automÃƒÂ¡ticamente.
+                    Presiona uno de los botones de importacion rapida de abajo para capturarlo automaticamente.
                   </li>
                 </ol>
               </div>
@@ -1377,7 +1377,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Pega el enlace de YouTube aquÃƒÂ­..."
+                  placeholder="Pega el enlace de YouTube aqui..."
                   className="w-full bg-slate-950/80 rounded-xl px-3.5 py-2.5 text-xs text-white border border-white/10 focus:border-red-500/50 outline-none transition-all"
                 />
               </div>
@@ -1415,7 +1415,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         .find(Boolean) || '';
                       
                       if (!vId) {
-                        alert("Por favor copia primero un enlace de YouTube vÃƒÂ¡lido (o pÃƒÂ©galo en el buscador superior).");
+                        alert("Por favor copia primero un enlace de YouTube valido (o pegalo en el buscador superior).");
                         return;
                       }
 
@@ -1427,7 +1427,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       });
                       setImportName('');
                     } catch (err) {
-                      alert("Error de importaciÃƒÂ³n rÃƒÂ¡pida. Copia el enlace, pÃƒÂ©galo en el buscador superior y presiona AGREGAR.");
+                      alert("Error de importacion rapida. Copia el enlace, pegalo en el buscador superior y presiona AGREGAR.");
                     }
                   }}
                   className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[10px] font-black uppercase py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/20 border border-emerald-500/20"
@@ -1453,7 +1453,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         .find(Boolean) || '';
                       
                       if (!vId) {
-                        alert("Por favor copia primero un enlace de YouTube vÃƒÂ¡lido (o pÃƒÂ©galo en el buscador superior).");
+                        alert("Por favor copia primero un enlace de YouTube valido (o pegalo en el buscador superior).");
                         return;
                       }
 
@@ -1464,7 +1464,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       });
                       setImportName('');
                     } catch (err) {
-                      alert("Error de importaciÃƒÂ³n rÃƒÂ¡pida. Copia el enlace, pÃƒÂ©galo en el buscador superior y presiona AGREGAR.");
+                      alert("Error de importacion rapida. Copia el enlace, pegalo en el buscador superior y presiona AGREGAR.");
                     }
                   }}
                   className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[10px] font-black uppercase py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/20 border border-indigo-500/20"
@@ -1479,7 +1479,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(inputText);
-                  alert("Ã‚Â¡Enlace copiado al portapapeles!");
+                  alert("Enlace copiado al portapapeles.");
                 }}
                 className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase py-3 rounded-xl transition-all flex items-center justify-center gap-1.5"
                 type="button"
@@ -1603,10 +1603,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             {/* DENSITY SELECTOR - Compact */}
             {inputType !== 'youtube' && (
               <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/30">
-                <label className="text-[10px] uppercase text-gray-500 font-bold tracking-widest mb-3 block">Ã°Å¸â€œÅ  Densidad de Texto</label>
+                <label className="text-[10px] uppercase text-gray-500 font-bold tracking-widest mb-3 block">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â  Densidad de Texto</label>
                 <div className="grid grid-cols-4 gap-2">
                   <button onClick={() => setDensity('impact')} className={`p-2 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${density === 'impact' ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}><AlignLeft size={14} /> Impacto</button>
-                  <button onClick={() => setDensity('classic')} className={`p-2 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${density === 'classic' ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}><AlignCenter size={14} /> ClÃƒÂ¡sico</button>
+                  <button onClick={() => setDensity('classic')} className={`p-2 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${density === 'classic' ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}><AlignCenter size={14} /> ClÃƒÆ’Ã‚Â¡sico</button>
                   <button onClick={() => setDensity('strophe')} className={`p-2 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${density === 'strophe' ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}><LayoutGrid size={14} /> Estrofa</button>
                   <button onClick={() => setDensity('reading')} className={`p-2 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${density === 'reading' ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}><FileText size={14} /> Lectura</button>
                 </div>
@@ -1734,7 +1734,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   .find(Boolean) || '';
                                 
                                 if (!vId) {
-                                  alert("Por favor copia primero un enlace de YouTube vÃƒÂ¡lido (o pÃƒÂ©galo en el buscador superior).");
+                                  alert("Por favor copia primero un enlace de YouTube vÃƒÆ’Ã‚Â¡lido (o pÃƒÆ’Ã‚Â©galo en el buscador superior).");
                                   return;
                                 }
 
@@ -1747,7 +1747,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 setImportName('');
                                 setInputText('');
                               } catch (err) {
-                                alert("Error de importaciÃƒÂ³n rÃƒÂ¡pida. Copia el enlace, pÃƒÂ©galo en el buscador superior y presiona AGREGAR.");
+                                alert("Error de importaciÃƒÆ’Ã‚Â³n rÃƒÆ’Ã‚Â¡pida. Copia el enlace, pÃƒÆ’Ã‚Â©galo en el buscador superior y presiona AGREGAR.");
                               }
                             }}
                             className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[9px] font-black uppercase py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/20 border border-emerald-500/20"
@@ -1773,7 +1773,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   .find(Boolean) || '';
                                 
                                 if (!vId) {
-                                  alert("Por favor copia primero un enlace de YouTube vÃƒÂ¡lido (o pÃƒÂ©galo en el buscador superior).");
+                                  alert("Por favor copia primero un enlace de YouTube vÃƒÆ’Ã‚Â¡lido (o pÃƒÆ’Ã‚Â©galo en el buscador superior).");
                                   return;
                                 }
 
@@ -1784,7 +1784,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 });
                                 setImportName('');
                               } catch (err) {
-                                alert("Error de importaciÃƒÂ³n rÃƒÂ¡pida. Copia el enlace, pÃƒÂ©galo en el buscador superior y presiona AGREGAR.");
+                                alert("Error de importaciÃƒÆ’Ã‚Â³n rÃƒÆ’Ã‚Â¡pida. Copia el enlace, pÃƒÆ’Ã‚Â©galo en el buscador superior y presiona AGREGAR.");
                               }
                             }}
                             className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/20 border border-indigo-500/20"
@@ -1875,7 +1875,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           type="button"
                         >
                           <Search size={12} className="text-red-500" />
-                          Buscar en AplicaciÃƒÂ³n
+                          Buscar en AplicaciÃƒÆ’Ã‚Â³n
                         </button>
                         <button
                           onClick={async () => {
@@ -1892,7 +1892,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           type="button"
                         >
                           <Upload size={12} className="text-indigo-500" />
-                          Ã°Å¸â€œâ€¹ Auto-Pegar Enlace
+                          ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Auto-Pegar Enlace
                         </button>
                       </div>
                     )}
@@ -1901,7 +1901,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     {showBibleSuggestions && bibleSuggestions.length > 0 && inputType === 'scripture' && (
                       <div className="absolute z-50 w-full mt-1 bg-gray-900 border border-indigo-500/50 rounded-xl shadow-2xl overflow-hidden animate-fade-in">
                         <div className="px-3 py-2 bg-indigo-900/30 border-b border-gray-700">
-                          <span className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">Ã°Å¸â€œâ€“ Libros sugeridos</span>
+                          <span className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬â€œ Libros sugeridos</span>
                         </div>
                         <div className="max-h-48 overflow-y-auto">
                           {bibleSuggestions.map((book, idx) => (
@@ -1967,7 +1967,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </div>
                 ) : (
                   <button onClick={() => { setSongResults([]); setInputText(''); }} className="w-full bg-gray-600 hover:bg-gray-500 text-white py-2.5 rounded-xl flex justify-center items-center gap-2 text-xs font-bold">
-                    <X size={14} /> CANCELAR BÃƒÅ¡SQUEDA
+                    <X size={14} /> CANCELAR BÃƒÆ’Ã…Â¡SQUEDA
                   </button>
                 )}
               </div>
@@ -1986,13 +1986,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <Music size={20} className={isAudioPlaying ? 'animate-pulse' : ''} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span className="text-[9px] text-pink-400 font-bold uppercase tracking-widest block mb-1">MÃƒÂºsica de fondo en vivo</span>
+                        <span className="text-[9px] text-pink-400 font-bold uppercase tracking-widest block mb-1">MÃƒÆ’Ã‚Âºsica de fondo en vivo</span>
                         <p className="text-sm text-white font-bold truncate">{backgroundAudioItem.title}</p>
                       </div>
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${backgroundAudioItem.videoId}`);
-                          alert("Ã‚Â¡Enlace del audio de fondo copiado al portapapeles!");
+                          alert("Ãƒâ€šÃ‚Â¡Enlace del audio de fondo copiado al portapapeles!");
                         }}
                         className="w-8 h-8 rounded-full bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 flex items-center justify-center transition-all"
                         title="Copiar enlace del audio"
@@ -2099,7 +2099,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             {songResults.length > 0 && (
               <div className="bg-gray-900/80 rounded-xl border border-gray-700/50 overflow-hidden shadow-xl">
                 <div className="p-3 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 border-b border-gray-700/50">
-                  <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider">Ã°Å¸Å½Âµ {songResults.length} resultado(s) encontrado(s)</span>
+                  <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider">ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Âµ {songResults.length} resultado(s) encontrado(s)</span>
                 </div>
                 <div className="max-h-60 overflow-y-auto">
                   {songResults.map((result, idx) => (
@@ -2153,7 +2153,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">Ã°Å¸â€œÂ Formato</span>
+                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 block">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Formato</span>
                   <select
                     value={currentTheme.aspectRatio || '16/9'}
                     onChange={(e) => updatePendingTheme({ ...currentTheme, aspectRatio: e.target.value })}
@@ -2164,7 +2164,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
                 <div className="flex-1">
                   <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                    <span>Ã°Å¸â€œÂ Margen</span>
+                    <span>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Margen</span>
                     <span className="text-cyan-300">{currentTheme.padding}</span>
                   </span>
                   <input
@@ -2178,7 +2178,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
 
             <div className="p-4 pt-0 space-y-5">
-              {!hasActiveItem && <div className="bg-yellow-900/30 text-yellow-500 p-4 rounded-xl text-xs border border-yellow-700/50 text-center font-medium">Ã¢Å¡Â Ã¯Â¸Â Selecciona un elemento de la lista para editarlo</div>}
+              {!hasActiveItem && <div className="bg-yellow-900/30 text-yellow-500 p-4 rounded-xl text-xs border border-yellow-700/50 text-center font-medium">ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Selecciona un elemento de la lista para editarlo</div>}
 
               <div className={!hasActiveItem ? 'opacity-40 pointer-events-none' : ''}>
 
@@ -2383,7 +2383,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         type="text"
                         value={newThemeName}
                         onChange={(e) => setNewThemeName(e.target.value)}
-                        placeholder="Nombre del tema (ej: Mi Tema AdoraciÃƒÂ³n)"
+                        placeholder="Nombre del tema (ej: Mi Tema AdoraciÃƒÆ’Ã‚Â³n)"
                         className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-600 outline-none focus:border-amber-500 mb-3"
                         autoFocus
                       />
@@ -2682,7 +2682,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     {/* SECTION: Image Fit & Rotation */}
                     <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 border border-gray-700/50 rounded-xl overflow-hidden shadow-xl transition-all duration-300">
                       <button onClick={() => toggleSection('imageFit')} className="w-full text-[10px] uppercase text-pink-400 font-bold tracking-widest p-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors">
-                        <div className="flex items-center gap-2"><ImageIcon size={14} /> ComposiciÃƒÂ³n</div>
+                        <div className="flex items-center gap-2"><ImageIcon size={14} /> ComposiciÃƒÆ’Ã‚Â³n</div>
                         <ChevronDown size={14} className={`transition-transform duration-300 ${expandedSections.imageFit ? 'rotate-180' : ''}`} />
                       </button>
                       {expandedSections.imageFit && (
@@ -2716,7 +2716,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <button onClick={() => updatePendingTheme({ ...currentTheme, imageContentFlipV: !currentTheme.imageContentFlipV })} className={`py-2 rounded-lg text-[9px] font-bold uppercase border transition-all ${currentTheme.imageContentFlipV ? 'bg-pink-600 text-white border-pink-400' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>Espejo V</button>
                           </div>
                           <div className="bg-gray-900/40 p-3 rounded-lg border border-gray-700/30">
-                            <div className="flex justify-between text-[10px] text-gray-300 mb-2 font-bold uppercase"><span>RotaciÃƒÂ³n</span><span className="text-pink-400">{currentTheme.imageContentRotation || 0}Ã‚Â°</span></div>
+                            <div className="flex justify-between text-[10px] text-gray-300 mb-2 font-bold uppercase"><span>RotaciÃƒÆ’Ã‚Â³n</span><span className="text-pink-400">{currentTheme.imageContentRotation || 0}Ãƒâ€šÃ‚Â°</span></div>
                             <input type="range" min="-180" max="180" value={currentTheme.imageContentRotation || 0} onChange={(e) => updatePendingTheme({ ...currentTheme, imageContentRotation: parseInt(e.target.value) })} className="w-full h-1.5 bg-gray-700 rounded-full accent-pink-500 cursor-pointer" />
                           </div>
                         </div>
@@ -2744,11 +2744,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <div className="flex justify-between text-[8px] text-gray-500 mb-1 font-bold uppercase"><span>Tono</span><span>{currentTheme.imageContentHueRotate || 0}Ã‚Â°</span></div>
+                                <div className="flex justify-between text-[8px] text-gray-500 mb-1 font-bold uppercase"><span>Tono</span><span>{currentTheme.imageContentHueRotate || 0}Ãƒâ€šÃ‚Â°</span></div>
                                 <input type="range" min="0" max="360" value={currentTheme.imageContentHueRotate || 0} onChange={(e) => updatePendingTheme({ ...currentTheme, imageContentHueRotate: parseInt(e.target.value) })} className="w-full h-1 bg-gray-700 rounded accent-blue-400" />
                               </div>
                               <div>
-                                <div className="flex justify-between text-[8px] text-gray-500 mb-1 font-bold uppercase"><span>SaturaciÃƒÂ³n</span><span>{Math.round((currentTheme.imageContentSaturate || 1) * 100)}%</span></div>
+                                <div className="flex justify-between text-[8px] text-gray-500 mb-1 font-bold uppercase"><span>SaturaciÃƒÆ’Ã‚Â³n</span><span>{Math.round((currentTheme.imageContentSaturate || 1) * 100)}%</span></div>
                                 <input type="range" min="0" max="3" step="0.1" value={currentTheme.imageContentSaturate || 1} onChange={(e) => updatePendingTheme({ ...currentTheme, imageContentSaturate: parseFloat(e.target.value) })} className="w-full h-1 bg-gray-700 rounded accent-pink-400" />
                               </div>
                             </div>
@@ -3095,13 +3095,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   {pendingVideoImport.action === 'project' ? 'Personalizar Nombre de Video' : 'Personalizar Nombre de Audio'}
                 </h3>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                  Establece un tÃƒÂ­tulo descriptivo para la lista
+                  Establece un tÃƒÆ’Ã‚Â­tulo descriptivo para la lista
                 </p>
               </div>
             </div>
 
             <p className="text-[10px] text-slate-300 font-medium leading-relaxed mb-4">
-              Escribe cÃƒÂ³mo deseas que aparezca este elemento en el proyector y el panel de control:
+              Escribe cÃƒÆ’Ã‚Â³mo deseas que aparezca este elemento en el proyector y el panel de control:
             </p>
 
             {pendingVideoImport.action === 'project' && (
