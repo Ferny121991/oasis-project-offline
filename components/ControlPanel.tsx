@@ -265,16 +265,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     videoId: string;
     action: 'project' | 'background';
     defaultName: string;
+    destination?: 'current' | 'new';
   } | null>(null);
   const [importName, setImportName] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  const confirmVideoImport = () => {
+  const confirmVideoImport = (destinationOverride?: 'current' | 'new') => {
     if (!pendingVideoImport) return;
     const { videoId, action } = pendingVideoImport;
     const finalName = importName.trim() || pendingVideoImport.defaultName;
 
     if (action === 'project') {
+      const destination = destinationOverride ?? pendingVideoImport.destination;
+      const shouldAddToCurrent = destination !== 'new' && hasActiveItem;
       const newSlide: Slide = {
         id: Math.random().toString(36).substr(2, 9),
         type: 'youtube',
@@ -283,7 +286,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         label: finalName
       };
 
-      if (addYouTubeToCurrent && hasActiveItem) {
+      if (shouldAddToCurrent) {
         onAddSlide(newSlide);
         alert("¡Video agregado exitosamente a la diapositiva actual!");
       } else {
@@ -596,7 +599,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         setPendingVideoImport({
           videoId: videoId,
           action: 'project',
-          defaultName: 'Video de YouTube'
+          defaultName: 'Video de YouTube',
+          destination: hasActiveItem ? 'current' : 'new'
         });
         setImportName('');
       } else {
@@ -1250,7 +1254,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   setPendingVideoImport({
                                     videoId: video.id,
                                     action: 'project',
-                                    defaultName: video.title
+                                    defaultName: video.title,
+                                    destination: hasActiveItem ? 'current' : 'new'
                                   });
                                   setImportName('');
                                 }}
@@ -1366,15 +1371,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <button
                   onClick={async () => {
                     try {
-                      let urlText = '';
-                      try {
-                        urlText = await navigator.clipboard.readText();
-                      } catch (e) {
-                        console.warn("Could not read clipboard", e);
+                      let urlText = inputText.trim();
+                      if (!urlText) {
+                        try {
+                          urlText = await navigator.clipboard.readText();
+                        } catch (e) {
+                          console.warn("Could not read clipboard", e);
+                        }
                       }
-                      urlText = urlText.trim() || inputText.trim();
-                      
-                      const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                      const candidates = [urlText.trim()];
+                      const vId = candidates
+                        .map(text => text.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (text.length === 11 ? text : ''))
+                        .find(Boolean) || '';
                       
                       if (!vId) {
                         alert("Por favor copia primero un enlace de YouTube válido (o pégalo en el buscador superior).");
@@ -1384,7 +1392,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       setPendingVideoImport({
                         videoId: vId,
                         action: 'project',
-                        defaultName: 'Video de YouTube'
+                        defaultName: 'Video de YouTube',
+                        destination: hasActiveItem ? 'current' : 'new'
                       });
                       setImportName('');
                     } catch (err) {
@@ -1400,15 +1409,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <button
                   onClick={async () => {
                     try {
-                      let urlText = '';
-                      try {
-                        urlText = await navigator.clipboard.readText();
-                      } catch (e) {
-                        console.warn("Could not read clipboard", e);
+                      let urlText = inputText.trim();
+                      if (!urlText) {
+                        try {
+                          urlText = await navigator.clipboard.readText();
+                        } catch (e) {
+                          console.warn("Could not read clipboard", e);
+                        }
                       }
-                      urlText = urlText.trim() || inputText.trim();
-                      
-                      const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                      const candidates = [urlText.trim()];
+                      const vId = candidates
+                        .map(text => text.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (text.length === 11 ? text : ''))
+                        .find(Boolean) || '';
                       
                       if (!vId) {
                         alert("Por favor copia primero un enlace de YouTube válido (o pégalo en el buscador superior).");
@@ -1678,39 +1690,32 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <button
                             onClick={async () => {
                               try {
-                                let urlText = '';
-                                try {
-                                  urlText = await navigator.clipboard.readText();
-                                } catch (e) {
-                                  console.warn("Could not read clipboard", e);
+                                let urlText = inputText.trim();
+                                if (!urlText) {
+                                  try {
+                                    urlText = await navigator.clipboard.readText();
+                                  } catch (e) {
+                                    console.warn("Could not read clipboard", e);
+                                  }
                                 }
-                                urlText = urlText.trim() || inputText.trim();
-                                
-                                const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                                const candidates = [urlText.trim()];
+                                const vId = candidates
+                                  .map(text => text.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (text.length === 11 ? text : ''))
+                                  .find(Boolean) || '';
                                 
                                 if (!vId) {
                                   alert("Por favor copia primero un enlace de YouTube válido (o pégalo en el buscador superior).");
                                   return;
                                 }
 
-                                if (addYouTubeToCurrent && hasActiveItem) {
-                                  // Siempre pedir nombre, incluso al agregar a diapositiva actual
-                                  setPendingVideoImport({
-                                    videoId: vId,
-                                    action: 'project',
-                                    defaultName: 'Video de YouTube'
-                                  });
-                                  setImportName('');
-                                  setInputText('');
-                                } else {
-                                  // Si es un item nuevo, pedir nombre
-                                  setPendingVideoImport({
-                                    videoId: vId,
-                                    action: 'project',
-                                    defaultName: 'Video de YouTube'
-                                  });
-                                  setImportName('');
-                                }
+                                setPendingVideoImport({
+                                  videoId: vId,
+                                  action: 'project',
+                                  defaultName: 'Video de YouTube',
+                                  destination: hasActiveItem ? 'current' : 'new'
+                                });
+                                setImportName('');
+                                setInputText('');
                               } catch (err) {
                                 alert("Error de importación rápida. Copia el enlace, pégalo en el buscador superior y presiona AGREGAR.");
                               }
@@ -1724,15 +1729,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <button
                             onClick={async () => {
                               try {
-                                let urlText = '';
-                                try {
-                                  urlText = await navigator.clipboard.readText();
-                                } catch (e) {
-                                  console.warn("Could not read clipboard", e);
+                                let urlText = inputText.trim();
+                                if (!urlText) {
+                                  try {
+                                    urlText = await navigator.clipboard.readText();
+                                  } catch (e) {
+                                    console.warn("Could not read clipboard", e);
+                                  }
                                 }
-                                urlText = urlText.trim() || inputText.trim();
-                                
-                                const vId = urlText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (urlText.length === 11 ? urlText : '');
+                                const candidates = [urlText.trim()];
+                                const vId = candidates
+                                  .map(text => text.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1] || (text.length === 11 ? text : ''))
+                                  .find(Boolean) || '';
                                 
                                 if (!vId) {
                                   alert("Por favor copia primero un enlace de YouTube válido (o pégalo en el buscador superior).");
@@ -3066,6 +3074,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               Escribe cómo deseas que aparezca este elemento en el proyector y el panel de control:
             </p>
 
+            {pendingVideoImport.action === 'project' && (
+              <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-300">
+                  Destino
+                </p>
+                <p className="mt-1 text-[11px] font-bold text-slate-100">
+                  {hasActiveItem && pendingVideoImport.destination !== 'new'
+                    ? 'Se agregara al elemento que tienes seleccionado.'
+                    : 'Se creara un elemento nuevo en la lista.'}
+                </p>
+              </div>
+            )}
+
             <div className="space-y-4 mb-5">
               <input
                 ref={renameInputRef}
@@ -3098,7 +3119,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </button>
               <button
                 type="button"
-                onClick={confirmVideoImport}
+                onClick={() => confirmVideoImport()}
                 className={`flex-1 py-2.5 rounded-xl text-white active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider ${
                   pendingVideoImport.action === 'project'
                     ? 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/30'
@@ -3108,6 +3129,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 Guardar y Aplicar
               </button>
             </div>
+            {pendingVideoImport.action === 'project' && hasActiveItem && pendingVideoImport.destination !== 'new' && (
+              <button
+                type="button"
+                onClick={() => confirmVideoImport('new')}
+                className="mt-2 w-full py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:border-emerald-500/60 bg-slate-950/50 active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider"
+              >
+                Pegar en proyecto nuevo
+              </button>
+            )}
           </div>
         </div>
       )}
