@@ -921,7 +921,7 @@ const fetchWithCorsProxy = async (url: string, timeoutMs = 3000): Promise<any> =
       }
     }
   } catch (e) {
-    console.error(`CORS proxy fetch failed for ${url}`);
+    console.warn(`CORS proxy fetch failed for ${url}`);
   }
   
   throw new Error(`Failed to fetch ${url} directly or via CORS proxy.`);

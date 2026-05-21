@@ -1243,42 +1243,80 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
               ) : youtubeResults.length > 0 ? (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
-                      RESULTADOS DE BUSQUEDA ({youtubeResults.length} videos)
-                    </span>
-                    <span className="text-[9px] text-slate-500 italic">Haz clic en un video para reproducir la vista previa</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.75)]" />
+                      <span className="text-[10px] text-slate-200 font-black uppercase tracking-[0.22em]">
+                        Resultados encontrados
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-black uppercase">
+                        {youtubeResults.length} videos
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 italic">Selecciona una miniatura para previsualizar.</span>
                   </div>
-                  <div className="flex-1 overflow-y-auto pr-1 no-scrollbar grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pb-8">
+                  <div className="flex-1 overflow-y-auto pr-1 no-scrollbar grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-3.5 pb-8">
                     {youtubeResults.map((video) => (
                       <div
                         key={video.id}
-                        className="bg-slate-950/65 hover:bg-slate-950 border border-white/5 hover:border-red-500/40 rounded-2xl overflow-hidden shadow-xl hover:shadow-[0_12px_24px_rgba(239,68,68,0.06)] transition-all duration-300 group flex flex-col justify-between text-left"
+                        className={`group relative overflow-hidden rounded-2xl border text-left min-h-40 transition-all duration-300 ${
+                          activePortalVideoId === video.id
+                            ? 'bg-red-950/25 border-red-400/60 shadow-[0_18px_36px_rgba(239,68,68,0.16)]'
+                            : 'bg-slate-950/70 border-white/8 hover:border-red-400/45 hover:bg-slate-950 shadow-xl shadow-black/20'
+                        }`}
                       >
-                        <div className="relative aspect-video w-full overflow-hidden cursor-pointer" onClick={() => setActivePortalVideoId(video.id)}>
-                          <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <PlayCircle size={32} className="text-white drop-shadow-xl animate-scale-up" />
-                          </div>
-                          {video.duration && (
-                            <span className="absolute bottom-2.5 right-2.5 bg-black/85 text-[9px] text-white px-2 py-0.5 rounded font-black tracking-wider">
-                              {video.duration}
-                            </span>
-                          )}
-                        </div>
-                        
-                        <div className="p-4 flex-1 flex flex-col justify-between">
-                          <div className="cursor-pointer" onClick={() => setActivePortalVideoId(video.id)}>
-                            <h4 className="text-xs font-black text-white line-clamp-2 leading-tight group-hover:text-red-400 transition-colors" title={video.title}>
-                              {video.title}
-                            </h4>
-                            <p className="text-[10px] text-slate-400 mt-1.5 font-bold uppercase tracking-wider truncate">
-                              {video.author}
-                            </p>
-                          </div>
-                          
-                          <div className="flex flex-col gap-2 mt-4 pt-3 border-t border-white/5">
+                        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                        <div className="grid grid-cols-[122px_1fr] sm:grid-cols-[148px_1fr] min-h-40 h-full">
+                          <button
+                            onClick={() => setActivePortalVideoId(video.id)}
+                            className="relative overflow-hidden bg-slate-900 text-left focus:outline-none focus:ring-2 focus:ring-red-400/70"
+                            type="button"
+                            title="Ver vista previa"
+                          >
+                            <img src={video.thumbnail} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                              <span className="w-11 h-11 rounded-full bg-white/95 text-red-600 flex items-center justify-center shadow-2xl shadow-black/40">
+                                <PlayCircle size={25} />
+                              </span>
+                            </div>
+                            {video.duration && (
+                              <span className="absolute bottom-2 right-2 bg-black/85 text-[9px] text-white px-2 py-0.5 rounded-md font-black tracking-wider">
+                                {video.duration}
+                              </span>
+                            )}
+                          </button>
+
+                          <div className="p-3.5 flex min-w-0 flex-col justify-between gap-3">
+                            <button className="text-left min-w-0" onClick={() => setActivePortalVideoId(video.id)} type="button">
+                              <h4 className="text-[13px] font-black text-white line-clamp-2 leading-snug group-hover:text-red-200 transition-colors" title={video.title}>
+                                {video.title}
+                              </h4>
+                              <p className="text-[10px] text-slate-400 mt-1.5 font-black uppercase tracking-wider truncate">
+                                {video.author}
+                              </p>
+                            </button>
+
                             <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => setActivePortalVideoId(video.id)}
+                                className="h-8 rounded-xl bg-white/7 hover:bg-white/12 active:scale-95 border border-white/10 text-slate-100 transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase"
+                                type="button"
+                                title="Vista previa"
+                              >
+                                <Eye size={12} /> Ver
+                              </button>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${video.id}`);
+                                  alert("Enlace copiado al portapapeles.");
+                                }}
+                                className="h-8 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 active:scale-95 text-white transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase shadow-lg shadow-emerald-950/20 border border-emerald-400/25"
+                                type="button"
+                                title="Copiar enlace"
+                              >
+                                <Copy size={12} /> Copiar
+                              </button>
                               <button
                                 onClick={() => {
                                   setPendingVideoImport({
@@ -1289,10 +1327,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   });
                                   setImportName('');
                                 }}
-                                className="bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-950/20 border border-red-500/20"
+                                className="h-8 min-w-0 bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white text-[9px] font-black uppercase rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-red-950/30 border border-red-400/25"
                                 type="button"
                               >
-                                <Plus size={12} /> PROYECTAR
+                                <Plus size={12} /> Proyectar
                               </button>
                               <button
                                 onClick={() => {
@@ -1303,30 +1341,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   });
                                   setImportName('');
                                 }}
-                                className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/20 border border-indigo-500/20"
+                                className="h-8 min-w-0 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-[9px] font-black uppercase rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-950/30 border border-indigo-400/25"
                                 type="button"
                               >
-                                <Music size={12} /> AUDIO FONDO
-                              </button>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                onClick={() => setActivePortalVideoId(video.id)}
-                                className="bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white text-[9px] font-black uppercase py-2 rounded-xl transition-all flex items-center justify-center gap-1.5"
-                                type="button"
-                              >
-                                <Eye size={12} className="text-slate-300" /> Vista Previa
-                              </button>
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${video.id}`);
-                                  alert("Enlace copiado al portapapeles.");
-                                }}
-                                className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[9px] font-black uppercase py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md border border-emerald-500/20"
-                                type="button"
-                              >
-                                <Copy size={12} /> Copiar Link
+                                <Music size={12} /> Audio
                               </button>
                             </div>
                           </div>
