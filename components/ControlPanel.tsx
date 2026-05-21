@@ -257,6 +257,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
   const [isYoutubeFullBrowserOpen, setIsYoutubeFullBrowserOpen] = useState(false);
   const [activePortalVideoId, setActivePortalVideoId] = useState<string | null>(null);
+  const [youtubeBrowserMode, setYoutubeBrowserMode] = useState<'cards' | 'iframe'>('cards');
 
   // ── Rename-before-import system ──
   // When user clicks auto-paste, we capture the videoId and action type,
@@ -1038,7 +1039,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       <div className="fixed inset-0 z-50 bg-[#050913]/97 backdrop-blur-xl flex flex-col p-6 overflow-hidden animate-fade-in text-white font-sans">
         {/* Header section */}
         <div className="flex flex-col gap-4 border-b border-white/10 pb-5 shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-red-600/10 border border-red-500/30 flex items-center justify-center text-red-500 shadow-lg shadow-red-950/20">
                 <svg viewBox="0 0 24 24" className="w-5 h-5 fill-red-500 stroke-none" strokeWidth="0">
@@ -1050,9 +1051,36 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">Busca y reproduce videos directamente en el reproductor oficial de YouTube</p>
               </div>
             </div>
+
+            {/* Selector de modo de buscador: Servidor Rápido / Buscador Directo */}
+            <div className="flex gap-1 bg-slate-950/80 p-1.5 rounded-2xl border border-white/10 shadow-lg shadow-black/45 shrink-0 my-2 sm:my-0 self-start sm:self-auto">
+              <button
+                onClick={() => setYoutubeBrowserMode('cards')}
+                className={`px-3 py-2 sm:px-4 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${
+                  youtubeBrowserMode === 'cards'
+                    ? 'bg-red-600 text-white shadow-md shadow-red-950/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+                type="button"
+              >
+                Servidor Rápido ⚡
+              </button>
+              <button
+                onClick={() => setYoutubeBrowserMode('iframe')}
+                className={`px-3 py-2 sm:px-4 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${
+                  youtubeBrowserMode === 'iframe'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+                type="button"
+              >
+                Buscador Directo 🌐
+              </button>
+            </div>
+
             <button
               onClick={() => setIsYoutubeFullBrowserOpen(false)}
-              className="w-10 h-10 rounded-full bg-white/5 hover:bg-red-600 hover:text-white border border-white/10 hover:border-red-500/40 flex items-center justify-center transition-all duration-300 active:scale-90"
+              className="w-10 h-10 rounded-full bg-white/5 hover:bg-red-600 hover:text-white border border-white/10 hover:border-red-500/40 flex items-center justify-center transition-all duration-300 active:scale-95 self-end sm:self-auto"
               title="Cerrar (Esc)"
               type="button"
             >
@@ -1112,7 +1140,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <div className="flex-1 flex flex-col lg:flex-row gap-6 mt-6 min-h-0 overflow-hidden">
           {/* Left Area: Premium Custom YouTube search result grid + player */}
           <div className="flex-1 bg-[#090e18] rounded-3xl border border-white/10 overflow-hidden relative shadow-2xl min-h-[300px] flex flex-col">
-            {activePortalVideoId && (
+            {activePortalVideoId && youtubeBrowserMode !== 'iframe' && (
               <div className="w-full bg-black border-b border-white/10 relative flex flex-col animate-slide-down shrink-0">
                 <div className="flex items-center justify-between p-3 bg-slate-950/90 border-b border-white/5">
                   <span className="text-[10px] text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5">
@@ -1138,7 +1166,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             )}
 
             <div className="flex-1 overflow-y-auto p-5 no-scrollbar min-h-0">
-              {isSearchingYoutube ? (
+              {youtubeBrowserMode === 'iframe' ? (
+                /* Premium integrated official YouTube browser frame */
+                <div className="w-full h-full flex flex-col min-h-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-white/5 pb-3 mb-4 gap-2 shrink-0">
+                    <span className="text-[10px] text-emerald-400 font-black uppercase tracking-widest flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                      🌐 BUSCADOR DIRECTO OFICIAL DE YOUTUBE
+                    </span>
+                    <span className="text-[9px] text-slate-400 italic">
+                      💡 Busca y reproduce. Haz clic en Compartir para copiar el enlace y pégalo a la derecha.
+                    </span>
+                  </div>
+                  <div className="flex-1 w-full rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl relative">
+                    <iframe
+                      className="absolute inset-0 w-full h-full border-0"
+                      src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(youtubeSearchQuery || 'musica cristiana')}&autoplay=0&rel=0&playsinline=1`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      title="Buscador Directo Oficial YouTube"
+                    ></iframe>
+                  </div>
+                </div>
+              ) : isSearchingYoutube ? (
                 <div className="h-full w-full flex flex-col items-center justify-center text-center p-8">
                   <div className="relative w-20 h-20 mb-6">
                     <div className="absolute inset-0 rounded-full border-4 border-red-500/20 border-t-red-600 animate-spin"></div>
@@ -1164,8 +1214,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     {youtubeSearchError}
                   </p>
                   <p className="text-[10px] text-indigo-300 bg-indigo-950/30 border border-indigo-500/20 px-4 py-2.5 rounded-xl max-w-sm mt-4 leading-relaxed font-medium">
-                    💡 <strong>Consejo rápido:</strong> Las APIs públicas podrían estar saturadas. Puedes copiar la dirección web (URL) del video que deseas, pegarla en la barra lateral derecha y presionar el botón <strong>PEGAR Y PROYECTAR</strong>.
+                    💡 <strong>Consejo rápido:</strong> Las APIs públicas podrían estar saturadas. Puedes cambiar al modo **Buscador Directo** abajo para usar la búsqueda oficial estable de YouTube de forma directa en el reproductor.
                   </p>
+                  <button
+                    onClick={() => setYoutubeBrowserMode('iframe')}
+                    className="mt-5 bg-gradient-to-r from-red-600 to-indigo-600 hover:from-red-500 hover:to-indigo-500 active:scale-95 text-white text-[10px] font-black uppercase px-6 py-3.5 rounded-2xl transition-all shadow-lg shadow-indigo-950/40 border border-white/10 animate-bounce flex items-center gap-2"
+                    type="button"
+                  >
+                    🌐 ACTIVAR BUSCADOR DIRECTO OFICIAL
+                  </button>
                 </div>
               ) : youtubeResults.length > 0 ? (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
