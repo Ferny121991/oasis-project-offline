@@ -5,9 +5,9 @@ import { compressImage } from './imageService';
 
 const BIBLE_DATA_LOADERS: Record<string, () => Promise<any>> = {
   'Reina Valera 1960': () => import('../data/bibles/es_rvr.json').then(m => m.default),
-  'Nueva Versión Internacional': () => import('../data/bibles/es_nvi.json').then(m => m.default),
-  'Nueva Traducción Viviente': () => import('../data/bibles/es_ntv.json').then(m => m.default),
-  'La Biblia de las Américas': () => import('../data/bibles/es_lbla.json').then(m => m.default),
+  'Nueva VersiÃ³n Internacional': () => import('../data/bibles/es_nvi.json').then(m => m.default),
+  'Nueva TraducciÃ³n Viviente': () => import('../data/bibles/es_ntv.json').then(m => m.default),
+  'La Biblia de las AmÃ©ricas': () => import('../data/bibles/es_lbla.json').then(m => m.default),
   'New International Version': () => import('../data/bibles/en_niv.json').then(m => m.default),
   'King James Version': () => import('../data/bibles/en_kjv.json').then(m => m.default),
   'New King James Version': () => import('../data/bibles/en_nkjv.json').then(m => m.default)
@@ -33,11 +33,11 @@ export interface SongSearchResult {
 
 const getDensityInstruction = (mode: DensityMode): string => {
   switch (mode) {
-    case 'impact': return "REGLA DE ORO: MÁXIMO 2 líneas cortas por diapositiva. La letra debe ser GIGANTE. Divide el texto en fragmentos muy pequeños.";
-    case 'classic': return "REGLA DE ORO: MÁXIMO 4 líneas por diapositiva. Formato estándar para himnos y coros.";
+    case 'impact': return "REGLA DE ORO: MÃXIMO 2 lÃ­neas cortas por diapositiva. La letra debe ser GIGANTE. Divide el texto en fragmentos muy pequeÃ±os.";
+    case 'classic': return "REGLA DE ORO: MÃXIMO 4 lÃ­neas por diapositiva. Formato estÃ¡ndar para himnos y coros.";
     case 'strophe': return "REGLA DE ORO: Cada diapositiva DEBE contener una estrofa completa o un coro completo. No cortes las estrofas a la mitad.";
-    case 'reading': return "REGLA DE ORO: Agrupa mucho texto (8-12 líneas) por diapositiva para lectura bíblica o anuncios largos.";
-    default: return "MÁXIMO 4 líneas por diapositiva.";
+    case 'reading': return "REGLA DE ORO: Agrupa mucho texto (8-12 lÃ­neas) por diapositiva para lectura bÃ­blica o anuncios largos.";
+    default: return "MÃXIMO 4 lÃ­neas por diapositiva.";
   }
 };
 
@@ -80,7 +80,7 @@ const manualGroupText = (text: string, density: DensityMode): Slide[] => {
       id: generateId(),
       type: 'text',
       content: chunk.join('\n'),
-      label: `Líneas ${i + 1}-${i + chunk.length}`
+      label: `LÃ­neas ${i + 1}-${i + chunk.length}`
     });
   }
 
@@ -129,59 +129,59 @@ const BIBLE_BOOKS_ORDER = [
   "apocalipsis"
 ];
 
-// Mapeo de libros para API pública (biblia-api.com)
+// Mapeo de libros para API pÃºblica (biblia-api.com)
 const mapVersionToApiCode = (versionName: string) => {
   if (versionName.includes("New King James")) return "kjv"; // bible-api doesn't have nkjv, fallback to kjv
   if (versionName.includes("King James")) return "kjv";
   if (versionName.includes("International Version")) return "niv";
   if (versionName.includes("Reina Valera")) return "rvr";
   if (versionName.includes("Internacional")) return "rvr";
-  if (versionName.includes("Américas")) return "rvr";
+  if (versionName.includes("AmÃ©ricas")) return "rvr";
   return "rvr";
 };
 
-// Mapeo de nombres oficiales para visualización (incluye abreviaciones)
+// Mapeo de nombres oficiales para visualizaciÃ³n (incluye abreviaciones)
 const OFFICIAL_SPANISH_BOOKS: Record<string, string> = {
   // Antiguo Testamento
-  "genesis": "Génesis", "gen": "Génesis", "gn": "Génesis",
-  "exodo": "Éxodo", "ex": "Éxodo", "exo": "Éxodo",
-  "levitico": "Levítico", "lev": "Levítico",
-  "numeros": "Números", "num": "Números",
+  "genesis": "GÃ©nesis", "gen": "GÃ©nesis", "gn": "GÃ©nesis",
+  "exodo": "Ã‰xodo", "ex": "Ã‰xodo", "exo": "Ã‰xodo",
+  "levitico": "LevÃ­tico", "lev": "LevÃ­tico",
+  "numeros": "NÃºmeros", "num": "NÃºmeros",
   "deuteronomio": "Deuteronomio", "deut": "Deuteronomio", "dt": "Deuteronomio",
-  "josue": "Josué", "jos": "Josué",
+  "josue": "JosuÃ©", "jos": "JosuÃ©",
   "jueces": "Jueces", "jue": "Jueces",
   "rut": "Rut",
   "1samuel": "1 Samuel", "1sam": "1 Samuel", "1 samuel": "1 Samuel",
   "2samuel": "2 Samuel", "2sam": "2 Samuel", "2 samuel": "2 Samuel",
   "1reyes": "1 Reyes", "1rey": "1 Reyes", "1 reyes": "1 Reyes",
   "2reyes": "2 Reyes", "2rey": "2 Reyes", "2 reyes": "2 Reyes",
-  "1cronicas": "1 Crónicas", "1cro": "1 Crónicas", "1 cronicas": "1 Crónicas",
-  "2cronicas": "2 Crónicas", "2cro": "2 Crónicas", "2 cronicas": "2 Crónicas",
+  "1cronicas": "1 CrÃ³nicas", "1cro": "1 CrÃ³nicas", "1 cronicas": "1 CrÃ³nicas",
+  "2cronicas": "2 CrÃ³nicas", "2cro": "2 CrÃ³nicas", "2 cronicas": "2 CrÃ³nicas",
   "esdras": "Esdras", "esd": "Esdras",
-  "nehemias": "Nehemías", "neh": "Nehemías",
+  "nehemias": "NehemÃ­as", "neh": "NehemÃ­as",
   "ester": "Ester", "est": "Ester",
   "job": "Job",
   "salmos": "Salmos", "sal": "Salmos", "salmo": "Salmos",
   "proverbios": "Proverbios", "prov": "Proverbios", "proverbio": "Proverbios",
-  "eclesiastes": "Eclesiastés", "ecl": "Eclesiastés",
+  "eclesiastes": "EclesiastÃ©s", "ecl": "EclesiastÃ©s",
   "cantares": "Cantares", "cant": "Cantares", "cantar": "Cantares",
-  "isaias": "Isaías", "isa": "Isaías",
-  "jeremias": "Jeremías", "jer": "Jeremías",
+  "isaias": "IsaÃ­as", "isa": "IsaÃ­as",
+  "jeremias": "JeremÃ­as", "jer": "JeremÃ­as",
   "lamentaciones": "Lamentaciones", "lam": "Lamentaciones",
   "ezequiel": "Ezequiel", "eze": "Ezequiel", "ez": "Ezequiel",
   "daniel": "Daniel", "dan": "Daniel",
   "oseas": "Oseas", "ose": "Oseas",
   "joel": "Joel",
-  "amos": "Amós", "am": "Amós",
-  "abdias": "Abdías", "abd": "Abdías",
-  "jonas": "Jonás", "jon": "Jonás",
+  "amos": "AmÃ³s", "am": "AmÃ³s",
+  "abdias": "AbdÃ­as", "abd": "AbdÃ­as",
+  "jonas": "JonÃ¡s", "jon": "JonÃ¡s",
   "miqueas": "Miqueas", "miq": "Miqueas",
   "nahum": "Nahum", "nah": "Nahum",
   "habacuc": "Habacuc", "hab": "Habacuc",
-  "sofonias": "Sofonías", "sof": "Sofonías",
+  "sofonias": "SofonÃ­as", "sof": "SofonÃ­as",
   "hageo": "Hageo", "hag": "Hageo",
-  "zacarias": "Zacarías", "zac": "Zacarías",
-  "malaquias": "Malaquías", "mal": "Malaquías",
+  "zacarias": "ZacarÃ­as", "zac": "ZacarÃ­as",
+  "malaquias": "MalaquÃ­as", "mal": "MalaquÃ­as",
   // Nuevo Testamento
   "mateo": "Mateo", "mat": "Mateo", "mt": "Mateo",
   "marcos": "Marcos", "mar": "Marcos", "mc": "Marcos",
@@ -191,7 +191,7 @@ const OFFICIAL_SPANISH_BOOKS: Record<string, string> = {
   "romanos": "Romanos", "rom": "Romanos", "ro": "Romanos",
   "1corintios": "1 Corintios", "1cor": "1 Corintios", "1 corintios": "1 Corintios",
   "2corintios": "2 Corintios", "2cor": "2 Corintios", "2 corintios": "2 Corintios",
-  "galatas": "Gálatas", "gal": "Gálatas",
+  "galatas": "GÃ¡latas", "gal": "GÃ¡latas",
   "efesios": "Efesios", "efe": "Efesios", "ef": "Efesios",
   "filipenses": "Filipenses", "fil": "Filipenses", "flp": "Filipenses",
   "colosenses": "Colosenses", "col": "Colosenses",
@@ -200,7 +200,7 @@ const OFFICIAL_SPANISH_BOOKS: Record<string, string> = {
   "1timoteo": "1 Timoteo", "1tim": "1 Timoteo", "1 timoteo": "1 Timoteo",
   "2timoteo": "2 Timoteo", "2tim": "2 Timoteo", "2 timoteo": "2 Timoteo",
   "tito": "Tito", "tit": "Tito",
-  "filemon": "Filemón", "flm": "Filemón",
+  "filemon": "FilemÃ³n", "flm": "FilemÃ³n",
   "hebreos": "Hebreos", "heb": "Hebreos",
   "santiago": "Santiago", "sant": "Santiago", "stg": "Santiago",
   "1pedro": "1 Pedro", "1ped": "1 Pedro", "1 pedro": "1 Pedro",
@@ -289,21 +289,21 @@ const getBollsCode = (v: string): string => {
   if (v.includes("Internacional") && !v.includes("New")) return "NVI"; // Spanish NVI
   if (v.includes("New International")) return "NIV"; // English NIV
   if (v.includes("Reina")) return "RV1960";
-  if (v.includes("Américas")) return "LBLA";
-  if (v.includes("Traducción Viviente") || v === "NTV") return "NTV";
+  if (v.includes("AmÃ©ricas")) return "LBLA";
+  if (v.includes("TraducciÃ³n Viviente") || v === "NTV") return "NTV";
   if (v.includes("New King James")) return "NKJV";
   if (v.includes("King James")) return "KJV";
   return "NVI";
 };
 
-// Versículos famosos "Hardcoded" para funcionar TOTALMENTE OFFLINE (sin fetch)
+// VersÃ­culos famosos "Hardcoded" para funcionar TOTALMENTE OFFLINE (sin fetch)
 const LOCAL_BIBLE_CACHE: Record<string, any> = {
   "Juan 3:16": {
-    text: "Porque de tal manera amó Dios al mundo, que ha dado a su Hijo unigénito, para que todo aquel que en él cree, no se pierda, mas tenga vida eterna.",
+    text: "Porque de tal manera amÃ³ Dios al mundo, que ha dado a su Hijo unigÃ©nito, para que todo aquel que en Ã©l cree, no se pierda, mas tenga vida eterna.",
     ref: "Juan 3:16"
   },
-  "Salmos 23:1": { text: "Jehová es mi pastor; nada me faltará.", ref: "Salmos 23:1" },
-  "Génesis 1:1": { text: "En el principio creó Dios los cielos y la tierra.", ref: "Génesis 1:1" },
+  "Salmos 23:1": { text: "JehovÃ¡ es mi pastor; nada me faltarÃ¡.", ref: "Salmos 23:1" },
+  "GÃ©nesis 1:1": { text: "En el principio creÃ³ Dios los cielos y la tierra.", ref: "GÃ©nesis 1:1" },
   "Filipenses 4:13": { text: "Todo lo puedo en Cristo que me fortalece.", ref: "Filipenses 4:13" },
   "John 3:16": { text: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.", ref: "John 3:16" }
 };
@@ -427,7 +427,7 @@ export const fetchBiblePassage = async (reference: string, version: string = 'Re
 
   // 1. Pre-normalize reference
   let cleanRef = reference.trim()
-    .replace(/[.·,]/g, ':')
+    .replace(/[.Â·,]/g, ':')
     .replace(/\s+(\d+)\s+(\d+)/, ' $1:$2')
     .replace(/\s+/g, ' ');
 
@@ -598,7 +598,7 @@ export const searchSongs = async (query: string): Promise<SongSearchResult[]> =>
   const model = ai.models;
 
   const prompt = `
-    Actúa como un bibliotecario musical cristiano experto.
+    ActÃºa como un bibliotecario musical cristiano experto.
     El usuario busca: "${query}".
     Devuelve una lista de las 5 mejores coincidencias de canciones cristianas.
     FORMATO JSON.
@@ -671,7 +671,7 @@ export const fetchSongLyrics = async (songQuery: string, density: DensityMode = 
     Busca letra cristiana: "${songQuery}".
     CONFIG: ${densityRule}
     ESTRUCTURA: Separa Versos, Coros.
-    IMPORTANTE: Si no encuentras la canción exactamente, devuelve la letra de una similar o común.
+    IMPORTANTE: Si no encuentras la canciÃ³n exactamente, devuelve la letra de una similar o comÃºn.
     FORMATO JSON.
   `;
 
@@ -769,7 +769,7 @@ export const fetchSongLyrics = async (songQuery: string, density: DensityMode = 
 
     } catch (e2) {
       console.error("AI Lyrics Fallback Error:", e2);
-      throw new Error("No se pudo obtener la letra con IA. Inténtalo pegando el texto en modo 'Manual'.");
+      throw new Error("No se pudo obtener la letra con IA. IntÃ©ntalo pegando el texto en modo 'Manual'.");
     }
   }
 };
@@ -1020,7 +1020,7 @@ const fetchYouTubeDirect = async (query: string, proxyUrl: string, isAllOrigins 
       const vr = item.videoRenderer;
       const videoId = vr.videoId;
       if (videoId && videoId.length === 11) {
-        const title = vr.title?.runs?.[0]?.text || vr.title?.accessibility?.accessibilityData?.label || 'Sin título';
+        const title = vr.title?.runs?.[0]?.text || vr.title?.accessibility?.accessibilityData?.label || 'Sin tÃ­tulo';
         const author = vr.ownerText?.runs?.[0]?.text || vr.shortBylineText?.runs?.[0]?.text || 'Desconocido';
         const duration = vr.lengthText?.simpleText || undefined;
         results.push({
@@ -1093,19 +1093,25 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
     }
   }
 
-  // Absolute timeout of 2.2 seconds to guarantee fallback search never hangs
+  // Experimental public-provider search: give public instances enough time to respond
   const searchTimeoutPromise = new Promise<never>((_, reject) => 
-    setTimeout(() => reject(new Error("Timeout general de búsqueda de YouTube superado.")), 2200)
+    setTimeout(() => reject(new Error("Timeout general de busqueda de YouTube superado.")), 12000)
   );
 
   const performSearch = async (): Promise<YouTubeSearchResult[]> => {
     const pipedInstances = [
-      'https://pipedapi.kavin.rocks',
       'https://pipedapi.adminforge.de',
+      'https://pipedapi.syncpundit.io',
+      'https://pipedapi.darkness.services',
+      'https://pipedapi.tokhmi.xyz',
+      'https://pipedapi.kavin.rocks',
     ];
     const invidiousInstances = [
       'https://inv.nadeko.net',
       'https://invidious.nerdvpn.de',
+      'https://invidious.fdn.fr',
+      'https://yewtu.be',
+      'https://inv.tux.pizza',
     ];
 
     const fetchPromises: Promise<YouTubeSearchResult[]>[] = [];
@@ -1129,13 +1135,13 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
     for (const instance of pipedInstances) {
       fetchPromises.push(
         (async () => {
-          const data = await fetchWithCorsProxy(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`, 1500);
+          const data = await fetchWithCorsProxy(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`, 5000);
           if (data && data.items && data.items.length > 0) {
             const mapped = data.items.slice(0, 8).map((item: any) => {
               const videoId = extractVideoId(item.url || '');
               return {
                 id: videoId,
-                title: item.title || 'Sin título',
+                title: item.title || 'Sin tÃ­tulo',
                 author: item.uploaderName || item.uploader || 'Desconocido',
                 thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
                 duration: item.duration ? formatDuration(item.duration) : undefined
@@ -1153,13 +1159,13 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
     for (const instance of invidiousInstances) {
       fetchPromises.push(
         (async () => {
-          const data = await fetchWithCorsProxy(`${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, 1500);
+          const data = await fetchWithCorsProxy(`${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, 5000);
           if (data && Array.isArray(data) && data.length > 0) {
             const mapped = data.slice(0, 8).map((item: any) => {
               const videoId = extractVideoId(item.videoId || '');
               return {
                 id: videoId,
-                title: item.title || 'Sin título',
+                title: item.title || 'Sin tÃ­tulo',
                 author: item.author || 'Desconocido',
                 thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
                 duration: item.lengthSeconds ? formatDuration(item.lengthSeconds) : undefined
@@ -1188,8 +1194,8 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
       try {
         const model = ai.models;
         const prompt = `
-          Actúa como un buscador en tiempo real de YouTube. El usuario busca: "${query}".
-          Busca en Google y obtén los 6 videos más relevantes de YouTube correspondientes a esta búsqueda.
+          ActÃºa como un buscador en tiempo real de YouTube. El usuario busca: "${query}".
+          Busca en Google y obtÃ©n los 6 videos mÃ¡s relevantes de YouTube correspondientes a esta bÃºsqueda.
           IMPORTANTE: Debes buscar en la web para obtener los IDs reales (de 11 caracteres) de YouTube de los videos reales.
           FORMATO JSON.
         `;
@@ -1226,7 +1232,7 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
           const videoId = extractVideoId(item.id || '');
           return {
             id: videoId,
-            title: item.title || 'Sin título',
+            title: item.title || 'Sin tÃ­tulo',
             author: item.author || 'Desconocido',
             duration: item.duration || undefined,
             thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
