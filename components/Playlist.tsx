@@ -286,9 +286,9 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
       {/* Content Preview */}
       <div className={`text-[10px] leading-tight line-clamp-3 mt-5 ${isActive ? 'text-white' : 'text-gray-400'}`}>
         {slide.type === 'youtube' ? (
-          <div className="flex flex-col items-center justify-center gap-1 text-red-400 font-bold h-full">
-            <Monitor size={16} />
-            <span className="text-[9px]">YOUTUBE</span>
+          <div className="flex flex-col items-center justify-center gap-1 text-red-400 font-bold h-full w-full px-1">
+            <Monitor size={16} className="shrink-0" />
+            <span className="text-[9px] truncate max-w-[120px] font-bold text-center uppercase leading-none">{slide.label || 'YOUTUBE'}</span>
           </div>
         ) : slide.type === 'video' && slide.mediaUrl ? (
           <div className="absolute inset-0 top-5 rounded-b-lg overflow-hidden bg-black">

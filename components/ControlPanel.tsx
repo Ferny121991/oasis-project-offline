@@ -253,15 +253,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [isSearchingYoutube, setIsSearchingYoutube] = useState(false);
   const [hasSearchedYoutube, setHasSearchedYoutube] = useState(false);
   const [youtubeSearchError, setYoutubeSearchError] = useState<string | null>(null);
-  const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
-  const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
-  const [isYoutubeFullBrowserOpen, setIsYoutubeFullBrowserOpen] = useState(false);
-  const [activePortalVideoId, setActivePortalVideoId] = useState<string | null>(null);
-  const [youtubeBrowserMode, setYoutubeBrowserMode] = useState<'cards' | 'iframe'>('cards');
 
-  // ── Rename-before-import system ──
-  // When user clicks auto-paste, we capture the videoId and action type,
-  // then show a naming prompt so they can type a custom title before adding.
+  const [isYoutubeFullBrowserOpen, setIsYoutubeFullBrowserOpen] = useState(false);
+  const [youtubeBrowserMode, setYoutubeBrowserMode] = useState<'cards' | 'iframe'>('cards');
+  const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
+  const [activePortalVideoId, setActivePortalVideoId] = useState<string | null>(null);
+
+  // Rename-before-import system
   const [pendingVideoImport, setPendingVideoImport] = useState<{
     videoId: string;
     action: 'project' | 'background';
@@ -270,7 +268,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [importName, setImportName] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  // Confirm the pending import with the user-typed name
   const confirmVideoImport = () => {
     if (!pendingVideoImport) return;
     const { videoId, action } = pendingVideoImport;
@@ -282,7 +279,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         type: 'youtube',
         content: `https://www.youtube.com/watch?v=${videoId}`,
         videoId: videoId,
-        label: 'YOUTUBE'
+        label: finalName
       };
 
       if (addYouTubeToCurrent && hasActiveItem) {
@@ -313,9 +310,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     setImportName('');
   };
 
-  const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text'));
+  const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(
+    activeSlideType === 'image' ? 'image' : (activeSlideType === 'youtube' ? 'youtube' : 'text')
+  );
 
-  // Perform Youtube Search using direct scrapers and Gemini fallbacks
   const performYoutubeSearch = async (query: string) => {
     if (!query.trim()) return;
     setIsSearchingYoutube(true);
@@ -593,29 +591,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     if (inputType === 'youtube') {
       const videoId = inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1];
       if (videoId) {
-        // Direct link - Add immediately
-        const newSlide: Slide = {
-          id: Math.random().toString(36).substr(2, 9),
-          type: 'youtube',
-          content: inputText,
+        // Direct link - Open Rename Modal
+        setPendingVideoImport({
           videoId: videoId,
-          label: 'YOUTUBE'
-        };
-
-        if (addYouTubeToCurrent && hasActiveItem) {
-          onAddSlide(newSlide);
-          alert("¡Video agregado exitosamente!");
-        } else {
-          onAddItem({
-            id: Math.random().toString(36).substr(2, 9),
-            title: `YouTube: ${videoId}`,
-            type: 'custom',
-            slides: [newSlide],
-            theme: currentTheme
-          });
-          alert("¡Video importado exitosamente!");
-        }
-        setInputText('');
+          action: 'project',
+          defaultName: 'Video de YouTube'
+        });
+        setImportName('');
       } else {
         // Search mode - open integrated search panel
         setYoutubeSearchQuery(inputText);
@@ -1181,7 +1163,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <div className="flex-1 w-full rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl relative">
                     <iframe
                       className="absolute inset-0 w-full h-full border-0"
-                      src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(youtubeSearchQuery || 'musica cristiana')}&autoplay=0&rel=0&playsinline=1`}
+                      src={youtubeSearchQuery ? `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeSearchQuery)}` : 'https://www.youtube.com'}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       title="Buscador Directo Oficial YouTube"
@@ -1264,26 +1246,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             <div className="grid grid-cols-2 gap-2">
                               <button
                                 onClick={() => {
-                                  const newSlide: Slide = {
-                                    id: Math.random().toString(36).substr(2, 9),
-                                    type: 'youtube',
-                                    content: `https://www.youtube.com/watch?v=${video.id}`,
+                                  setPendingVideoImport({
                                     videoId: video.id,
-                                    label: 'YOUTUBE'
-                                  };
-                                  if (addYouTubeToCurrent && hasActiveItem) {
-                                    onAddSlide(newSlide);
-                                    alert("¡Video agregado exitosamente a la diapositiva actual!");
-                                  } else {
-                                    onAddItem({
-                                      id: Math.random().toString(36).substr(2, 9),
-                                      title: video.title,
-                                      type: 'custom',
-                                      slides: [newSlide],
-                                      theme: currentTheme
-                                    });
-                                    alert("¡Elemento de YouTube agregado exitosamente a tu lista!");
-                                  }
+                                    action: 'project',
+                                    defaultName: video.title
+                                  });
+                                  setImportName('');
                                 }}
                                 className="bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-950/20 border border-red-500/20"
                                 type="button"
@@ -1292,8 +1260,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               </button>
                               <button
                                 onClick={() => {
-                                  onSetBackgroundAudio?.(video.id, video.title);
-                                  alert("¡Agregado exitosamente a la música de fondo!");
+                                  setPendingVideoImport({
+                                    videoId: video.id,
+                                    action: 'background',
+                                    defaultName: video.title
+                                  });
+                                  setImportName('');
                                 }}
                                 className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/20 border border-indigo-500/20"
                                 type="button"
@@ -1408,28 +1380,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         return;
                       }
 
-                      const newSlide: Slide = {
-                        id: Math.random().toString(36).substr(2, 9),
-                        type: 'youtube',
-                        content: `https://www.youtube.com/watch?v=${vId}`,
+                      setPendingVideoImport({
                         videoId: vId,
-                        label: 'YOUTUBE'
-                      };
-
-                      if (addYouTubeToCurrent && hasActiveItem) {
-                        onAddSlide(newSlide);
-                        alert("¡Video agregado exitosamente a la diapositiva actual!");
-                      } else {
-                        onAddItem({
-                          id: Math.random().toString(36).substr(2, 9),
-                          title: `Video Importado (${vId})`,
-                          type: 'custom',
-                          slides: [newSlide],
-                          theme: currentTheme
-                        });
-                        alert("¡Elemento de YouTube agregado exitosamente a tu lista!");
-                      }
-                      setInputText('');
+                        action: 'project',
+                        defaultName: 'Video de YouTube'
+                      });
+                      setImportName('');
                     } catch (err) {
                       alert("Error de importación rápida. Copia el enlace, pégalo en el buscador superior y presiona AGREGAR.");
                     }
@@ -1458,9 +1414,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         return;
                       }
 
-                      onSetBackgroundAudio?.(vId, `Audio Importado (${vId})`);
-                      alert("¡Agregado exitosamente a la música de fondo!");
-                      setInputText('');
+                      setPendingVideoImport({
+                        videoId: vId,
+                        action: 'background',
+                        defaultName: 'Audio de YouTube'
+                      });
+                      setImportName('');
                     } catch (err) {
                       alert("Error de importación rápida. Copia el enlace, pégalo en el buscador superior y presiona AGREGAR.");
                     }
@@ -1734,16 +1693,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 }
 
                                 if (addYouTubeToCurrent && hasActiveItem) {
-                                  // Si se agrega al elemento actual, no necesita nombre general de item, se agrega la diapositiva directa
-                                  const newSlide: Slide = {
-                                    id: Math.random().toString(36).substr(2, 9),
-                                    type: 'youtube',
-                                    content: `https://www.youtube.com/watch?v=${vId}`,
+                                  // Siempre pedir nombre, incluso al agregar a diapositiva actual
+                                  setPendingVideoImport({
                                     videoId: vId,
-                                    label: 'YOUTUBE'
-                                  };
-                                  onAddSlide(newSlide);
-                                  alert("¡Video agregado exitosamente a la diapositiva actual!");
+                                    action: 'project',
+                                    defaultName: 'Video de YouTube'
+                                  });
+                                  setImportName('');
                                   setInputText('');
                                 } else {
                                   // Si es un item nuevo, pedir nombre
@@ -1801,216 +1757,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       </div>
                     </div>
 
-                    {/* Quick chips at the very bottom of the card */}
-                    <div className="mt-4 pt-3 border-t border-gray-800/80">
-                      <span className="text-[8px] text-gray-500 font-bold uppercase tracking-wider block mb-1.5">Búsquedas Rápidas en YouTube:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {[
-                          { label: 'Adoración', query: 'Musica de adoracion cristiana' },
-                          { label: 'Instrumental', query: 'Piano instrumental cristiano' },
-                          { label: 'Alabanza', query: 'Alabanza y adoracion cristiana' },
-                          { label: 'Pistas', query: 'Pistas de piano cristiano para cantar' }
-                        ].map((chip) => (
-                          <button
-                            key={chip.label}
-                            onClick={() => {
-                              handleYoutubeFullSearch(chip.query);
-                            }}
-                            className="text-[8px] font-bold bg-gray-800/40 hover:bg-red-600/35 border border-gray-700/60 hover:border-red-500/40 text-slate-400 hover:text-white px-2 py-0.5 rounded-md transition-all active:scale-95"
-                            type="button"
-                          >
-                            {chip.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
                   </div>
-
-                  {/* YouTube Browser / Search Results */}
-                  <div className="mb-4">
-
-
-                    {isSearchingYoutube ? (
-                      /* Premium YouTube loading screen */
-                      <div className="bg-gradient-to-b from-gray-900/65 to-slate-950/75 border border-red-500/20 rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[220px] relative overflow-hidden shadow-xl animate-fade-in">
-                        <div className="absolute -top-12 -left-12 w-24 h-24 bg-red-500/5 rounded-full blur-2xl"></div>
-                        <div className="absolute -bottom-12 -right-12 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl"></div>
-                        
-                        <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 mb-3.5 shadow-lg shadow-red-950/10">
-                          <Loader2 size={26} className="animate-spin text-red-500" />
-                        </div>
-                        
-                        <h3 className="text-xs font-black text-white uppercase tracking-wider">
-                          Buscando en YouTube...
-                        </h3>
-                        
-                        <p className="text-[10px] text-gray-400 max-w-[240px] mt-1.5 leading-relaxed font-medium">
-                          Buscando en servidores alternativos directos. Por favor, espera un momento.
-                        </p>
-                      </div>
-                    ) : youtubeResults.length > 0 ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">📺 Resultados de Búsqueda</span>
-                          <button
-                            onClick={() => {
-                              setYoutubeResults([]);
-                              setHasSearchedYoutube(false);
-                              setYoutubeSearchError(null);
-                            }}
-                            className="text-[10px] text-gray-500 hover:text-white transition-colors flex items-center gap-1 font-bold"
-                          >
-                            <X size={10} /> LIMPIAR
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-1 gap-2 max-h-[360px] overflow-y-auto pr-1 no-scrollbar">
-                          {youtubeResults.map((result) => (
-                            <div key={result.id} className="bg-gray-800/60 border border-gray-700/40 rounded-xl overflow-hidden hover:border-red-500/40 hover:bg-gray-800/90 transition-all duration-300 group flex shadow-md text-left">
-                              {/* Thumbnail with overlay play */}
-                              <div
-                                className="relative w-28 sm:w-32 aspect-video flex-shrink-0 cursor-pointer overflow-hidden"
-                                onClick={() => setPreviewVideoId(result.id)}
-                                title="Click para ver vista previa"
-                              >
-                                <img src={result.thumbnail} alt={result.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <PlayCircle size={24} className="text-white drop-shadow-lg" />
-                                </div>
-                                {result.duration && (
-                                  <span className="absolute bottom-1 right-1 bg-black/85 text-[8px] text-white px-1 py-0.5 rounded font-black tracking-wide">
-                                    {result.duration}
-                                  </span>
-                                )}
-                              </div>
-                              
-                              {/* Meta and Action Buttons */}
-                              <div className="p-2.5 flex flex-col justify-between flex-1 min-w-0">
-                                <div className="cursor-pointer" onClick={() => setPreviewVideoId(result.id)}>
-                                  <h4 className="text-[11px] font-black text-white line-clamp-2 leading-tight group-hover:text-red-400 transition-colors">{result.title}</h4>
-                                  <p className="text-[9px] text-slate-400 truncate mt-0.5 font-medium">{result.author}</p>
-                                </div>
-                                
-                                <div className="flex gap-1.5 mt-2">
-                                  <button
-                                    onClick={() => {
-                                      const newSlide: Slide = {
-                                        id: Math.random().toString(36).substr(2, 9),
-                                        type: 'youtube',
-                                        content: `https://www.youtube.com/watch?v=${result.id}`,
-                                        videoId: result.id,
-                                        label: 'YOUTUBE'
-                                      };
-                                      if (addYouTubeToCurrent && hasActiveItem) {
-                                        onAddSlide(newSlide);
-                                      } else {
-                                        onAddItem({
-                                          id: Math.random().toString(36).substr(2, 9),
-                                          title: result.title,
-                                          type: 'custom',
-                                          slides: [newSlide],
-                                          theme: currentTheme
-                                        });
-                                      }
-                                    }}
-                                    className="flex-1 bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[9px] font-black uppercase py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-red-950/20"
-                                  >
-                                    <Plus size={10} /> PROYECTOR
-                                  </button>
-                                  <button
-                                    onClick={() => onSetBackgroundAudio?.(result.id, result.title)}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-indigo-950/20"
-                                  >
-                                    <Music size={10} /> FONDO
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${result.id}`);
-                                      alert("¡Enlace de YouTube copiado al portapapeles!");
-                                    }}
-                                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[9px] font-black uppercase py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-emerald-950/20"
-                                    title="Copiar enlace de YouTube"
-                                  >
-                                    <Copy size={10} /> COPIAR
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : hasSearchedYoutube ? (
-                      /* Beautiful, premium "No Results Found" or Error view */
-                      <div className="bg-gradient-to-b from-gray-900/65 to-slate-950/75 border border-red-500/20 rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[220px] relative overflow-hidden shadow-xl animate-fade-in">
-                        {/* Soft glowing background elements */}
-                        <div className="absolute -top-12 -left-12 w-24 h-24 bg-red-500/5 rounded-full blur-2xl"></div>
-                        <div className="absolute -bottom-12 -right-12 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl"></div>
-
-                        <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 mb-3.5 shadow-lg shadow-red-950/10">
-                          <AlertCircle size={26} className="animate-pulse" />
-                        </div>
-                        
-                        <h3 className="text-xs font-black text-white uppercase tracking-wider">
-                          {youtubeSearchError ? "Error de Búsqueda" : "Sin Resultados"}
-                        </h3>
-                        
-                        <p className="text-[10px] text-gray-400 max-w-[240px] mt-1.5 leading-relaxed font-medium">
-                          No pudimos obtener videos para tu búsqueda. Las APIs públicas podrían estar saturadas o desconectadas temporalmente.
-                        </p>
-
-                        {/* Interactive tip */}
-                        <div className="mt-4 p-2.5 rounded-xl bg-indigo-950/20 border border-indigo-500/10 max-w-[280px]">
-                          <p className="text-[9px] text-indigo-300 font-medium leading-relaxed">
-                            💡 <span className="font-bold text-indigo-200">Consejo rápido:</span> Puedes copiar y pegar el enlace directo de cualquier video de YouTube en el cuadro de búsqueda superior y se agregará al instante.
-                          </p>
-                        </div>
-
-                        {/* Buttons to reset or try again */}
-                        <div className="flex gap-2 mt-4">
-                          <button
-                            onClick={() => {
-                              setHasSearchedYoutube(false);
-                              setYoutubeSearchError(null);
-                              setInputText('');
-                            }}
-                            className="text-[9px] font-bold bg-gray-800 hover:bg-gray-700 border border-gray-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg transition-all active:scale-95 flex items-center gap-1 shadow-sm"
-                          >
-                            <ArrowLeft size={10} /> VOLVER
-                          </button>
-                          <button
-                            onClick={() => handleSearch()}
-                            className="text-[9px] font-bold bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white px-3 py-1.5 rounded-lg transition-all active:scale-95 flex items-center gap-1 shadow-md shadow-red-950/20"
-                          >
-                            <RefreshCw size={10} /> REINTENTAR
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Placeholder discreto de buscador */
-                      <div className="bg-slate-950/40 border border-white/5 rounded-2xl p-5 text-center flex flex-col items-center justify-center min-h-[140px]">
-                        <Search size={22} className="text-gray-600 mb-2" />
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Buscador Directo</p>
-                        <p className="text-[9px] text-gray-500 mt-1 max-w-[200px] leading-relaxed">
-                          Escribe palabras clave en el cuadro de abajo y presiona el botón <span className="text-red-400 font-bold">BUSCAR</span> para encontrar videos directamente.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-
-
-                  <div className="flex items-center gap-3 mb-2 p-3 bg-gray-800/50 rounded-xl border border-gray-700/50">
-                    <button
-                      onClick={() => setAddYouTubeToCurrent(!addYouTubeToCurrent)}
-                      className={`flex items-center gap-2 p-2 rounded-lg transition-all ${addYouTubeToCurrent ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
-                    >
-                      <Layers size={14} />
-                      <span className="text-[10px] font-bold uppercase">{addYouTubeToCurrent ? 'Unir con actual (Slider)' : 'Crear nuevo item'}</span>
-                    </button>
-                    <p className="text-[9px] text-gray-500 italic flex-1">
-                      {addYouTubeToCurrent ? 'El video se agregará como una diapositiva al elemento seleccionado.' : 'Se creará un nuevo elemento en la lista para este video.'}
-                    </p>
-                  </div>
-                  <p className="text-[9px] text-gray-500 mb-2 italic">Tip: Pega el link directo o escribe palabras clave para buscar.</p>
                 </div>
               )}
 
@@ -2052,7 +1799,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       </button>
                     </div>
                   </div>
-                ) : (
+                ) : inputType === 'scripture' ? (
                   <div className="relative flex flex-col">
                     <input
                       type="text"
@@ -2136,27 +1883,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       </div>
                     )}
                   </div>
-                )}
+                ) : null}
 
                 {songResults.length === 0 ? (
                   <div className="flex flex-col gap-2">
-                    <button
-                      onClick={() => {
-                        if (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) {
-                          onUpdateSlideContent?.(activeSlide.id, inputText);
-                          // We MUST also update segments from plain text, otherwise the rich view won't update
-                          onUpdateSlideSegments?.(activeSlide.id, textToSegments(inputText));
-                          onPreviewSlideUpdate?.(null);
-                        } else {
-                          handleSearch();
-                        }
-                      }}
-                      disabled={loading || isSearchingSongs || isSearchingYoutube || !inputText}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white py-3.5 rounded-xl flex justify-center items-center gap-2 font-bold text-sm shadow-lg shadow-indigo-500/20 transition-all font-sans"
-                    >
-                      {loading || isSearchingSongs || isSearchingYoutube ? <Loader2 className="animate-spin" size={18} /> : (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) ? <Eraser size={18} /> : (inputType === 'youtube' && !inputText.includes('v=') && !inputText.includes('youtu.be')) ? <Search size={18} /> : <Plus size={18} />}
-                      {loading ? 'GENERANDO...' : isSearchingYoutube ? 'BUSCANDO...' : (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) ? 'APLICAR CAMBIO' : (inputType === 'youtube' && !inputText.includes('v=') && !inputText.includes('youtu.be')) ? 'BUSCAR' : 'AGREGAR A LISTA'}
-                    </button>
+                    {inputType !== 'youtube' && (
+                      <button
+                        onClick={() => {
+                          if (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) {
+                            onUpdateSlideContent?.(activeSlide.id, inputText);
+                            // We MUST also update segments from plain text, otherwise the rich view won't update
+                            onUpdateSlideSegments?.(activeSlide.id, textToSegments(inputText));
+                            onPreviewSlideUpdate?.(null);
+                          } else {
+                            handleSearch();
+                          }
+                        }}
+                        disabled={loading || isSearchingSongs || isSearchingYoutube || !inputText}
+                        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white py-3.5 rounded-xl flex justify-center items-center gap-2 font-bold text-sm shadow-lg shadow-indigo-500/20 transition-all font-sans"
+                      >
+                        {loading || isSearchingSongs || isSearchingYoutube ? <Loader2 className="animate-spin" size={18} /> : (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) ? <Eraser size={18} /> : <Plus size={18} />}
+                        {loading ? 'GENERANDO...' : isSearchingSongs ? 'BUSCANDO...' : (activeSlide && inputType === 'manual' && inputText !== activeSlide.content) ? 'APLICAR CAMBIO' : 'AGREGAR A LISTA'}
+                      </button>
+                    )}
 
                     {hasActiveItem && (
                       <div className="grid grid-cols-1 gap-2">
