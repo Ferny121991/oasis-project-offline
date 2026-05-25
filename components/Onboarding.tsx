@@ -47,7 +47,7 @@ const STEPS: TutorialStep[] = [
             'Prevención de borrados en auto-guardado',
             'Historial de auditoría en tiempo real sin duplicados'
         ],
-        tip: 'Observa cómo el sistema resalta dinámicamente las áreas explicadas en la interfaz.',
+        tip: 'Observa cómo el sistema resalta dinámicamente las áreas explicadas en la pantalla trasera.',
         color: 'from-indigo-600 via-violet-600 to-fuchsia-700'
     },
     {
@@ -186,111 +186,113 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     };
 
     return (
-        <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 p-3 sm:p-5 backdrop-blur-md transition-opacity duration-300 ${isExiting ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-[9999] w-[92%] sm:w-[440px] max-h-[85vh] flex flex-col bg-slate-900/98 border border-white/10 rounded-[28px] shadow-[0_24px_80px_rgba(0,0,0,0.85),0_0_35px_rgba(34,211,238,0.18)] overflow-hidden transition-all duration-300 ${isExiting ? 'opacity-0 translate-y-12' : 'opacity-100 translate-y-0 animate-scale-up'}`}>
             <style>{`
                 @keyframes tutorialPulse {
                     0% {
-                        box-shadow: 0 0 0 0px rgba(34, 211, 238, 0.4);
-                        border-color: rgba(34, 211, 238, 0.4);
+                        outline-color: rgba(34, 211, 238, 0.4);
+                        box-shadow: 0 0 0 0px rgba(34, 211, 238, 0.2);
                     }
                     50% {
-                        box-shadow: 0 0 25px 8px rgba(34, 211, 238, 0.8);
-                        border-color: rgba(34, 211, 238, 1);
+                        outline-color: rgba(34, 211, 238, 1);
+                        box-shadow: 0 0 30px 10px rgba(34, 211, 238, 0.5);
                     }
                     100% {
+                        outline-color: rgba(34, 211, 238, 0.4);
                         box-shadow: 0 0 0 0px rgba(34, 211, 238, 0);
-                        border-color: rgba(34, 211, 238, 0.4);
                     }
                 }
                 .tutorial-highlight-active {
                     position: relative !important;
-                    z-index: 9998 !important;
-                    animation: tutorialPulse 2.2s infinite ease-in-out !important;
-                    outline: 4px solid #22d3ee !important;
-                    outline-offset: 2px !important;
+                    z-index: 8000 !important;
+                    animation: tutorialPulse 2s infinite ease-in-out !important;
+                    outline: 5px solid #22d3ee !important;
+                    outline-offset: 3px !important;
                     transition: all 0.3s ease !important;
                 }
             `}</style>
-            <section className="grid w-full max-w-5xl overflow-hidden rounded-[1.4rem] border border-white/10 bg-slate-950 shadow-[0_30px_100px_rgba(0,0,0,0.65)] lg:grid-cols-[330px_minmax(0,1fr)]">
-                <aside className={`relative flex flex-col justify-between overflow-hidden bg-gradient-to-br ${step.color} p-5 sm:p-7 lg:min-h-[560px]`}>
-                    <div className="absolute -right-16 -bottom-16 h-56 w-56 rounded-full bg-white/15 blur-3xl" />
-                    <div className="relative z-10">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/85">
-                            <span>{step.tag}</span>
-                            <span>•</span>
-                            <span>Paso {currentStep + 1} de {STEPS.length}</span>
-                        </div>
-                        <div className="mt-5 grid h-16 w-16 place-items-center rounded-2xl border border-white/25 bg-white/15 shadow-2xl">
-                            <Icon size={34} className="text-white" />
-                        </div>
-                        <h2 className="mt-5 max-w-sm text-2xl font-black leading-tight text-white sm:text-3xl lg:max-w-[280px]">
-                            {step.title}
-                        </h2>
-                        <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/88 lg:max-w-[280px]">
-                            {step.description}
-                        </p>
-                    </div>
-                    <div className="relative z-10 mt-5">
-                        <div className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-white/80">{progress}% completado</div>
-                        <div className="h-2.5 overflow-hidden rounded-full bg-white/20">
-                            <div className="h-full rounded-full bg-white transition-all duration-300" style={{ width: `${progress}%` }} />
-                        </div>
-                    </div>
-                </aside>
 
-                <main className="flex min-h-0 flex-col bg-gradient-to-b from-slate-900 to-slate-950 lg:min-h-[560px]">
-                    <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-slate-900/80 px-5 py-4 sm:px-6">
-                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Guia rapida de operacion</span>
-                        <button onClick={handleComplete} className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-300 hover:bg-white/10 hover:text-white">
-                            Saltar <X size={14} className="ml-1 inline" />
-                        </button>
+            {/* Header Banner */}
+            <div className={`p-5 bg-gradient-to-br ${step.color} relative shrink-0`}>
+                <div className="absolute -right-10 -bottom-10 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
+                <div className="flex items-center justify-between relative z-10">
+                    <span className="bg-white/15 border border-white/20 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-white/90">
+                        {step.tag} • Paso {currentStep + 1} de {STEPS.length}
+                    </span>
+                    <button 
+                        onClick={handleComplete} 
+                        className="text-white/60 hover:text-white transition-colors"
+                        title="Saltar tutorial"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+                <div className="flex items-center gap-3 mt-3 relative z-10">
+                    <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-lg">
+                        <Icon size={20} className="text-white" />
                     </div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-wide leading-tight">{step.title}</h3>
+                </div>
+            </div>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-                        <p className="mb-4 text-base leading-relaxed text-slate-200 sm:text-lg">Puntos clave de este paso:</p>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            {step.focus.map((item, index) => (
-                                <div key={index} className="flex min-h-[68px] items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-sm leading-relaxed text-slate-300">
-                                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-indigo-400/15 text-indigo-200">
-                                        <Check size={14} />
-                                    </span>
-                                    <span>{item}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.07] p-4 text-sm leading-relaxed text-cyan-50/90 font-semibold shadow-inner">
-                            💡 Tip: {step.tip}
-                        </div>
+            {/* Content Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-950/20">
+                <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                    {step.description}
+                </p>
+
+                <div className="space-y-2">
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Puntos Clave:</p>
+                    <div className="flex flex-col gap-2">
+                        {step.focus.map((item, idx) => (
+                            <div key={idx} className="flex items-start gap-2 bg-white/[0.02] border border-white/5 p-2.5 rounded-xl">
+                                <span className="mt-0.5 w-4 h-4 bg-indigo-500/10 border border-indigo-400/25 text-indigo-400 rounded-md flex items-center justify-center shrink-0 text-[10px]">
+                                    ✓
+                                </span>
+                                <span className="text-[10.5px] text-slate-300 font-medium leading-tight">{item}</span>
+                            </div>
+                        ))}
                     </div>
+                </div>
 
-                    <div className="flex flex-wrap gap-1.5 border-t border-white/10 bg-slate-950 px-5 py-4 sm:px-6">
-                        {STEPS.map((_, index) => (
-                            <button
-                                key={index}
-                                onClick={() => setCurrentStep(index)}
-                                aria-label={`Ir al paso ${index + 1}`}
-                                className={`h-2 rounded-full transition-all ${index === currentStep ? 'w-8 bg-indigo-400' : index < currentStep ? 'w-4 bg-indigo-400/60' : 'w-3 bg-slate-600 hover:bg-slate-500'}`}
+                <div className="bg-cyan-950/40 border border-cyan-500/25 text-cyan-200/90 p-3.5 rounded-xl text-[10.5px] leading-relaxed shadow-inner">
+                    💡 Tip: {step.tip}
+                </div>
+            </div>
+
+            {/* Progress and Navigation Footer */}
+            <div className="p-4 bg-slate-950/80 border-t border-white/5 shrink-0 flex flex-col gap-3">
+                {/* Progress bar */}
+                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-500">
+                    <span>{progress}% completado</span>
+                    <div className="flex gap-1">
+                        {STEPS.map((_, idx) => (
+                            <button 
+                                key={idx}
+                                onClick={() => setCurrentStep(idx)}
+                                className={`h-1.5 rounded-full transition-all ${idx === currentStep ? 'w-4 bg-indigo-400' : idx < currentStep ? 'w-2 bg-indigo-400/50' : 'w-1 bg-slate-700'}`}
                             />
                         ))}
                     </div>
+                </div>
 
-                    <div className="flex gap-3 bg-slate-950 px-5 pb-5 sm:px-6">
-                        <button
-                            onClick={handlePrev}
-                            disabled={currentStep === 0}
-                            className={`h-12 flex-1 rounded-2xl border border-white/10 bg-white/[0.045] text-sm font-black uppercase tracking-wide text-slate-300 transition-all hover:bg-white/10 hover:text-white ${currentStep === 0 ? 'invisible' : ''}`}
-                        >
-                            <ChevronLeft size={17} className="mr-1 inline" /> Anterior
-                        </button>
-                        <button
-                            onClick={handleNext}
-                            className={`h-12 flex-[1.35] rounded-2xl bg-gradient-to-r ${step.color} text-sm font-black uppercase tracking-wide text-white shadow-xl transition-all hover:brightness-110 active:scale-[0.99]`}
-                        >
-                            {isLast ? 'Comenzar' : 'Siguiente'} {isLast ? <Check size={17} className="ml-1 inline" /> : <ArrowRight size={17} className="ml-1 inline" />}
-                        </button>
-                    </div>
-                </main>
-            </section>
+                {/* Navigation Buttons */}
+                <div className="flex gap-2">
+                    <button
+                        onClick={handlePrev}
+                        className={`flex-1 h-9 rounded-xl border border-white/10 bg-white/[0.04] text-[10px] font-black uppercase tracking-wider text-slate-300 transition-all hover:bg-white/10 hover:text-white ${currentStep === 0 ? 'invisible' : ''}`}
+                    >
+                        Anterior
+                    </button>
+                    <button
+                        onClick={handleNext}
+                        className={`flex-[1.4] h-9 rounded-xl bg-gradient-to-r ${step.color} text-[10px] font-black uppercase tracking-wider text-white shadow-lg active:scale-95 transition-all hover:brightness-110 flex items-center justify-center gap-1.5`}
+                    >
+                        {isLast ? 'Entendido' : 'Siguiente'}
+                        {isLast ? <Check size={12} /> : <ArrowRight size={12} />}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
