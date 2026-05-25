@@ -1,22 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     ArrowRight,
     Check,
     ChevronLeft,
     Cloud,
-    Keyboard,
     Layout,
     List,
     MonitorSmartphone,
     Palette,
     Play,
     Sparkles,
-    UploadCloud,
     X,
     BookOpen,
     Cast,
-    History,
-    Library
+    Library,
+    Info,
+    Eye
 } from 'lucide-react';
 
 interface OnboardingProps {
@@ -28,160 +27,322 @@ interface TutorialStep {
     tag: string;
     title: string;
     description: string;
-    focus: string[];
+    focus: {
+        label: string;
+        detail: string;
+    }[];
     tip: string;
     color: string;
-    selector?: string; // HTML Selector to spotlight highlight
+    accentColor: string;
+    selector?: string;
 }
 
 const STEPS: TutorialStep[] = [
     {
         icon: Sparkles,
         tag: 'Bienvenida',
-        title: 'Cabina Profesional FlujoEclesial Studio',
-        description: 'Bienvenido al tour interactivo de la cabina moderna. Hemos diseñado una interfaz inspirada en ProPresenter para brindarte el máximo espacio de trabajo, fluidez en vivo y seguridad de datos.',
+        title: '¡Bienvenido a OASIS Studio!',
+        description: 'Este tour te guiará paso a paso por cada sección de la cabina de proyección. Al terminar, sabrás exactamente cómo buscar canciones, crear diapositivas, controlar el vivo y sincronizar con la nube.',
         focus: [
-            'Tres columnas integradas: Editor (Izq.), Playlist central y Proyección (Der.)',
-            'Workspace expansible para ocultar los paneles laterales y liberar espacio',
-            'Sincronización multi-ventana ultra-rápida y control remoto móvil',
-            'Historial de auditoría completo y protección activa contra borrados'
+            {
+                label: 'Panel Izquierdo → Editor de Contenido',
+                detail: 'Aquí buscas canciones, escribes textos manuales y consultas la Biblia. Es tu centro de creación.'
+            },
+            {
+                label: 'Panel Central → Playlist / Escaleta',
+                detail: 'Muestra todas las canciones del servicio en orden. Cada canción tiene sus diapositivas en miniatura.'
+            },
+            {
+                label: 'Panel Derecho → Proyección en Vivo',
+                detail: 'Aquí ves la vista previa de lo que el proyector muestra. Incluye los botones BLACK, CLEAR y LOGO.'
+            },
+            {
+                label: 'Barra Superior → Controles Generales',
+                detail: 'Contiene el nombre del proyecto, botón de sincronización, temporizador, pantalla completa y más.'
+            }
         ],
-        tip: 'Usa este tutorial para comprender cada botón y flujo del sistema. El panel activo se iluminará con un halo cian brillante.',
-        color: 'from-indigo-600 via-violet-600 to-fuchsia-700'
+        tip: 'Lee cada punto y márcalo como entendido ✓. Al completar todos los puntos, el botón "Siguiente" se iluminará para avanzar.',
+        color: 'from-indigo-600 via-violet-600 to-fuchsia-700',
+        accentColor: '#818cf8'
     },
     {
         icon: Library,
-        tag: 'Búsqueda e Importación',
-        title: 'Biblioteca de Contenido y Biblia',
-        description: 'Prepara las canciones, lecturas bíblicas y avisos antes del servicio. Todo entra al flujo de trabajo desde el panel de contenido.',
+        tag: 'Paso 1: Buscar Canciones',
+        title: 'Búsqueda de Canciones y Letras',
+        description: 'El panel izquierdo tiene un campo de texto donde puedes escribir el nombre de cualquier canción cristiana. Al presionar Enter o el botón AGREGAR, se buscan las letras automáticamente.',
         focus: [
-            'Buscador general: Escribe títulos o letras para cargar canciones en un clic',
-            'Pasajes Bíblicos: Escribe referencias (ej: Juan 3:16) y obtén diapositivas al instante',
-            'Selección de versiones de la Biblia: RV1960, NVI, NTV, LBLA, KJV y más',
-            'Importador multimedia: Arrastra imágenes, canciones locales o videos'
+            {
+                label: '📝 Campo de búsqueda superior',
+                detail: 'Escribe el título de la canción, ej: "Way Maker", "Reckless Love". Presiona Enter para buscar.'
+            },
+            {
+                label: '📋 Resultados de búsqueda',
+                detail: 'Aparecen debajo del campo. Haz clic en cualquier resultado para agregarlo a la playlist del servicio.'
+            },
+            {
+                label: '⚙️ Selector de Origen (Manual / Biblia / NV)',
+                detail: 'Arriba del campo hay botones para cambiar entre modo canción, texto manual, o citas bíblicas.'
+            },
+            {
+                label: '📖 Densidad de Texto',
+                detail: 'Controla cuántas líneas aparecen por diapositiva: Impacto (pocas), Clásico (normal), Estrofa (completa), Full.'
+            }
         ],
-        tip: 'Usa referencias directas con el capítulo y versículo. El autocompletado te guiará al escribir los libros.',
+        tip: 'Escribe solo unas letras del título — el buscador es inteligente y encuentra canciones con coincidencias parciales.',
         color: 'from-sky-600 via-cyan-600 to-teal-700',
-        selector: '#control-panel'
-    },
-    {
-        icon: Palette,
-        tag: 'Diseñador de Logo',
-        title: 'Suite Tipográfica y Logo del Proyector',
-        description: 'La pestaña "Logo" te permite crear un logotipo estilizado para proyectar durante las transiciones o pausas del servicio.',
-        focus: [
-            'Acordeón colapsable: Cuatro áreas de diseño ordenadas y limpias',
-            'Soporte completo de texto: Agrega letras y personaliza fuentes',
-            'Estilizado premium: Gradientes, sombras neon y bordes de contorno',
-            'Escala inteligente cqh: El texto escala de forma perfecta en cualquier tamaño'
-        ],
-        tip: 'El botón "SHOW LOGO" de la derecha proyectará este logo con todos los estilos que configures aquí.',
-        color: 'from-purple-600 via-pink-600 to-rose-600',
+        accentColor: '#22d3ee',
         selector: '#control-panel'
     },
     {
         icon: BookOpen,
-        tag: 'Reflow Editor',
-        title: 'Edición en Bloque (Reflow Editor)',
-        description: 'El Reflow Editor te permite editar la letra de toda la canción de corrido, como si fuera un documento de Word, sin tener que abrir cada slide por separado.',
+        tag: 'Paso 2: Biblia',
+        title: 'Pasajes Bíblicos al Instante',
+        description: 'Cambia el selector de origen a "Biblia" y escribe cualquier referencia bíblica. El sistema genera diapositivas con el texto del pasaje automáticamente.',
         focus: [
-            'Botón "Reflow Editor" en la barra de rejilla del panel central',
-            'Edita todo el texto corrido de forma ágil y fluida',
-            'Inserta divisores con un solo clic para crear nuevas diapositivas',
-            'Los cambios se actualizan instantáneamente en las miniaturas'
+            {
+                label: '🔘 Botón "Biblia" en Selector de Origen',
+                detail: 'Haz clic en el botón naranja "Biblia" para activar el modo de citas bíblicas.'
+            },
+            {
+                label: '📖 Formato de referencia',
+                detail: 'Escribe: "Juan 3:16", "Salmos 23", "Romanos 8:28-39". El autocompletado sugiere libros al escribir.'
+            },
+            {
+                label: '🌍 Selector de versión bíblica',
+                detail: 'Puedes elegir entre RVR1960, NVI, NTV, LBLA, KJV, NKJV y NIV. Cada versión genera texto diferente.'
+            },
+            {
+                label: '➕ Botón AGREGAR A LISTA',
+                detail: 'Después de escribir la referencia, presiona el botón verde para agregar las diapositivas a la playlist.'
+            }
         ],
-        tip: 'Ideal para corregir errores ortográficos rápidos dictados por el director de alabanza durante el ensayo.',
+        tip: 'Puedes agregar rangos de versículos (ej: "Génesis 1:1-5") y se dividirán automáticamente en varias diapositivas.',
         color: 'from-amber-600 via-orange-600 to-rose-600',
-        selector: '#playlist-panel'
+        accentColor: '#f59e0b',
+        selector: '#control-panel'
+    },
+    {
+        icon: Palette,
+        tag: 'Paso 3: Temas y Logo',
+        title: 'Personaliza Fondos y Logo',
+        description: 'Las pestañas "Tema" y "Logo" en el panel izquierdo te permiten cambiar los fondos, colores y el logotipo que aparece en la proyección.',
+        focus: [
+            {
+                label: '🎨 Pestaña "Tema" → Fondos',
+                detail: 'Cambia el fondo de las diapositivas: imagen, color sólido o degradado. Pega URLs de imágenes o sube archivos.'
+            },
+            {
+                label: '✏️ Pestaña "Tema" → Tipografía',
+                detail: 'Cambia la fuente, tamaño, color del texto, sombras y efectos de contorno para todas las diapositivas.'
+            },
+            {
+                label: '🖼️ Pestaña "Logo" → Imagen de bienvenida',
+                detail: 'Sube el logo de tu iglesia. Se muestra con el botón SHOW LOGO durante las transiciones.'
+            },
+            {
+                label: '💎 Pestaña "Logo" → Estilos del logo',
+                detail: 'Agrega texto al logo, gradientes, sombras neón y bordes. El texto escala automáticamente.'
+            }
+        ],
+        tip: 'Los temas se guardan por canción. Puedes tener un fondo diferente para cada elemento de la playlist.',
+        color: 'from-purple-600 via-pink-600 to-rose-600',
+        accentColor: '#d946ef',
+        selector: '#control-panel'
     },
     {
         icon: List,
-        tag: 'Escaleta del Servicio',
-        title: 'Mesa Central y Playlist Interactiva',
-        description: 'La playlist central funciona como el timeline o escaleta de cabina. Aquí ordenas cronológicamente el servicio.',
+        tag: 'Paso 4: Playlist',
+        title: 'Escaleta del Servicio (Centro)',
+        description: 'El panel central es tu timeline. Aquí ves todas las canciones del servicio en orden, con sus miniaturas de diapositivas. Es el corazón de la cabina.',
         focus: [
-            'Reordenación táctil y drag-and-drop de canciones y avisos',
-            'Divisores visuales de sección: Asigna colores rápidos (Naranja, Verde, etc.)',
-            'Acciones por elemento: Duplicar elementos, actualizar y borrar',
-            'Duplicar y reordenar diapositivas individuales dentro de cada canción'
+            {
+                label: '🎵 Lista de canciones / elementos',
+                detail: 'Cada canción aparece como una tarjeta. Haz clic para expandirla y ver sus diapositivas en miniatura.'
+            },
+            {
+                label: '↕️ Reordenar con Drag & Drop',
+                detail: 'Arrastra las canciones hacia arriba o abajo para cambiar el orden del servicio.'
+            },
+            {
+                label: '🏷️ Divisores de sección con colores',
+                detail: 'Inserta divisores entre secciones (Alabanza, Anuncios, Ofrenda) usando colores diferentes.'
+            },
+            {
+                label: '⚡ Acciones por elemento',
+                detail: 'Cada canción tiene botones para: duplicar, actualizar letra, borrar, y cambiar el tema individual.'
+            }
         ],
-        tip: 'Usa los divisores de colores para separar momentos del servicio: Alabanza, Anuncios, Ofrenda, Mensaje.',
+        tip: 'Doble clic en una miniatura envía esa diapositiva directo al proyector. Un solo clic la selecciona para editar.',
         color: 'from-emerald-600 via-teal-600 to-cyan-700',
+        accentColor: '#34d399',
         selector: '#playlist-panel'
     },
     {
-        icon: Layout,
-        tag: 'Workspace',
-        title: 'Tiradores de Ocultación de Paneles',
-        description: 'Para pantallas de laptop o cabinas compactas, puedes ocultar los paneles laterales para ampliar al máximo la mesa de diapositivas central.',
+        icon: BookOpen,
+        tag: 'Paso 5: Reflow Editor',
+        title: 'Edición en Bloque de Texto',
+        description: 'El botón "Reflow Editor" en la barra superior del panel central te permite editar toda la letra de la canción de corrido, como si fuera un documento de Word.',
         focus: [
-            'Tirador izquierdo (Flecha <): Desliza y oculta el Editor / Logo',
-            'Tirador derecho (Flecha >): Desliza y oculta el panel de Proyección',
-            'Expansión al 100% de la pantalla para el panel central de slides',
-            'Transiciones ultra-fluidas CSS de 300ms de ancho y opacidad'
+            {
+                label: '📝 Botón "Reflow Editor" en la barra superior',
+                detail: 'Está en la barra de herramientas del panel central, junto al selector de vista de grilla.'
+            },
+            {
+                label: '✂️ Editor de texto completo',
+                detail: 'Todo el texto de la canción aparece de corrido. Puedes editar, copiar, pegar libremente.'
+            },
+            {
+                label: '➖ Insertar divisores de diapositiva',
+                detail: 'Haz clic en el botón de divisor para crear un corte que genera una nueva diapositiva en ese punto.'
+            },
+            {
+                label: '🔄 Cambios en tiempo real',
+                detail: 'Cada cambio se refleja instantáneamente en las miniaturas de la playlist. No necesitas guardar manualmente.'
+            }
         ],
-        tip: 'Haz clic en el tirador para ocultar un panel; vuelve a hacer clic en la flecha cian flotante para reabrirlo.',
-        color: 'from-teal-600 via-emerald-600 to-emerald-700',
+        tip: 'Perfecto para corregir errores ortográficos rápidos o reorganizar estrofas y coros de la canción.',
+        color: 'from-amber-500 via-orange-500 to-red-600',
+        accentColor: '#fb923c',
         selector: '#playlist-panel'
     },
     {
         icon: Play,
-        tag: 'Vista Previa',
-        title: 'Operación del Vivo y Miniaturas',
-        description: 'Aprende a navegar y lanzar diapositivas en vivo con total confianza, usando el doble filtro de seguridad.',
+        tag: 'Paso 6: Proyectar en Vivo',
+        title: 'Enviar Diapositivas al Proyector',
+        description: 'El panel derecho es tu vista de proyección. Aquí ves exactamente lo que se muestra en el proyector o pantalla externa.',
         focus: [
-            'Un Clic: Selecciona y edita el elemento en el panel central de diapositivas',
-            'Doble Clic (o Enter): Envía la diapositiva directamente al vivo',
-            'Barra inferior de diapositivas del vivo: Navega con un solo clic',
-            'Atajos del teclado: Espacio para siguiente diapositiva, Flechas para navegar'
+            {
+                label: '👆 Un Clic = Seleccionar para editar',
+                detail: 'Haz un solo clic en una miniatura de la playlist para seleccionarla y editarla en el panel izquierdo.'
+            },
+            {
+                label: '👆👆 Doble Clic = Enviar al vivo',
+                detail: 'Haz doble clic (o presiona Enter) en cualquier miniatura para enviarla directamente al proyector.'
+            },
+            {
+                label: '⬇️ Barra de miniaturas del vivo',
+                detail: 'Debajo de la proyección hay una tira de miniaturas. Clic en cualquiera cambia la diapositiva en el proyector.'
+            },
+            {
+                label: '⌨️ Atajos de teclado',
+                detail: 'Espacio = siguiente slide, Flechas ← → = navegar, F5 = pantalla completa del proyector.'
+            }
         ],
-        tip: 'Usa la barra espaciadora en tu teclado para avanzar la canción al ritmo de la alabanza sin usar el mouse.',
+        tip: 'Usa la BARRA ESPACIADORA para avanzar la canción al ritmo de la alabanza sin necesidad de usar el mouse.',
         color: 'from-violet-600 via-indigo-600 to-blue-700',
+        accentColor: '#818cf8',
         selector: '#live-preview-panel'
     },
     {
         icon: Cast,
-        tag: 'Acciones de Seguridad',
-        title: 'Botones del Vivo (ProPresenter-Style)',
-        description: 'La barra inferior derecha del vivo contiene los botones de acción inmediata ante cualquier imprevisto durante la proyección.',
+        tag: 'Paso 7: Botones del Vivo',
+        title: 'Controles de Emergencia',
+        description: 'Debajo de la proyección hay 4 botones de acción inmediata. Son tus controles de emergencia para situaciones en vivo.',
         focus: [
-            'BLACK (Blackout) [F9 o ESC]: Apaga por completo la pantalla del proyector',
-            'CLEAR TEXT [F10]: Oculta la letra manteniendo el fondo de imagen o video',
-            'SHOW LOGO [F12]: Proyecta el logotipo de la iglesia estilizado',
-            'SPLIT SCREEN: Divide la pantalla para traducciones o soporte multi-idioma'
+            {
+                label: '⬛ BLACK (F9 o ESC)',
+                detail: 'Apaga completamente la pantalla del proyector. Todo se pone negro. Úsalo durante oraciones o imprevistos.'
+            },
+            {
+                label: '🔤 CLEAR TEXT (F10)',
+                detail: 'Oculta solo el texto pero mantiene la imagen de fondo. Ideal para transiciones entre estrofas.'
+            },
+            {
+                label: '🖼️ SHOW LOGO (F12)',
+                detail: 'Muestra el logotipo de la iglesia. Perfecto para antes del servicio o durante los anuncios.'
+            },
+            {
+                label: '📐 SPLIT SCREEN',
+                detail: 'Divide la pantalla para traducciones bilingües o soporte multi-idioma en congregaciones diversas.'
+            }
         ],
-        tip: 'Aprende los atajos de teclado F9, F10, F12. Te salvarán de errores en vivo al instante.',
+        tip: 'Memoriza F9 (Black), F10 (Clear) y F12 (Logo). En una emergencia, estos atajos son más rápidos que el mouse.',
         color: 'from-orange-600 via-amber-600 to-yellow-600',
+        accentColor: '#f59e0b',
         selector: '#live-action-controls'
     },
     {
-        icon: Cloud,
-        tag: 'Sincronización Nube',
-        title: 'Filtro Anti-Borrado y Guardado Seguro',
-        description: 'La sincronización con la nube en Supabase incluye un filtro de seguridad inteligente que te previene de pérdidas irreversibles de archivos.',
+        icon: Layout,
+        tag: 'Paso 8: Workspace',
+        title: 'Ocultar Paneles (Espacio Extra)',
+        description: 'Si tienes una pantalla pequeña, puedes ocultar los paneles laterales para dar más espacio a la playlist central.',
         focus: [
-            'Sincronización Manual: Botón "Guardar manual" en el menú superior',
-            'Auto-Guardado (Auto-Sync): Sube los cambios automáticamente cada 5 segundos',
-            'Filtro de seguridad: Frena la subida si detecta diapositivas o proyectos eliminados',
-            'Modal detallada: Te enumera exactamente qué archivo o elemento se va a borrar'
+            {
+                label: '◀ Tirador izquierdo',
+                detail: 'Un botón con flecha "<" al borde del panel izquierdo. Haz clic para ocultar el Editor.'
+            },
+            {
+                label: '▶ Tirador derecho',
+                detail: 'Un botón con flecha ">" al borde del panel derecho. Haz clic para ocultar la Proyección.'
+            },
+            {
+                label: '📐 Playlist al 100%',
+                detail: 'Con ambos paneles ocultos, la playlist central ocupa toda la pantalla para ver más miniaturas.'
+            },
+            {
+                label: '🔁 Reabrir paneles',
+                detail: 'Haz clic en las flechas flotantes de color cian que aparecen en los bordes para reabrir los paneles.'
+            }
         ],
-        tip: 'Si el auto-guardado se frena por una modal, puedes aceptar la eliminación en la nube o cancelar para restaurar.',
+        tip: 'En laptops de 13-14 pulgadas, ocultar un panel te da mucho más espacio de trabajo en la playlist.',
+        color: 'from-teal-600 via-emerald-600 to-emerald-700',
+        accentColor: '#2dd4bf',
+        selector: '#playlist-panel'
+    },
+    {
+        icon: Cloud,
+        tag: 'Paso 9: Nube',
+        title: 'Sincronización y Protección',
+        description: 'Tu trabajo se guarda automáticamente en la nube (Supabase). Si accidentalmente borras algo, el sistema te protege con un filtro inteligente.',
+        focus: [
+            {
+                label: '💾 Guardar Manual',
+                detail: 'Botón en la barra superior del panel central. Haz clic para forzar un guardado inmediato a la nube.'
+            },
+            {
+                label: '🔄 Auto-Sync (cada 5s)',
+                detail: 'El sistema sube cambios automáticamente. Un indicador verde confirma que todo está sincronizado.'
+            },
+            {
+                label: '🛡️ Filtro Anti-Borrado',
+                detail: 'Si borras canciones o diapositivas, aparece una modal que te pregunta si realmente quieres eliminarlas de la nube.'
+            },
+            {
+                label: '📊 Modal de confirmación',
+                detail: 'La modal te lista exactamente qué se va a borrar. Puedes aceptar o cancelar para restaurar lo eliminado.'
+            }
+        ],
+        tip: 'Si el auto-guardado muestra una modal, no entres en pánico. Lee lo que dice y decide si realmente quieres borrar esos elementos.',
         color: 'from-slate-700 via-blue-700 to-cyan-700',
+        accentColor: '#60a5fa',
         selector: '#playlist-panel'
     },
     {
         icon: MonitorSmartphone,
-        tag: 'Control Móvil',
-        title: 'QR y Aplicación Móvil de Altar',
-        description: 'El botón "Móvil" abre un panel con un código QR que te permite enlazar cualquier celular o tablet para controlar la proyección a distancia.',
+        tag: 'Paso 10: Control Remoto',
+        title: 'Control desde el Celular',
+        description: 'Conecta cualquier teléfono o tablet para controlar la proyección de forma remota. Perfecto para que el predicador avance sus propios slides.',
         focus: [
-            'Conexión local instantánea escaneando el código QR con la cámara',
-            'Control remoto de diapositivas desde el altar por parte del predicador',
-            'Buscador móvil: Agrega canciones y pasajes desde el celular',
-            'Subir fotos directamente desde el móvil a la playlist principal'
+            {
+                label: '📱 Botón "Móvil" en la barra superior',
+                detail: 'Haz clic en "Móvil" para abrir un panel con un código QR.'
+            },
+            {
+                label: '📷 Escanear QR con la cámara',
+                detail: 'Apunta la cámara del celular al QR y se abrirá una página de control remoto en el navegador móvil.'
+            },
+            {
+                label: '👆 Control de diapositivas remoto',
+                detail: 'Desde el celular puedes avanzar, retroceder y seleccionar diapositivas sin tocar la computadora.'
+            },
+            {
+                label: '🔍 Buscador móvil',
+                detail: 'El control remoto incluye un buscador para agregar canciones y pasajes bíblicos desde el celular.'
+            }
         ],
-        tip: 'El predicador puede avanzar los slides de su prédica a su propio ritmo usando su teléfono inteligente.',
+        tip: 'El predicador puede avanzar los slides de su prédica desde el altar usando su propio teléfono.',
         color: 'from-cyan-600 via-blue-600 to-indigo-700',
+        accentColor: '#38bdf8',
         selector: '#playlist-panel'
     }
 ];
@@ -192,25 +353,44 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
     const [arrowDirection, setArrowDirection] = useState<'left' | 'right' | 'top' | 'bottom' | 'none'>('none');
     
-    // Interactive Checklist state
+    // Per-step checklist state
     const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
+    
+    // Track which steps have been fully completed
+    const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
     const step = STEPS[currentStep];
     const Icon = step.icon;
     const isLast = currentStep === STEPS.length - 1;
     const progress = Math.round(((currentStep + 1) / STEPS.length) * 100);
 
-    // Dynamic checks progress
     const checkedCount = checkedItems.size;
     const totalChecks = step.focus.length;
     const isStepFullyChecked = checkedCount === totalChecks;
 
-    // Reset checklist on step change
+    // When all items in a step are checked, mark the step as completed
     useEffect(() => {
-        setCheckedItems(new Set());
+        if (isStepFullyChecked) {
+            setCompletedSteps(prev => {
+                const next = new Set(prev);
+                next.add(currentStep);
+                return next;
+            });
+        }
+    }, [isStepFullyChecked, currentStep]);
+
+    // Reset checklist on step change (only if not previously completed)
+    useEffect(() => {
+        if (completedSteps.has(currentStep)) {
+            // Re-check all items for completed steps
+            const allChecks = new Set<number>();
+            step.focus.forEach((_, idx) => allChecks.add(idx));
+            setCheckedItems(allChecks);
+        } else {
+            setCheckedItems(new Set());
+        }
     }, [currentStep]);
 
-    // Handle check toggle
     const handleToggleCheck = (idx: number) => {
         setCheckedItems(prev => {
             const next = new Set(prev);
@@ -223,13 +403,22 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         });
     };
 
-    // Calculate position relative to highlighted element
-    const updatePosition = () => {
+    // Mark all checks at once
+    const handleMarkAllChecks = () => {
+        if (isStepFullyChecked) {
+            setCheckedItems(new Set());
+        } else {
+            const allChecks = new Set<number>();
+            step.focus.forEach((_, idx) => allChecks.add(idx));
+            setCheckedItems(allChecks);
+        }
+    };
+
+    const updatePosition = useCallback(() => {
         const selector = step.selector;
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
 
-        // If no selector or if screen is mobile, center the modal at the bottom
         if (!selector || windowWidth < 768) {
             setTooltipStyle({
                 position: 'fixed',
@@ -238,8 +427,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                 left: '50%',
                 transform: windowWidth < 768 ? 'translateX(-50%)' : 'translate(-50%, -50%)',
                 width: '94%',
-                maxWidth: '430px',
-                maxHeight: 'min(580px, 86vh)',
+                maxWidth: '460px',
+                maxHeight: 'min(600px, 88vh)',
                 display: 'flex',
                 flexDirection: 'column',
                 zIndex: 8500,
@@ -251,13 +440,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
         const element = document.querySelector(selector);
         if (!element) {
-            // Fallback to bottom right
             setTooltipStyle({
                 position: 'fixed',
                 bottom: '1.5rem',
                 right: '1.5rem',
-                width: '420px',
-                maxHeight: 'min(580px, 85vh)',
+                width: '440px',
+                maxHeight: 'min(600px, 88vh)',
                 display: 'flex',
                 flexDirection: 'column',
                 zIndex: 8500,
@@ -268,58 +456,40 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         }
 
         const rect = element.getBoundingClientRect();
-
-        // Calculate available space
         const spaceRight = windowWidth - rect.right;
         const spaceLeft = rect.left;
-        const spaceBottom = windowHeight - rect.bottom;
-        const spaceTop = rect.top;
 
         let style: React.CSSProperties = {
             position: 'fixed',
-            width: '420px',
-            maxHeight: 'min(580px, 85vh)', // ALWAYS restrict height so it fits on screen
+            width: '440px',
+            maxHeight: 'min(600px, 88vh)',
             display: 'flex',
             flexDirection: 'column',
             zIndex: 8500,
             transition: 'all 0.3s ease-out'
         };
 
-        // Decide where to position the card relative to the highlighted element
-        if (spaceRight > 440) {
-            // Right side of the element
+        if (spaceRight > 460) {
             style.left = `${rect.right + 20}px`;
-            style.top = `${Math.max(20, Math.min(rect.top + (rect.height - 400) / 2, windowHeight - 480))}px`;
+            style.top = `${Math.max(20, Math.min(rect.top + (rect.height - 420) / 2, windowHeight - 520))}px`;
             setArrowDirection('left');
-        } else if (spaceLeft > 440) {
-            // Left side of the element
-            style.left = `${rect.left - 440}px`;
-            style.top = `${Math.max(20, Math.min(rect.top + (rect.height - 400) / 2, windowHeight - 480))}px`;
+        } else if (spaceLeft > 460) {
+            style.left = `${rect.left - 460}px`;
+            style.top = `${Math.max(20, Math.min(rect.top + (rect.height - 420) / 2, windowHeight - 520))}px`;
             setArrowDirection('right');
-        } else if (spaceBottom > 420) {
-            // Below the element
-            style.left = `${Math.max(20, Math.min(rect.left + (rect.width - 420) / 2, windowWidth - 440))}px`;
-            style.top = `${rect.bottom + 20}px`;
-            setArrowDirection('top');
-        } else if (spaceTop > 420) {
-            // Above the element
-            style.left = `${Math.max(20, Math.min(rect.left + (rect.width - 420) / 2, windowWidth - 440))}px`;
-            style.top = `${rect.top - 420}px`;
-            setArrowDirection('bottom');
         } else {
-            // Center modal on screen if there is absolutely no space
             style.top = '50%';
             style.left = '50%';
             style.transform = 'translate(-50%, -50%)';
             style.width = '92%';
-            style.maxWidth = '440px';
+            style.maxWidth = '460px';
             setArrowDirection('none');
         }
 
         setTooltipStyle(style);
-    };
+    }, [step.selector]);
 
-    // Handle spotlight scroll and active class
+    // Spotlight highlight
     useEffect(() => {
         const selector = step.selector;
         if (!selector) return;
@@ -327,7 +497,6 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         const element = document.querySelector(selector);
         if (element) {
             element.classList.add('tutorial-highlight-active');
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         
         return () => {
@@ -341,15 +510,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     useEffect(() => {
         updatePosition();
         window.addEventListener('resize', updatePosition);
-        
-        // Timeout to handle panel dimensions correctly
         const timer = setTimeout(updatePosition, 150);
         
         return () => {
             window.removeEventListener('resize', updatePosition);
             clearTimeout(timer);
         };
-    }, [currentStep]);
+    }, [currentStep, updatePosition]);
 
     const handleNext = () => {
         if (isLast) {
@@ -369,10 +536,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         setTimeout(onComplete, 250);
     };
 
+    const completedCount = completedSteps.size;
+    const totalSteps = STEPS.length;
+
     return (
         <>
-            {/* Backdrop Dimming Overlay */}
-            <div className={`fixed inset-0 bg-slate-950/85 backdrop-blur-[2px] z-[7000] pointer-events-auto transition-opacity duration-300 ${isExiting ? 'opacity-0' : 'opacity-100'}`} />
+            {/* Backdrop */}
+            <div className={`fixed inset-0 bg-slate-950/88 backdrop-blur-[3px] z-[7000] pointer-events-auto transition-opacity duration-300 ${isExiting ? 'opacity-0' : 'opacity-100'}`} />
 
             <style>{`
                 @keyframes tutorialPulse {
@@ -382,7 +552,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                     }
                     50% {
                         outline-color: rgba(34, 211, 238, 1);
-                        box-shadow: 0 0 35px 12px rgba(34, 211, 238, 0.6);
+                        box-shadow: 0 0 40px 14px rgba(34, 211, 238, 0.5);
                     }
                     100% {
                         outline-color: rgba(34, 211, 238, 0.4);
@@ -391,151 +561,260 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                 }
                 @keyframes subtleBounce {
                     0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-4px); }
+                    50% { transform: translateY(-3px); }
+                }
+                @keyframes slideInFromRight {
+                    from { opacity: 0; transform: translateX(16px); }
+                    to { opacity: 1; transform: translateX(0); }
                 }
                 .animate-bounce-subtle {
                     animation: subtleBounce 2s infinite ease-in-out;
+                }
+                .animate-slide-in {
+                    animation: slideInFromRight 0.3s ease-out forwards;
                 }
                 .tutorial-highlight-active {
                     position: relative !important;
                     z-index: 8000 !important;
                     animation: tutorialPulse 2s infinite ease-in-out !important;
-                    outline: 6px solid #22d3ee !important;
+                    outline: 5px solid #22d3ee !important;
                     outline-offset: 4px !important;
-                    background-color: rgba(15, 23, 42, 0.95) !important;
+                    background-color: rgba(15, 23, 42, 0.97) !important;
                     transition: all 0.3s ease !important;
                     border-radius: 12px;
                 }
+                .onboarding-scrollbar::-webkit-scrollbar { width: 4px; }
+                .onboarding-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .onboarding-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+                .onboarding-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
             `}</style>
 
-            {/* Guided Tutorial Tooltip Card */}
+            {/* Guided Tutorial Card */}
             <div
                 style={tooltipStyle}
-                className={`flex flex-col bg-slate-900 border border-white/15 rounded-[28px] shadow-[0_24px_80px_rgba(0,0,0,0.9),0_0_35px_rgba(34,211,238,0.18)] overflow-visible transition-all duration-300 ${isExiting ? 'opacity-0 scale-95 translate-y-8' : 'opacity-100 scale-100 translate-y-0 animate-scale-up'}`}
+                className={`flex flex-col bg-[#0c1221] border border-white/[0.12] rounded-[24px] shadow-[0_30px_100px_rgba(0,0,0,0.95),0_0_40px_rgba(99,102,241,0.12)] overflow-hidden transition-all duration-300 ${isExiting ? 'opacity-0 scale-95 translate-y-8' : 'opacity-100 scale-100 translate-y-0'}`}
             >
-                {/* Arrow pointer styling */}
+                {/* Arrows */}
                 {arrowDirection === 'left' && (
-                    <div className="absolute left-[-10px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-r-[10px] border-r-slate-900 filter drop-shadow-[-2px_0_1px_rgba(255,255,255,0.15)] z-[8501]" />
+                    <div className="absolute left-[-10px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-r-[10px] border-r-[#0c1221] z-[8501]" />
                 )}
                 {arrowDirection === 'right' && (
-                    <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[10px] border-l-slate-900 filter drop-shadow-[2px_0_1px_rgba(255,255,255,0.15)] z-[8501]" />
-                )}
-                {arrowDirection === 'top' && (
-                    <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-slate-900 filter drop-shadow-[0_-2px_1px_rgba(255,255,255,0.15)] z-[8501]" />
-                )}
-                {arrowDirection === 'bottom' && (
-                    <div className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-slate-900 filter drop-shadow-[0_2px_1px_rgba(255,255,255,0.15)] z-[8501]" />
+                    <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[10px] border-l-[#0c1221] z-[8501]" />
                 )}
 
-                {/* Header Banner */}
-                <div className={`p-5 bg-gradient-to-br ${step.color} relative shrink-0 rounded-t-[27px] overflow-hidden`}>
-                    <div className="absolute -right-10 -bottom-10 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
-                    <div className="flex items-center justify-between relative z-10">
-                        <span className="bg-white/20 border border-white/30 text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full text-white">
-                            {step.tag} • Paso {currentStep + 1} de {STEPS.length}
-                        </span>
-                        <button 
-                            onClick={handleComplete} 
-                            className="text-white/60 hover:text-white transition-colors"
-                            title="Saltar tutorial"
-                        >
-                            <X size={16} />
-                        </button>
-                    </div>
-                    <div className="flex items-center gap-3 mt-3 relative z-10">
-                        <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-lg">
-                            <Icon size={20} className="text-white" />
-                        </div>
-                        <h3 className="text-sm font-black text-white uppercase tracking-wide leading-tight">{step.title}</h3>
-                    </div>
-                </div>
-
-                {/* Content Body - Pure Flex-1 with scrollbar */}
-                <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-950/20">
-                    <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
-                        {step.description}
-                    </p>
-
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Puntos Clave:</p>
-                            <span className="text-[9px] text-cyan-400 font-bold bg-cyan-950/60 px-2 py-0.5 border border-cyan-800/30 rounded-full">
-                                {checkedCount} de {totalChecks} completados
+                {/* ═══════ HEADER ═══════ */}
+                <div className={`px-5 pt-4 pb-3 bg-gradient-to-br ${step.color} relative shrink-0 overflow-hidden`}>
+                    <div className="absolute -right-12 -bottom-12 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
+                    <div className="absolute left-0 bottom-0 right-0 h-px bg-white/10" />
+                    
+                    {/* Top bar */}
+                    <div className="flex items-center justify-between relative z-10 mb-3">
+                        <div className="flex items-center gap-2">
+                            <span className="bg-white/20 border border-white/25 text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full text-white/90">
+                                {step.tag}
+                            </span>
+                            <span className="text-[9px] text-white/50 font-bold">
+                                {currentStep + 1}/{STEPS.length}
                             </span>
                         </div>
-                        
-                        <div className="flex flex-col gap-2">
-                            {step.focus.map((item, idx) => {
-                                const isChecked = checkedItems.has(idx);
-                                return (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleToggleCheck(idx)}
-                                        className={`w-full text-left flex items-start gap-3 p-2.5 rounded-xl border transition-all duration-200 ${
-                                            isChecked 
-                                                ? 'bg-cyan-950/20 border-cyan-500/35 shadow-[0_0_12px_rgba(34,211,238,0.06)]' 
-                                                : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04] hover:border-white/10'
-                                        }`}
-                                    >
-                                        <div className={`mt-0.5 w-4 h-4 rounded-md flex items-center justify-center shrink-0 text-[10px] font-black border transition-all duration-200 ${
-                                            isChecked 
-                                                ? 'bg-cyan-500 border-cyan-400 text-slate-950' 
-                                                : 'border-slate-700 bg-slate-900/60 text-transparent hover:border-cyan-500/50'
-                                        }`}>
-                                            ✓
-                                        </div>
-                                        <span className={`text-[10.5px] font-medium leading-tight transition-all duration-200 ${
-                                            isChecked 
-                                                ? 'text-slate-400 line-through decoration-cyan-500/30' 
-                                                : 'text-slate-200'
-                                        }`}>
-                                            {item}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                        <button 
+                            onClick={handleComplete} 
+                            className="text-white/50 hover:text-white transition-colors hover:bg-white/10 rounded-lg p-1"
+                            title="Saltar tutorial"
+                        >
+                            <X size={14} />
+                        </button>
                     </div>
-
-                    <div className="bg-cyan-950/40 border border-cyan-500/25 text-cyan-200/90 p-3.5 rounded-xl text-[10.5px] leading-relaxed shadow-inner">
-                        💡 Tip: {step.tip}
+                    
+                    {/* Title */}
+                    <div className="flex items-center gap-3 relative z-10">
+                        <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-lg">
+                            <Icon size={20} className="text-white" />
+                        </div>
+                        <div>
+                            <h3 className="text-[13px] font-black text-white leading-tight">{step.title}</h3>
+                        </div>
                     </div>
                 </div>
 
-                {/* Progress and Navigation Footer */}
-                <div className="p-4 bg-slate-950/80 border-t border-white/5 rounded-b-[27px] shrink-0 flex flex-col gap-3">
-                    {/* Progress bar */}
-                    <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-500">
-                        <span>{progress}% completado</span>
-                        <div className="flex gap-1">
-                            {STEPS.map((_, idx) => (
-                                <button 
-                                    key={idx}
-                                    onClick={() => setCurrentStep(idx)}
-                                    className={`h-1.5 rounded-full transition-all ${idx === currentStep ? 'w-4 bg-indigo-400' : idx < currentStep ? 'w-2 bg-indigo-400/50' : 'w-1 bg-slate-700'}`}
-                                />
-                            ))}
+                {/* ═══════ STEP NAVIGATION DOTS ═══════ */}
+                <div className="px-4 py-2 bg-slate-950/60 border-b border-white/5 flex items-center gap-1 shrink-0 overflow-x-auto">
+                    {STEPS.map((s, idx) => {
+                        const isCompleted = completedSteps.has(idx);
+                        const isCurrent = idx === currentStep;
+                        const StepIcon = s.icon;
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => setCurrentStep(idx)}
+                                className={`relative flex items-center justify-center shrink-0 transition-all duration-200 rounded-lg ${
+                                    isCurrent 
+                                        ? 'w-8 h-8 border-2 shadow-lg' 
+                                        : 'w-6 h-6 border hover:scale-110'
+                                } ${
+                                    isCompleted 
+                                        ? isCurrent
+                                            ? 'bg-emerald-500/30 border-emerald-400/80'
+                                            : 'bg-emerald-500/15 border-emerald-500/40'
+                                        : isCurrent
+                                            ? 'bg-white/10 border-white/40'
+                                            : 'bg-white/[0.03] border-white/10 hover:border-white/25'
+                                }`}
+                                title={`${s.tag}${isCompleted ? ' ✓' : ''}`}
+                                style={isCurrent ? { borderColor: step.accentColor + '80' } : {}}
+                            >
+                                {isCompleted ? (
+                                    <Check size={isCurrent ? 14 : 10} className="text-emerald-400" />
+                                ) : (
+                                    <StepIcon size={isCurrent ? 14 : 10} className={isCurrent ? 'text-white' : 'text-slate-500'} />
+                                )}
+                            </button>
+                        );
+                    })}
+                    <div className="ml-auto text-[9px] font-bold text-slate-500 shrink-0 pl-2">
+                        {completedCount}/{totalSteps}
+                    </div>
+                </div>
+
+                {/* ═══════ CONTENT BODY ═══════ */}
+                <div className="flex-1 overflow-y-auto onboarding-scrollbar bg-[#0a0f1a]">
+                    {/* Description */}
+                    <div className="px-5 pt-4 pb-3">
+                        <p className="text-[11.5px] text-slate-300 leading-[1.7] font-medium">
+                            {step.description}
+                        </p>
+                    </div>
+
+                    {/* Checklist Header */}
+                    <div className="px-5 pb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Eye size={11} className="text-slate-500" />
+                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]">
+                                Puntos a revisar
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleMarkAllChecks}
+                                className="text-[8px] font-bold text-slate-500 hover:text-cyan-400 transition-colors uppercase tracking-wider"
+                            >
+                                {isStepFullyChecked ? 'Desmarcar' : 'Marcar todos'}
+                            </button>
+                            <span 
+                                className="text-[9px] font-black px-2 py-0.5 rounded-full border transition-all"
+                                style={{
+                                    color: isStepFullyChecked ? '#34d399' : step.accentColor,
+                                    borderColor: isStepFullyChecked ? 'rgba(52,211,153,0.3)' : step.accentColor + '30',
+                                    backgroundColor: isStepFullyChecked ? 'rgba(52,211,153,0.08)' : step.accentColor + '10'
+                                }}
+                            >
+                                {checkedCount}/{totalChecks}
+                            </span>
                         </div>
                     </div>
 
-                    {/* Navigation Buttons */}
+                    {/* Checklist Items */}
+                    <div className="px-4 pb-3 flex flex-col gap-1.5">
+                        {step.focus.map((item, idx) => {
+                            const isChecked = checkedItems.has(idx);
+                            return (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleToggleCheck(idx)}
+                                    className={`animate-slide-in w-full text-left rounded-xl border transition-all duration-200 ${
+                                        isChecked 
+                                            ? 'bg-emerald-950/20 border-emerald-500/25' 
+                                            : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/10'
+                                    }`}
+                                    style={{ animationDelay: `${idx * 60}ms` }}
+                                >
+                                    <div className="flex items-start gap-3 p-3">
+                                        {/* Checkbox */}
+                                        <div className={`mt-0.5 w-[18px] h-[18px] rounded-md flex items-center justify-center shrink-0 border-2 transition-all duration-200 ${
+                                            isChecked 
+                                                ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.3)]' 
+                                                : 'border-slate-600 bg-slate-900/80 hover:border-slate-400'
+                                        }`}>
+                                            {isChecked && <Check size={11} className="text-white" strokeWidth={3} />}
+                                        </div>
+                                        
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0">
+                                            <span className={`text-[11px] font-bold block leading-tight transition-all duration-200 ${
+                                                isChecked ? 'text-emerald-300/80' : 'text-slate-200'
+                                            }`}>
+                                                {item.label}
+                                            </span>
+                                            <span className={`text-[10px] mt-1 block leading-relaxed transition-all duration-200 ${
+                                                isChecked ? 'text-slate-500' : 'text-slate-400'
+                                            }`}>
+                                                {item.detail}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Tip Box */}
+                    <div className="px-5 pb-4">
+                        <div className="bg-cyan-950/30 border border-cyan-500/20 text-cyan-200/90 px-4 py-3 rounded-xl text-[10.5px] leading-relaxed flex gap-2.5">
+                            <Info size={14} className="text-cyan-400 shrink-0 mt-0.5" />
+                            <span>{step.tip}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ═══════ FOOTER ═══════ */}
+                <div className="px-4 py-3 bg-slate-950/90 border-t border-white/[0.06] shrink-0 flex flex-col gap-2.5">
+                    {/* Progress bar */}
+                    <div className="flex items-center gap-3">
+                        <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                                className="h-full rounded-full transition-all duration-500 ease-out"
+                                style={{ 
+                                    width: `${progress}%`,
+                                    background: `linear-gradient(90deg, ${step.accentColor}, ${step.accentColor}88)`
+                                }}
+                            />
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-500 shrink-0 w-8 text-right">{progress}%</span>
+                    </div>
+
+                    {/* Navigation */}
                     <div className="flex gap-2">
                         <button
                             onClick={handlePrev}
-                            className={`flex-1 h-9 rounded-xl border border-white/10 bg-white/[0.04] text-[10px] font-black uppercase tracking-wider text-slate-300 transition-all hover:bg-white/10 hover:text-white ${currentStep === 0 ? 'invisible' : ''}`}
+                            className={`h-10 px-4 rounded-xl border border-white/10 bg-white/[0.03] text-[10px] font-black uppercase tracking-wider text-slate-400 transition-all hover:bg-white/[0.08] hover:text-white flex items-center gap-1.5 ${currentStep === 0 ? 'invisible' : ''}`}
                         >
-                            Anterior
+                            <ChevronLeft size={12} />
+                            Atrás
                         </button>
                         <button
                             onClick={handleNext}
-                            className={`flex-[1.4] h-9 rounded-xl text-[10px] font-black uppercase tracking-wider text-white shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 ${
+                            className={`flex-1 h-10 rounded-xl text-[10px] font-black uppercase tracking-wider text-white shadow-lg active:scale-[0.97] transition-all flex items-center justify-center gap-1.5 ${
                                 isStepFullyChecked 
-                                    ? 'bg-cyan-400 text-slate-950 shadow-[0_0_15px_#22d3ee] brightness-125 animate-bounce-subtle' 
+                                    ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(52,211,153,0.25)] animate-bounce-subtle' 
                                     : `bg-gradient-to-r ${step.color} hover:brightness-110`
                             }`}
                         >
-                            {isLast ? 'Entendido' : 'Siguiente'}
-                            {isLast ? <Check size={12} /> : <ArrowRight size={12} />}
+                            {isLast ? (
+                                <>
+                                    <Check size={13} />
+                                    ¡Entendido! Comenzar
+                                </>
+                            ) : isStepFullyChecked ? (
+                                <>
+                                    Siguiente Paso
+                                    <ArrowRight size={13} />
+                                </>
+                            ) : (
+                                <>
+                                    Siguiente
+                                    <ArrowRight size={13} />
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>

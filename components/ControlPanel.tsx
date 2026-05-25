@@ -2222,39 +2222,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       }}
                     />
 
-                    {inputType === 'youtube' && (
-                      <div className="flex gap-2 mt-2">
-                        <button
-                          onClick={() => {
-                            const query = inputText.trim() || 'musica cristiana';
-                            handleYoutubeFullSearch(query);
-                          }}
-                          className="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 text-red-400 text-[10px] font-black uppercase py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                          type="button"
-                        >
-                          <Search size={12} className="text-red-500" />
-                          Buscar en Aplicacion
-                        </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const text = await navigator.clipboard.readText();
-                              if (text) {
-                                setInputText(text);
-                              }
-                            } catch (err) {
-                              alert("Por favor, permite el permiso para leer el portapapeles o pega el enlace manualmente.");
-                            }
-                          }}
-                          className="flex-1 bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-400 text-[10px] font-black uppercase py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
-                          type="button"
-                        >
-                          <Upload size={12} className="text-indigo-500" />
-                          Auto-Pegar Enlace
-                        </button>
-                      </div>
-                    )}
-
                     {/* Bible Book Suggestions Dropdown */}
                     {showBibleSuggestions && bibleSuggestions.length > 0 && inputType === 'scripture' && (
                       <div className="absolute z-50 w-full mt-1 bg-gray-900 border border-indigo-500/50 rounded-xl shadow-2xl overflow-hidden animate-fade-in">
