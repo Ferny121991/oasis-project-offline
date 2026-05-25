@@ -183,6 +183,10 @@ const App: React.FC = () => {
   // Sync Confirmation Modal State
   const [syncConfirm, setSyncConfirm] = useState<SyncConfirmConfig | null>(null);
 
+  // Collapsible panels state
+  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
+  const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
+
   const [activeView, setActiveView] = useState<'main' | 'lyrics-search'>('main');
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(-1);
@@ -2818,7 +2822,15 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row h-[100dvh] bg-[linear-gradient(135deg,#07111d_0%,#0b1020_46%,#020409_100%)] text-white font-sans overflow-hidden select-none">
       {/* LEFT: Control Center (30%) */}
-      <div id="control-panel" className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[28%] flex-shrink-0 scrollbar-hide overflow-hidden bg-[#080d17]/95 border-r border-white/10 flex-col shadow-2xl`}>
+      <div 
+        id="control-panel" 
+        className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none flex-shrink-0 scrollbar-hide overflow-hidden bg-[#080d17]/95 border-r border-white/10 flex-col shadow-2xl transition-all duration-300`}
+        style={{
+          width: isLeftSidebarCollapsed ? '0px' : '28%',
+          opacity: isLeftSidebarCollapsed ? 0 : 1,
+          borderRightWidth: isLeftSidebarCollapsed ? '0px' : '1px'
+        }}
+      >
         <ControlPanel
           onAddItem={handleAddItem}
           onUpdateTheme={handleUpdateActiveItemTheme}
@@ -2878,7 +2890,24 @@ const App: React.FC = () => {
       </div>
 
       {/* MIDDLE: Playlist & Management (45%) */}
-      <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-white/10 min-w-0 lg:min-w-[300px] overflow-hidden bg-[linear-gradient(180deg,#0a101b_0%,#080d17_52%,#050812_100%)]`}>
+      <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-white/10 min-w-0 lg:min-w-[300px] overflow-hidden bg-[linear-gradient(180deg,#0a101b_0%,#080d17_52%,#050812_100%)] relative`}>
+        {/* Left Collapse Handle */}
+        <button
+          onClick={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
+          className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 z-50 h-16 w-[18px] items-center justify-center rounded-r-2xl border-y border-r border-white/10 bg-[#0c1220]/95 text-slate-400 hover:text-cyan-300 hover:bg-[#0f172a] hover:shadow-[0_0_15px_rgba(34,211,238,0.25)] hover:border-cyan-500/30 transition-all duration-300 cursor-pointer shadow-lg"
+          title={isLeftSidebarCollapsed ? "Mostrar editor y logo" : "Ocultar editor y logo"}
+        >
+          {isLeftSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+
+        {/* Right Collapse Handle */}
+        <button
+          onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+          className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-50 h-16 w-[18px] items-center justify-center rounded-l-2xl border-y border-l border-white/10 bg-[#0c1220]/95 text-slate-400 hover:text-cyan-300 hover:bg-[#0f172a] hover:shadow-[0_0_15px_rgba(34,211,238,0.25)] hover:border-cyan-500/30 transition-all duration-300 cursor-pointer shadow-lg"
+          title={isRightSidebarCollapsed ? "Mostrar proyección y controles" : "Ocultar proyección y controles"}
+        >
+          {isRightSidebarCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+        </button>
         {/* Mobile Header - Compact with Live Status */}
         <div className="lg:hidden bg-slate-900/80 backdrop-blur-md px-4 py-3 border-b border-white/10 flex justify-between items-center shrink-0 relative z-20">
           <div className="flex items-center gap-2.5">
@@ -3239,7 +3268,15 @@ const App: React.FC = () => {
       </div>
 
       {/* RIGHT: Live Preview & Presenter Tools (35%) */}
-      <div id="live-preview-panel" className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[34%] flex-shrink-0 flex-col bg-[#070b13] relative border-l border-white/10 overflow-hidden`}>
+      <div 
+        id="live-preview-panel" 
+        className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none flex-shrink-0 flex-col bg-[#070b13] relative border-l border-white/10 overflow-hidden transition-all duration-300`}
+        style={{
+          width: isRightSidebarCollapsed ? '0px' : '34%',
+          opacity: isRightSidebarCollapsed ? 0 : 1,
+          borderLeftWidth: isRightSidebarCollapsed ? '0px' : '1px'
+        }}
+      >
 
         {/* TOP BAR: Clock and Status - Responsive */}
         <div className="h-12 lg:h-14 bg-[#0a101b] border-b border-white/10 flex items-center justify-between px-3 lg:px-4 shrink-0 shadow-[0_16px_45px_rgba(0,0,0,0.24)]">
