@@ -261,12 +261,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     typeof window !== 'undefined' && window.innerWidth < 1024 ? 'scripture' : 'youtube'
   );
 
-  useEffect(() => {
-    if (isMobile && inputType === 'youtube') {
-      setInputType('scripture');
-    }
-  }, [isMobile]);
-
   const [bibleVersion, setBibleVersion] = useState('Reina Valera 1960');
   const [density, setDensity] = useState<DensityMode>('classic');
   const [songResults, setSongResults] = useState<SongSearchResult[]>([]);
@@ -1916,18 +1910,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             <div className="bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(8,13,25,0.78))] rounded-[1.35rem] p-4 border border-white/10 shadow-2xl shadow-black/20">
               <label className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em] mb-3 block">Seleccionar Origen</label>
-              <div className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-5'} gap-3`}>
-                {!isMobile && (
-                  <button
-                    onClick={() => { setInputType('youtube'); setSongResults([]); }}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${inputType === 'youtube' ? 'bg-gradient-to-br from-red-600/35 to-rose-600/20 border-red-400/60 shadow-lg shadow-red-950/20' : 'bg-slate-950/60 border-white/10 hover:border-cyan-300/40 hover:bg-white/[0.04]'}`}
-                  >
-                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${inputType === 'youtube' ? 'bg-red-500' : 'bg-slate-700'}`}>
-                      <Monitor size={18} className="text-white" />
-                    </div>
-                    <span className={`text-[10px] font-bold uppercase ${inputType === 'youtube' ? 'text-red-300' : 'text-gray-400'}`}>YouTube</span>
-                  </button>
-                )}
+              <div className={`grid ${isMobile ? 'grid-cols-4' : 'grid-cols-5'} gap-3`}>
+                <button
+                  onClick={() => { setInputType('youtube'); setSongResults([]); }}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${inputType === 'youtube' ? 'bg-gradient-to-br from-red-600/35 to-rose-600/20 border-red-400/60 shadow-lg shadow-red-950/20' : 'bg-slate-950/60 border-white/10 hover:border-cyan-300/40 hover:bg-white/[0.04]'}`}
+                >
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${inputType === 'youtube' ? 'bg-red-500' : 'bg-slate-700'}`}>
+                    <Monitor size={18} className="text-white" />
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase ${inputType === 'youtube' ? 'text-red-300' : 'text-gray-400'}`}>YouTube</span>
+                </button>
                 <button
                   onClick={() => {
                     setInputType('manual');
