@@ -253,7 +253,7 @@ const ActionHistoryPanel: React.FC<ActionHistoryPanelProps> = ({ isOpen, onClose
                     </div>
 
                     {/* Filter Pills */}
-                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                    <div className="flex flex-wrap gap-1.5 pb-0.5">
                         {[
                             { id: 'all', label: 'Todos', icon: '📋' },
                             { id: 'songs', label: 'Canciones', icon: '🎵' },
@@ -264,7 +264,7 @@ const ActionHistoryPanel: React.FC<ActionHistoryPanelProps> = ({ isOpen, onClose
                             <button
                                 key={filter.id}
                                 onClick={() => setActiveFilter(filter.id as any)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shrink-0 ${
+                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
                                     activeFilter === filter.id 
                                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/15 border border-indigo-400/20' 
                                         : 'bg-white/[0.03] border border-white/5 text-slate-400 hover:text-white hover:bg-white/[0.06]'
