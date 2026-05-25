@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ArrowRight,
     Check,
@@ -32,6 +32,7 @@ interface TutorialStep {
     focus: string[];
     tip: string;
     color: string;
+    selector?: string; // HTML Selector to spotlight highlight
 }
 
 const STEPS: TutorialStep[] = [
@@ -39,127 +40,103 @@ const STEPS: TutorialStep[] = [
         icon: Sparkles,
         tag: 'Bienvenida',
         title: 'Bienvenido a FlujoEclesial Studio',
-        description: 'Aprende el flujo completo sin detenerte en detalles innecesarios.',
-        focus: ['Preparar contenido antes del servicio', 'Proyectar con una salida limpia', 'Controlar desde celular o tablet', 'Trabajar aunque falle internet'],
-        tip: 'El tour esta pensado para cabina: corto, directo y facil de seguir.',
+        description: 'Aprende a operar la proyección eclesial como un profesional con este tour interactivo. La cabina ahora tiene más espacio y máxima seguridad.',
+        focus: [
+            'Panel central de diapositivas expandible',
+            'Suite tipográfica para el texto del Logo',
+            'Prevención de borrados en auto-guardado',
+            'Historial de auditoría en tiempo real sin duplicados'
+        ],
+        tip: 'Observa cómo el sistema resalta dinámicamente las áreas explicadas en la interfaz.',
         color: 'from-indigo-600 via-violet-600 to-fuchsia-700'
     },
     {
         icon: Library,
-        tag: 'Contenido',
-        title: 'Prepara canciones, textos y recursos',
-        description: 'Todo comienza en el panel de contenido.',
-        focus: ['YouTube para videos y musica de fondo', 'Manual para avisos, lecturas y textos libres', 'Biblia para pasajes listos para proyectar', 'Imagenes y elementos nuevos desde cero'],
-        tip: 'Prepara primero, proyecta despues. Ese orden evita carreras durante el servicio.',
-        color: 'from-sky-600 via-cyan-600 to-teal-700'
-    },
-    {
-        icon: BookOpen,
-        tag: 'Biblia',
-        title: 'Crea lecturas biblicas en segundos',
-        description: 'Busca una referencia y conviertela en diapositivas limpias.',
-        focus: ['RV1960, NVI, NTV, LBLA, NIV, KJV y NKJV', 'Autocompletado de libros', 'Formato consistente para lectura publica', 'Util para predicacion, lecturas y anuncios'],
-        tip: 'Usa referencias claras como Juan 3:16 o Salmos 23:1-4.',
-        color: 'from-amber-600 via-orange-600 to-rose-600'
-    },
-    {
-        icon: UploadCloud,
-        tag: 'Importacion',
-        title: 'Agrega PDF, PowerPoint y multimedia',
-        description: 'El material externo entra al mismo flujo de presentacion.',
-        focus: ['PowerPoint convertido en slides', 'PDF integrado al servicio', 'Imagenes y videos locales', 'Medios organizados junto a canciones y textos'],
-        tip: 'Revisa cada archivo importado en vista previa antes de salir en vivo.',
-        color: 'from-blue-700 via-indigo-700 to-violet-700'
-    },
-    {
-        icon: Palette,
-        tag: 'Diseno',
-        title: 'Ajusta el estilo antes de proyectar',
-        description: 'Controla la apariencia sin perder velocidad.',
-        focus: ['Temas predefinidos', 'Fuentes, tamanos, sombras y colores', 'Fondos, degradados e imagenes', 'Vista previa antes de enviar'],
-        tip: 'Un estilo simple y consistente casi siempre se ve mas profesional.',
-        color: 'from-purple-600 via-pink-600 to-rose-600'
-    },
-    {
-        icon: List,
-        tag: 'Playlist',
-        title: 'Ordena el servicio completo',
-        description: 'La playlist funciona como la escaleta de cabina.',
-        focus: ['Arrastra para reordenar', 'Edita titulos para claridad', 'Agrupa canciones, lecturas y avisos', 'Separa eventos usando proyectos'],
-        tip: 'Nombra los elementos como los diria el equipo: Cancion 1, Lectura, Anuncios, Predica.',
-        color: 'from-emerald-600 via-teal-600 to-cyan-700'
+        tag: 'Editor & Logo',
+        title: 'Diseño en Acordeón y Suite del Logo',
+        description: 'En el panel izquierdo editas las canciones y creas logos espectaculares con textos completamente estilizados.',
+        focus: [
+            'Secciones colapsables en acordeón',
+            'Suite tipográfica completa para el logo',
+            'Tamaño inteligente auto-escalable en cqh',
+            'Gradientes, bordes y sombras premium'
+        ],
+        tip: 'Haz clic en las secciones del logo en el panel de la izquierda para expandirlas de forma ultra-organizada.',
+        color: 'from-sky-600 via-cyan-600 to-teal-700',
+        selector: '#control-panel'
     },
     {
         icon: Layout,
-        tag: 'Slides',
-        title: 'Revisa cada diapositiva antes de enviarla',
-        description: 'Selecciona, previsualiza y manda al vivo cuando este lista.',
-        focus: ['Clic para previsualizar', 'Doble clic para enviar en vivo', 'Flechas para navegar rapido', 'PDF y PPTX entran en este flujo'],
-        tip: 'La vista previa es tu ultimo filtro antes de que lo vea la audiencia.',
-        color: 'from-violet-600 via-indigo-600 to-blue-700'
+        tag: 'Mesa Central',
+        title: 'Workspace Ultra-Espacioso',
+        description: 'La playlist central ahora es ultra-flexible. Puedes ocultar los paneles laterales para concentrarte en el servicio.',
+        focus: [
+            'Tirador izquierdo: oculta el Editor',
+            'Tirador derecho: oculta la Proyección',
+            'Espacio central expandido al 100% de ancho',
+            'Transición premium y fluida de 300ms'
+        ],
+        tip: 'Haz clic en las flechas flotantes de los bordes para deslizar y colapsar los paneles en tiempo real.',
+        color: 'from-emerald-600 via-teal-600 to-cyan-700',
+        selector: '#playlist-panel'
     },
     {
         icon: Cast,
         tag: 'En vivo',
-        title: 'Controla la salida del proyector',
-        description: 'Usa los botones de seguridad para transiciones limpias.',
-        focus: ['Black para pantalla negra', 'Clear para ocultar texto', 'Logo para pausa visual', 'Split y Proyector para salidas especiales'],
-        tip: 'Black, Clear y Logo salvan momentos cuando necesitas corregir algo rapido.',
-        color: 'from-orange-600 via-amber-600 to-yellow-600'
+        title: 'Proyección y Vista Previa',
+        description: 'El panel derecho te muestra en tiempo real la proyección que ve la congregación y el monitor secundario.',
+        focus: [
+            'Visualización del proyector en vivo',
+            'Monitor activo y sincronización de ventanas',
+            'Control de escala y encuadre responsivo',
+            'Previsualización de animaciones premium'
+        ],
+        tip: 'Puedes colapsar este panel con el tirador derecho cuando no estés operando el vivo directamente.',
+        color: 'from-violet-600 via-indigo-600 to-blue-700',
+        selector: '#live-preview-panel'
     },
     {
-        icon: MonitorSmartphone,
-        tag: 'Remoto',
-        title: 'Opera desde celular o tablet',
-        description: 'El remoto te libera de estar pegado a la computadora.',
-        focus: ['Conexion por QR o URL local', 'Cambio de slides desde el movil', 'Busqueda dentro de la playlist', 'Agregar imagenes desde el dispositivo'],
-        tip: 'La computadora principal sigue abierta; el telefono solo envia comandos.',
-        color: 'from-cyan-600 via-blue-600 to-indigo-700'
-    },
-    {
-        icon: ZoomIn,
-        tag: 'Zoom',
-        title: 'Ajusta el encuadre desde el remoto',
-        description: 'Corrige imagenes o documentos sin rehacer la diapositiva.',
-        focus: ['Acercar y alejar', 'Mover el encuadre', 'Gestos tactiles compatibles', 'Reiniciar la vista original'],
-        tip: 'Util cuando una imagen o documento necesita leerse mejor en pantalla grande.',
-        color: 'from-fuchsia-600 via-purple-600 to-indigo-700'
+        icon: Play,
+        tag: 'Seguridad',
+        title: 'Acciones del Vivo (Estilo ProPresenter)',
+        description: 'Los botones de seguridad inferiores te otorgan control total e inmediato sobre la proyección ante cualquier imprevisto.',
+        focus: [
+            'Blackout: envía la pantalla a negro absoluto',
+            'Clear Text: oculta letras manteniendo el fondo',
+            'Show Logo: proyecta el logo con texto estilizado',
+            'Split Screen: divide la pantalla para traducción o lectura'
+        ],
+        tip: 'Puedes presionar F9 (Black), F10 (Clear), F12 (Logo) en tu teclado para activarlos instantáneamente.',
+        color: 'from-orange-600 via-amber-600 to-yellow-600',
+        selector: '#live-action-controls'
     },
     {
         icon: Cloud,
-        tag: 'Respaldo',
-        title: 'Trabaja local y sincroniza con control',
-        description: 'Prioriza estabilidad durante el evento y respalda cuando convenga.',
-        focus: ['Modo local-first', 'Supabase cuando esta configurado', 'Sincronizacion manual recomendada', 'Exportar e importar .oasis.json'],
-        tip: 'Antes de cambios grandes, exporta una copia del servicio.',
+        tag: 'Filtro Cloud',
+        title: 'Seguridad Antiborrados en la Nube',
+        description: 'Supabase mantiene tus datos a salvo. El sistema te protege contra eliminaciones locales accidentales.',
+        focus: [
+            'Detección fina a nivel de diapositivas/archivos',
+            'Aviso de borrados en auto-guardado automático',
+            'Advertencia de seguridad en sincronización manual',
+            'Freno del sync para evitar pérdidas irreversibles'
+        ],
+        tip: 'Si eliminas un archivo por error y guardas, la modal de advertencia te avisará qué diapositiva exacta se perderá.',
         color: 'from-slate-700 via-blue-700 to-cyan-700'
     },
     {
         icon: History,
-        tag: 'Recuperacion',
-        title: 'Corrige errores sin detener el flujo',
-        description: 'Historial, proyectos y respaldo ayudan a volver al camino.',
-        focus: ['Historial de acciones', 'Restauracion cuando haga falta', 'Importacion selectiva', 'Calendario y temporizador de apoyo'],
-        tip: 'En vivo, resolver rapido vale mas que editar perfecto.',
+        tag: 'Auditoría',
+        title: 'Historial Deduplicado & Atajos',
+        description: 'Sigue cada movimiento realizado en cabina y navega a la velocidad de la luz mediante el teclado.',
+        focus: [
+            'Historial libre de registros duplicados',
+            'Atajos rápidos: Espacio (Sig) y Flechas (Nav)',
+            'Filtrado instantáneo por categorías',
+            'Exportación de auditoría completa a texto'
+        ],
+        tip: 'Accede al historial en el menú superior para ver quién y cuándo realizó cualquier modificación.',
         color: 'from-rose-700 via-red-700 to-orange-700'
-    },
-    {
-        icon: Keyboard,
-        tag: 'Atajos',
-        title: 'Maneja la proyeccion con teclado',
-        description: 'Reduce clics y gana velocidad durante el servicio.',
-        focus: ['Espacio: siguiente slide', 'Flechas: navegar slides', 'B: blackout', 'C: clear', 'L: logo', 'P: proyector', 'F: pantalla completa'],
-        tip: 'Practica los atajos una vez antes del servicio y el flujo se siente mucho mas natural.',
-        color: 'from-zinc-700 via-slate-700 to-gray-800'
-    },
-    {
-        icon: Play,
-        tag: 'Listo',
-        title: 'Comienza con confianza',
-        description: 'Prepara, revisa, abre proyector, conecta remoto y opera desde la playlist.',
-        focus: ['Contenido listo antes de salir en vivo', 'Vista previa antes de enviar', 'Transiciones con Black, Clear o Logo', 'Respaldo al terminar'],
-        tip: 'La mejor proyeccion se siente invisible: clara, tranquila y sin distracciones.',
-        color: 'from-green-600 via-emerald-600 to-teal-700'
     }
 ];
 
@@ -171,6 +148,24 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     const Icon = step.icon;
     const isLast = currentStep === STEPS.length - 1;
     const progress = Math.round(((currentStep + 1) / STEPS.length) * 100);
+
+    // Dynamic spotlight highlighting
+    useEffect(() => {
+        const selector = step.selector;
+        if (!selector) return;
+        
+        const element = document.querySelector(selector);
+        if (element) {
+            element.classList.add('tutorial-highlight-active');
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        return () => {
+            if (element) {
+                element.classList.remove('tutorial-highlight-active');
+            }
+        };
+    }, [currentStep, step.selector]);
 
     const handleNext = () => {
         if (isLast) {
@@ -192,6 +187,30 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
     return (
         <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 p-3 sm:p-5 backdrop-blur-md transition-opacity duration-300 ${isExiting ? 'opacity-0' : 'opacity-100'}`}>
+            <style>{`
+                @keyframes tutorialPulse {
+                    0% {
+                        box-shadow: 0 0 0 0px rgba(34, 211, 238, 0.4);
+                        border-color: rgba(34, 211, 238, 0.4);
+                    }
+                    50% {
+                        box-shadow: 0 0 25px 8px rgba(34, 211, 238, 0.8);
+                        border-color: rgba(34, 211, 238, 1);
+                    }
+                    100% {
+                        box-shadow: 0 0 0 0px rgba(34, 211, 238, 0);
+                        border-color: rgba(34, 211, 238, 0.4);
+                    }
+                }
+                .tutorial-highlight-active {
+                    position: relative !important;
+                    z-index: 9998 !important;
+                    animation: tutorialPulse 2.2s infinite ease-in-out !important;
+                    outline: 4px solid #22d3ee !important;
+                    outline-offset: 2px !important;
+                    transition: all 0.3s ease !important;
+                }
+            `}</style>
             <section className="grid w-full max-w-5xl overflow-hidden rounded-[1.4rem] border border-white/10 bg-slate-950 shadow-[0_30px_100px_rgba(0,0,0,0.65)] lg:grid-cols-[330px_minmax(0,1fr)]">
                 <aside className={`relative flex flex-col justify-between overflow-hidden bg-gradient-to-br ${step.color} p-5 sm:p-7 lg:min-h-[560px]`}>
                     <div className="absolute -right-16 -bottom-16 h-56 w-56 rounded-full bg-white/15 blur-3xl" />
@@ -239,8 +258,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                                 </div>
                             ))}
                         </div>
-                        <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.07] p-4 text-sm leading-relaxed text-cyan-50/90">
-                            {step.tip}
+                        <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.07] p-4 text-sm leading-relaxed text-cyan-50/90 font-semibold shadow-inner">
+                            💡 Tip: {step.tip}
                         </div>
                     </div>
 
