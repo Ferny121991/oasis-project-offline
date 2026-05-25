@@ -296,10 +296,22 @@ export const actionHistoryService = {
                     .limit(limit);
 
                 if (!error && data) {
-                    // Combine and sort by date, removing duplicates by ID if they exist
+                    // Combine and sort by date, removing duplicates by checking similar action type, description and approximate timestamp (within 5 seconds)
                     const combined = [...data, ...history];
-                    const unique = Array.from(new Map(combined.map(item => [item.id || item.created_at, item])).values());
-                    history = (unique as ActionHistoryEntry[])
+                    const unique: ActionHistoryEntry[] = [];
+                    
+                    combined.forEach(item => {
+                        const isDuplicate = unique.some(u => 
+                            u.action_type === item.action_type &&
+                            u.description === item.description &&
+                            Math.abs(new Date(u.created_at!).getTime() - new Date(item.created_at!).getTime()) < 5000
+                        );
+                        if (!isDuplicate) {
+                            unique.push(item);
+                        }
+                    });
+                    
+                    history = unique
                         .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
                         .slice(0, limit);
                 }

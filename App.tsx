@@ -1368,7 +1368,12 @@ const App: React.FC = () => {
           if (!localProjectIds.has(p.id)) {
             deletedItems.push(`[Proyecto] ${p.name || 'Proyecto sin nombre'}`);
           } else {
+            // Evitar duplicar advertencias para el proyecto activo actual
+            // ya que sus elementos se comparan y reportan en la sección A (playlist principal)
+            if (currentProjectId && p.id === currentProjectId) return;
+
             const localProj = projects.find(lp => lp.id === p.id);
+
             if (localProj) {
               const localItemIds = new Set(localProj.playlist.map(item => item.id));
               (p.playlist || []).forEach((item: any) => {
@@ -1611,7 +1616,12 @@ const App: React.FC = () => {
             if (!localProjectIds.has(p.id)) {
               deletedItems.push(`[Proyecto] ${p.name || 'Proyecto sin nombre'}`);
             } else {
+              // Evitar duplicar advertencias para el proyecto activo actual
+              // ya que sus elementos se comparan y reportan en la sección A (playlist principal)
+              if (currentProjectId && p.id === currentProjectId) return;
+
               const localProj = projects.find(lp => lp.id === p.id);
+
               if (localProj) {
                 const localItemIds = new Set(localProj.playlist.map(item => item.id));
                 (p.playlist || []).forEach((item: any) => {
