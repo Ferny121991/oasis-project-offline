@@ -1344,6 +1344,19 @@ const App: React.FC = () => {
         cloudPlaylist.forEach((item: any) => {
           if (!localPlaylistIds.has(item.id)) {
             deletedItems.push(`[Lista] ${item.title || 'Canción/Sección'}`);
+          } else {
+            // El item sigue existiendo localmente. Verifiquemos si se eliminó algún slide (archivo) dentro de él
+            const localItem = playlist.find(li => li.id === item.id);
+            if (localItem) {
+              const localSlideIds = new Set(localItem.slides.map(s => s.id));
+              (item.slides || []).forEach((slide: any) => {
+                if (!localSlideIds.has(slide.id)) {
+                  const typeLabel = slide.type === 'video' ? 'Video' : slide.type === 'image' ? 'Imagen' : 'Diapositiva';
+                  const slideDesc = slide.label || (slide.content ? (slide.content.substring(0, 25) + '...') : `${typeLabel} #${slide.id}`);
+                  deletedItems.push(`[Archivo en ${item.title}] ${slideDesc}`);
+                }
+              });
+            }
           }
         });
 
@@ -1361,12 +1374,26 @@ const App: React.FC = () => {
               (p.playlist || []).forEach((item: any) => {
                 if (!localItemIds.has(item.id)) {
                   deletedItems.push(`[En Proyecto ${p.name}] ${item.title || 'Elemento'}`);
+                } else {
+                  // El item dentro del proyecto local sigue existiendo. Verifiquemos si se eliminó algún slide (archivo) dentro de él.
+                  const localItem = localProj.playlist.find(li => li.id === item.id);
+                  if (localItem) {
+                    const localSlideIds = new Set(localItem.slides.map(s => s.id));
+                    (item.slides || []).forEach((slide: any) => {
+                      if (!localSlideIds.has(slide.id)) {
+                        const typeLabel = slide.type === 'video' ? 'Video' : slide.type === 'image' ? 'Imagen' : 'Diapositiva';
+                        const slideDesc = slide.label || (slide.content ? (slide.content.substring(0, 25) + '...') : `${typeLabel} #${slide.id}`);
+                        deletedItems.push(`[Archivo en ${item.title} - Proy. ${p.name}] ${slideDesc}`);
+                      }
+                    });
+                  }
                 }
               });
             }
           }
         });
       }
+
 
       const executeSave = async () => {
         setIsSyncing(true);
@@ -1560,6 +1587,19 @@ const App: React.FC = () => {
           cloudPlaylist.forEach((item: any) => {
             if (!localPlaylistIds.has(item.id)) {
               deletedItems.push(`[Lista] ${item.title || 'Canción/Sección'}`);
+            } else {
+              // El item sigue existiendo localmente. Verifiquemos si se eliminó algún slide (archivo) dentro de él
+              const localItem = playlist.find(li => li.id === item.id);
+              if (localItem) {
+                const localSlideIds = new Set(localItem.slides.map(s => s.id));
+                (item.slides || []).forEach((slide: any) => {
+                  if (!localSlideIds.has(slide.id)) {
+                    const typeLabel = slide.type === 'video' ? 'Video' : slide.type === 'image' ? 'Imagen' : 'Diapositiva';
+                    const slideDesc = slide.label || (slide.content ? (slide.content.substring(0, 25) + '...') : `${typeLabel} #${slide.id}`);
+                    deletedItems.push(`[Archivo en ${item.title}] ${slideDesc}`);
+                  }
+                });
+              }
             }
           });
 
@@ -1577,6 +1617,19 @@ const App: React.FC = () => {
                 (p.playlist || []).forEach((item: any) => {
                   if (!localItemIds.has(item.id)) {
                     deletedItems.push(`[En Proyecto ${p.name}] ${item.title || 'Elemento'}`);
+                  } else {
+                    // El item dentro del proyecto local sigue existiendo. Verifiquemos si se eliminó algún slide (archivo) dentro de él.
+                    const localItem = localProj.playlist.find(li => li.id === item.id);
+                    if (localItem) {
+                      const localSlideIds = new Set(localItem.slides.map(s => s.id));
+                      (item.slides || []).forEach((slide: any) => {
+                        if (!localSlideIds.has(slide.id)) {
+                          const typeLabel = slide.type === 'video' ? 'Video' : slide.type === 'image' ? 'Imagen' : 'Diapositiva';
+                          const slideDesc = slide.label || (slide.content ? (slide.content.substring(0, 25) + '...') : `${typeLabel} #${slide.id}`);
+                          deletedItems.push(`[Archivo en ${item.title} - Proy. ${p.name}] ${slideDesc}`);
+                        }
+                      });
+                    }
                   }
                 });
               }
