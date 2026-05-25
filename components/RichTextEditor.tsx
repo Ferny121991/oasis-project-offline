@@ -118,8 +118,15 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         setShowToolbar(true);
     };
 
-    // Deseleccionar al hacer click fuera
+    // Deseleccionar al hacer click fuera o abrir editor en móviles
     const handleContainerClick = () => {
+        // En móviles, un solo clic en el contenedor abre la edición
+        const isMobile = window.innerWidth < 1024;
+        if (isMobile) {
+            handleDoubleClick();
+            return;
+        }
+
         if (selectedSegmentIds.size > 0) {
             setSelectedSegmentIds(new Set());
             setShowToolbar(false);
@@ -220,7 +227,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             >
                 {segments.length === 0 ? (
                     <span className="text-gray-500 text-sm italic">
-                        Doble clic para escribir texto...
+                        {window.innerWidth < 1024 ? 'Toca para escribir texto...' : 'Doble clic para escribir texto...'}
                     </span>
                 ) : (
                     segments.map((segment) => {
