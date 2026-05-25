@@ -1543,30 +1543,100 @@ const App: React.FC = () => {
         const safePlaylist = stripPlaylistMedia(playlist);
         const finalProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
 
-        const { error } = await supabase
+        // 1. Pre-chequear borrados locales antes de subir a la nube
+        const { data: settings } = await supabase
           .from('user_settings')
-          .upsert({
-            id: session.user.id,
-            playlist: safePlaylist,
-            custom_themes: customThemes,
-            projects: finalProjects,
-            current_project_id: currentProjectId,
-            updated_at: new Date().toISOString()
+          .select('playlist, projects')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        const deletedItems: string[] = [];
+
+        if (settings) {
+          // A. Comparar la playlist en la nube con la local
+          const cloudPlaylist = settings.playlist || [];
+          const localPlaylistIds = new Set(playlist.map(item => item.id));
+          
+          cloudPlaylist.forEach((item: any) => {
+            if (!localPlaylistIds.has(item.id)) {
+              deletedItems.push(`[Lista] ${item.title || 'Canción/Sección'}`);
+            }
           });
 
-        if (!error) {
-          lastCloudPlaylist.current = currentPlaylistStr;
-          lastCloudThemes.current = currentThemesStr;
-          lastCloudProjects.current = currentProjectsStr;
-          setSyncError(null);
-        } else {
-          console.error("Cloud sync error:", error);
-          setSyncError(describeCloudError(error, "Guardado local. Nube: error al sincronizar."));
+          // B. Comparar proyectos en la nube con locales
+          const cloudProjects = settings.projects || [];
+          const localProjectIds = new Set(projects.map(p => p.id));
+          
+          cloudProjects.forEach((p: any) => {
+            if (!localProjectIds.has(p.id)) {
+              deletedItems.push(`[Proyecto] ${p.name || 'Proyecto sin nombre'}`);
+            } else {
+              const localProj = projects.find(lp => lp.id === p.id);
+              if (localProj) {
+                const localItemIds = new Set(localProj.playlist.map(item => item.id));
+                (p.playlist || []).forEach((item: any) => {
+                  if (!localItemIds.has(item.id)) {
+                    deletedItems.push(`[En Proyecto ${p.name}] ${item.title || 'Elemento'}`);
+                  }
+                });
+              }
+            }
+          });
         }
+
+        const executeUpsert = async () => {
+          setIsSyncing(true);
+          const { error } = await supabase
+            .from('user_settings')
+            .upsert({
+              id: session.user.id,
+              playlist: safePlaylist,
+              custom_themes: customThemes,
+              projects: finalProjects,
+              current_project_id: currentProjectId,
+              updated_at: new Date().toISOString()
+            });
+
+          if (!error) {
+            lastCloudPlaylist.current = currentPlaylistStr;
+            lastCloudThemes.current = currentThemesStr;
+            lastCloudProjects.current = currentProjectsStr;
+            setSyncError(null);
+          } else {
+            console.error("Cloud sync error:", error);
+            setSyncError(describeCloudError(error, "Guardado local. Nube: error al sincronizar."));
+          }
+          setIsSyncing(false);
+        };
+
+        if (deletedItems.length > 0) {
+          setIsSyncing(false); // Liberar carga
+          setSyncConfirm({
+            title: "Confirmar eliminación en la nube (Auto-guardado)",
+            message: "El auto-guardado detectó que eliminaste elementos localmente. Si continúas, se borrarán permanentemente también en la nube. ¿Deseas aplicar estos cambios?",
+            itemsList: deletedItems,
+            type: 'danger',
+            confirmText: "Sí, borrar y guardar",
+            cancelText: "Cancelar y pausar",
+            onConfirm: () => {
+              setSyncConfirm(null);
+              executeUpsert();
+            },
+            onCancel: () => {
+              setSyncConfirm(null);
+              // Sincronizar referencias locales para evitar un bucle de modales
+              lastCloudPlaylist.current = currentPlaylistStr;
+              lastCloudThemes.current = currentThemesStr;
+              lastCloudProjects.current = currentProjectsStr;
+            }
+          });
+        } else {
+          await executeUpsert();
+        }
+
       } catch (e) {
         console.error("Critical sync error", e);
         setSyncError(describeCloudError(e, "Guardado local. Nube: error al sincronizar."));
-      } finally {
         setIsSyncing(false);
       }
     }, 5000); // 5 second debounce for stability
