@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, DensityMode, SongSearchResult, searchYouTube, YouTubeSearchResult } from '../services/geminiService';
 import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry, BackgroundAnimationConfig, BackgroundAnimationType } from '../types';
@@ -425,14 +425,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   // Accordion state for theme sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    typography: true,
-    shadows: true,
-    transformation: true,
+    typography: false,
+    shadows: false,
+    transformation: false,
     filters: false,
-    background: true,
+    background: false,
     logo: false,
-    effects: true,
-    imageFit: true,
+    effects: false,
+    imageFit: false,
     imageEffects: false
   });
 

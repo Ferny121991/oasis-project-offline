@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PresentationItem, Slide } from '../types';
-import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette, Copy, Play, Video } from 'lucide-react';
+import { Music, BookOpen, Trash2, X, Edit2, Check, Monitor, RefreshCw, Upload, GripVertical, ChevronDown, ChevronUp, ChevronRight, Minus, Plus, SeparatorHorizontal, Palette, Copy, Play, Video } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -34,6 +34,7 @@ interface PlaylistProps {
   onDeleteItem: (id: string) => void;
   onDeleteSlide: (itemId: string, slideId: string) => void;
   onDuplicateSlide?: (itemId: string, slideId: string) => void;
+  onDuplicateItem?: (itemId: string) => void;
   onRefreshItem: (item: PresentationItem) => void;
   onUploadImages: (files: FileList | null, itemId?: string) => void;
   onUpdateSlideLabel: (itemId: string, slideId: string, newLabel: string) => void;
@@ -203,83 +204,101 @@ const SortableSlide: React.FC<SortableSlideProps> = ({
         </div>
       )}
 
-      {/* Bottom Action Buttons */}
+      {/* Premium Hover Overlay Actions */}
       {!isSplitMode && (
-        <div className="absolute bottom-1.5 right-1.5 z-30 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-          {/* Background Audio Button for YouTube */}
-          {slide.type === 'youtube' && onToggleBackgroundAudio && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleBackgroundAudio();
-              }}
-              className="p-1.5 rounded bg-green-600/80 hover:bg-green-500 text-white transition-all"
-              title="Reproducir audio en fondo"
-            >
-              <Music size={12} />
-            </button>
-          )}
-          {/* Edit Label Button */}
-          {onUpdateLabel && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onUpdateLabel();
-              }}
-              className="p-1.5 rounded text-white bg-blue-600/80 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
-              title="Editar nombre"
-            >
-              <Edit2 size={12} />
-            </button>
-          )}
-          {/* Duplicate Button */}
-          {onDuplicateSlide && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicateSlide();
-              }}
-              className="p-1.5 rounded text-white bg-purple-600/80 hover:bg-purple-500 transition-all"
-              title="Duplicar slide"
-            >
-              <Copy size={12} />
-            </button>
-          )}
-          {/* Notes Button */}
-          {onOpenNotes && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenNotes();
-              }}
-              className={`p-1.5 rounded text-white transition-all ${slide.operatorNotes ? 'bg-amber-600/90 hover:bg-amber-500' : 'bg-gray-600/80 hover:bg-amber-500'}`}
-              title={slide.operatorNotes ? 'Ver/Editar nota' : 'Agregar nota'}
-            >
-              <span className="text-[10px]">📝</span>
-            </button>
-          )}
-          {/* Delete Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteSlide();
-            }}
-            className="p-1.5 rounded text-white bg-red-600/80 hover:bg-red-500 transition-all"
-            title="Eliminar slide"
-          >
-            <Trash2 size={12} />
-          </button>
-          {/* Go Live Button */}
+        <div 
+          className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 z-30 flex flex-col justify-center items-center gap-2.5 p-2 select-none" 
+          onClick={(e) => {
+            e.stopPropagation();
+            onSlideClick();
+          }}
+        >
+          {/* Main Play Button (Go Live) - Prominent and Centered */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onSlideDoubleClick();
             }}
-            className="p-1.5 rounded text-white bg-green-600/80 hover:bg-green-500 transition-all shadow-lg shadow-green-500/30"
+            className="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/20 transform hover:scale-110 active:scale-95 transition-all"
             title="Transmitir en vivo"
           >
-            <Play size={12} />
+            <Play size={18} fill="currentColor" />
           </button>
+
+          {/* Secondary Actions Row */}
+          <div className="flex items-center justify-center gap-1.5 w-full flex-wrap">
+            {/* Background Audio Button for YouTube */}
+            {slide.type === 'youtube' && onToggleBackgroundAudio && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleBackgroundAudio();
+                }}
+                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-green-600/30 hover:text-green-400 text-slate-300 flex items-center justify-center transition-all active:scale-90"
+                title="Reproducir audio en fondo"
+              >
+                <Music size={12} />
+              </button>
+            )}
+
+            {/* Edit Label Button */}
+            {onUpdateLabel && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateLabel();
+                }}
+                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-blue-600/30 hover:text-blue-400 text-slate-300 flex items-center justify-center transition-all active:scale-90"
+                title="Editar nombre"
+              >
+                <Edit2 size={12} />
+              </button>
+            )}
+
+            {/* Duplicate Button */}
+            {onDuplicateSlide && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicateSlide();
+                }}
+                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-purple-600/30 hover:text-purple-400 text-slate-300 flex items-center justify-center transition-all active:scale-90"
+                title="Duplicar slide"
+              >
+                <Copy size={12} />
+              </button>
+            )}
+
+            {/* Notes Button */}
+            {onOpenNotes && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenNotes();
+                }}
+                className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90 ${
+                  slide.operatorNotes 
+                    ? 'bg-amber-600/30 text-amber-400 hover:bg-amber-500/40' 
+                    : 'bg-white/10 text-slate-300 hover:bg-amber-600/30 hover:text-amber-400'
+                }`}
+                title={slide.operatorNotes ? 'Ver/Editar nota' : 'Agregar nota'}
+              >
+                <span className="text-[10px]">📝</span>
+              </button>
+            )}
+
+            {/* Delete Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteSlide();
+              }}
+              className="w-7 h-7 rounded-lg bg-white/10 hover:bg-red-600/30 hover:text-red-400 text-slate-300 flex items-center justify-center transition-all active:scale-90"
+              title="Eliminar slide"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -322,6 +341,10 @@ interface SortableItemProps {
   onDeleteItem: (id: string) => void;
   onDeleteSlide: (itemId: string, slideId: string) => void;
   onDuplicateSlide?: (itemId: string, slideId: string) => void;
+  onDuplicateItem?: (itemId: string) => void;
+  onUpdateDivider?: (itemId: string, title: string, color?: string, icon?: string) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   onRefreshItem: (item: PresentationItem) => void;
   onUploadClick: (itemId: string) => void;
   onUpdateSlideLabel: (itemId: string, slideId: string, newLabel: string) => void;
@@ -350,6 +373,10 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
   onDeleteItem,
   onDeleteSlide,
   onDuplicateSlide,
+  onDuplicateItem,
+  onUpdateDivider,
+  onMoveUp,
+  onMoveDown,
   onRefreshItem,
   onUploadClick,
   onUpdateSlideLabel,
@@ -416,7 +443,10 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        borderLeft: item.dividerColor ? `5px solid ${item.dividerColor}` : undefined
+      }}
       className={`rounded-2xl border overflow-hidden transition-all duration-300 shadow-xl ${isDragging ? 'border-indigo-400 shadow-indigo-500/20' :
         isItemLive ? 'border-red-400/70 bg-gradient-to-br from-red-950/70 to-slate-950 shadow-red-950/30' :
           isItemActive ? 'border-indigo-400/60 bg-gradient-to-br from-indigo-950/70 to-slate-950 shadow-indigo-950/30' :
@@ -425,9 +455,12 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
     >
       {/* Collapsible Header */}
       <div
-        className={`px-4 py-3.5 flex items-center gap-3 cursor-pointer transition-colors ${isItemLive ? 'bg-red-500/10' : isItemActive ? 'bg-indigo-500/10' : 'bg-slate-900/80 hover:bg-slate-800/90'
+        className={`px-4 py-3.5 flex items-center gap-3 cursor-pointer transition-colors group ${isItemLive ? 'bg-red-500/10' : isItemActive ? 'bg-indigo-500/10' : 'bg-slate-900/80 hover:bg-slate-800/90'
           }`}
-        onClick={onToggleExpand}
+        onClick={() => {
+          onToggleExpand();
+          onSlideClick(item.id, 0);
+        }}
       >
         {/* Drag Handle */}
         <div
@@ -439,8 +472,26 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
           <GripVertical size={18} />
         </div>
 
+        {/* Quick Reorder Arrows (▲ / ▼) */}
+        <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={onMoveUp}
+            className="p-0.5 text-gray-500 hover:text-cyan-400 hover:bg-white/5 rounded transition-all active:scale-90"
+            title="Mover arriba"
+          >
+            <ChevronUp size={12} />
+          </button>
+          <button
+            onClick={onMoveDown}
+            className="p-0.5 text-gray-500 hover:text-cyan-400 hover:bg-white/5 rounded transition-all active:scale-90"
+            title="Mover abajo"
+          >
+            <ChevronDown size={12} />
+          </button>
+        </div>
+
         {/* Expand/Collapse Icon */}
-        {isExpanded ? <ChevronDown size={18} className="text-gray-300" /> : <ChevronRight size={18} className="text-gray-300" />}
+        {isExpanded ? <ChevronDown size={18} className="text-gray-300 animate-pulse" /> : <ChevronRight size={18} className="text-gray-300" />}
 
         {/* Icon & Title */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -472,6 +523,38 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
           )}
         </div>
 
+        {/* Quick Color Pills Selector */}
+        <div className="hidden sm:flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded-full border border-white/5 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto shrink-0" onClick={(e) => e.stopPropagation()}>
+          {[
+            { value: '#6366f1', label: 'Indigo' },
+            { value: '#10b981', label: 'Verde' },
+            { value: '#f43f5e', label: 'Rosa' },
+            { value: '#f59e0b', label: 'Naranja' },
+            { value: '#06b6d4', label: 'Celeste' },
+          ].map((col) => (
+            <button
+              key={col.value}
+              onClick={() => onUpdateDivider?.(item.id, item.title, item.dividerColor === col.value ? undefined : col.value, item.dividerIcon)}
+              className={`w-3 h-3 rounded-full border transition-all hover:scale-125 ${
+                item.dividerColor === col.value 
+                  ? 'border-white scale-110 shadow-[0_0_8px_rgba(255,255,255,0.6)]' 
+                  : 'border-transparent opacity-60 hover:opacity-100'
+              }`}
+              style={{ backgroundColor: col.value }}
+              title={col.label}
+            />
+          ))}
+          {item.dividerColor && (
+            <button
+              onClick={() => onUpdateDivider?.(item.id, item.title, undefined, item.dividerIcon)}
+              className="text-[8px] text-gray-500 hover:text-white px-1 font-bold"
+              title="Quitar color"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
         {/* Slide Count Badge */}
         <span className="text-xs bg-white/10 text-slate-200 px-2 py-1 rounded-lg font-bold border border-white/10">
           {item.slides.length}
@@ -485,7 +568,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto shrink-0" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onSlideDoubleClick(item.id, isItemActive ? activeSlideIndex : 0)}
             className={`p-1.5 rounded-lg transition-colors ${isItemLive ? 'text-red-400 bg-red-900/30' : 'text-gray-400 hover:text-green-400 hover:bg-green-900/20'}`}
@@ -507,6 +590,15 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
           >
             <RefreshCw size={16} />
           </button>
+          {onDuplicateItem && (
+            <button
+              onClick={() => onDuplicateItem(item.id)}
+              className="p-1.5 text-gray-400 hover:text-purple-400 hover:bg-purple-900/20 rounded-lg transition-colors"
+              title="Duplicar item"
+            >
+              <Copy size={16} />
+            </button>
+          )}
           <button
             onClick={() => onDeleteItem(item.id)}
             className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
@@ -560,12 +652,16 @@ interface SortableDividerItemProps {
   item: PresentationItem;
   onDelete: () => void;
   onEdit: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const SortableDividerItem: React.FC<SortableDividerItemProps> = ({
   item,
   onDelete,
   onEdit,
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
   const {
     attributes,
@@ -593,10 +689,10 @@ const SortableDividerItem: React.FC<SortableDividerItemProps> = ({
       className="group relative"
     >
       <div
-        className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+        className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-white/5 bg-slate-900/40 relative overflow-hidden transition-all duration-300 hover:bg-white/[0.02]"
         style={{
-          backgroundColor: `${color}15`,
           borderLeft: `4px solid ${color}`,
+          boxShadow: `inset 2px 0 8px ${color}10`,
         }}
       >
         {/* Drag Handle */}
@@ -609,19 +705,33 @@ const SortableDividerItem: React.FC<SortableDividerItemProps> = ({
           <GripVertical size={16} />
         </div>
 
+        {/* Expand/Collapse Section Arrow */}
+        {onToggleCollapse && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapse();
+            }}
+            className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white transition-all active:scale-90 flex items-center justify-center shrink-0"
+            title={isCollapsed ? "Expandir sección" : "Colapsar sección"}
+          >
+            {isCollapsed ? <ChevronRight size={14} className="text-cyan-400 animate-pulse" /> : <ChevronDown size={14} className="text-gray-400" />}
+          </button>
+        )}
+
         {/* Icon & Title */}
-        <span className="text-xl">{icon}</span>
+        <span className="text-xl flex items-center justify-center filter drop-shadow">{icon}</span>
         <span
-          className="font-bold text-sm tracking-wide flex-1"
+          className="font-black text-xs tracking-widest uppercase flex-1 truncate filter drop-shadow"
           style={{ color: color }}
         >
           {item.title}
         </span>
 
-        {/* Divider Line */}
+        {/* Divider Line with Gradient Fade */}
         <div
-          className="flex-1 h-[2px] rounded-full opacity-30"
-          style={{ backgroundColor: color }}
+          className="flex-1 h-[1.5px] rounded-full transition-all duration-300"
+          style={{ background: `linear-gradient(to right, ${color}60, transparent)` }}
         />
 
         {/* Actions */}
@@ -659,6 +769,8 @@ const Playlist: React.FC<PlaylistProps> = ({
   onToggleBackgroundAudio,
   onDeleteItem,
   onDeleteSlide,
+  onDuplicateSlide,
+  onDuplicateItem,
   onRefreshItem,
   onUploadImages,
   onUpdateSlideLabel,
@@ -667,14 +779,34 @@ const Playlist: React.FC<PlaylistProps> = ({
   onReorderSlides,
   onAddDivider,
   onUpdateDivider,
-  onDuplicateSlide,
+  onUpdateSlideNotes,
   isSplitMode,
   onSetSplitLeft,
   onSetSplitRight,
   splitLeftSlide,
-  splitRightSlide,
-  onUpdateSlideNotes
+  splitRightSlide
 }) => {
+  const moveItemUp = (itemId: string) => {
+    const index = items.findIndex(i => i.id === itemId);
+    if (index > 0) {
+      const newItems = [...items];
+      const temp = newItems[index];
+      newItems[index] = newItems[index - 1];
+      newItems[index - 1] = temp;
+      onReorderItems(newItems);
+    }
+  };
+
+  const moveItemDown = (itemId: string) => {
+    const index = items.findIndex(i => i.id === itemId);
+    if (index < items.length - 1) {
+      const newItems = [...items];
+      const temp = newItems[index];
+      newItems[index] = newItems[index + 1];
+      newItems[index + 1] = temp;
+      onReorderItems(newItems);
+    }
+  };
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [activeUploadItemId, setActiveUploadItemId] = useState<string | undefined>();
@@ -682,6 +814,20 @@ const Playlist: React.FC<PlaylistProps> = ({
     // Start with active item expanded
     return new Set(activeItemId ? [activeItemId] : []);
   });
+
+  const [collapsedDividers, setCollapsedDividers] = useState<Set<string>>(new Set());
+
+  const toggleCollapseDivider = (dividerId: string) => {
+    setCollapsedDividers(prev => {
+      const next = new Set(prev);
+      if (next.has(dividerId)) {
+        next.delete(dividerId);
+      } else {
+        next.add(dividerId);
+      }
+      return next;
+    });
+  };
 
   // Edit Modal State
   const [editModal, setEditModal] = useState<{
@@ -882,48 +1028,65 @@ const Playlist: React.FC<PlaylistProps> = ({
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map((item) => (
-            item.type === 'divider' ? (
-              // Divider Item Rendering
-              <SortableDividerItem
-                key={item.id}
-                item={item}
-                onDelete={() => onDeleteItem(item.id)}
-                onEdit={() => openEditDivider(item)}
-              />
-            ) : (
-              <SortablePlaylistItem
-                key={item.id}
-                item={item}
-                activeItemId={activeItemId}
-                activeSlideIndex={activeSlideIndex}
-                liveItemId={liveItemId}
-                liveSlideIndex={liveSlideIndex}
-                onSlideClick={onSlideClick}
-                onSlideDoubleClick={onSlideDoubleClick}
-                onToggleBackgroundAudio={onToggleBackgroundAudio}
-                onDeleteItem={onDeleteItem}
-                onDeleteSlide={onDeleteSlide}
-                onDuplicateSlide={onDuplicateSlide}
-                onRefreshItem={onRefreshItem}
-                onUploadClick={handleUploadClick}
-                onUpdateSlideLabel={handleEditLabel}
-                onUpdateItemTitle={onUpdateItemTitle}
-                onReorderSlides={onReorderSlides}
-                isExpanded={expandedItems.has(item.id)}
-                onToggleExpand={() => toggleExpand(item.id)}
-                isSplitMode={isSplitMode}
-                onSetSplitLeft={onSetSplitLeft}
-                onSetSplitRight={onSetSplitRight}
-                splitLeftSlide={splitLeftSlide}
-                splitRightSlide={splitRightSlide}
-                onOpenNotes={(itemId, slideId, notes) => {
-                  setNotesModal({ itemId, slideId, notes });
-                  setNotesValue(notes);
-                }}
-              />
-            )
-          ))}
+          {(() => {
+            let isCurrentSectionCollapsed = false;
+            return items.map((item) => {
+              if (item.type === 'divider') {
+                isCurrentSectionCollapsed = collapsedDividers.has(item.id);
+                return (
+                  <SortableDividerItem
+                    key={item.id}
+                    item={item}
+                    onDelete={() => onDeleteItem(item.id)}
+                    onEdit={() => openEditDivider(item)}
+                    isCollapsed={isCurrentSectionCollapsed}
+                    onToggleCollapse={() => toggleCollapseDivider(item.id)}
+                  />
+                );
+              }
+
+              if (isCurrentSectionCollapsed) {
+                return null;
+              }
+
+              return (
+                <SortablePlaylistItem
+                  key={item.id}
+                  item={item}
+                  activeItemId={activeItemId}
+                  activeSlideIndex={activeSlideIndex}
+                  liveItemId={liveItemId}
+                  liveSlideIndex={liveSlideIndex}
+                  onSlideClick={onSlideClick}
+                  onSlideDoubleClick={onSlideDoubleClick}
+                  onToggleBackgroundAudio={onToggleBackgroundAudio}
+                  onDeleteItem={onDeleteItem}
+                  onDeleteSlide={onDeleteSlide}
+                  onDuplicateSlide={onDuplicateSlide}
+                  onDuplicateItem={onDuplicateItem}
+                  onUpdateDivider={onUpdateDivider}
+                  onMoveUp={() => moveItemUp(item.id)}
+                  onMoveDown={() => moveItemDown(item.id)}
+                  onRefreshItem={onRefreshItem}
+                  onUploadClick={handleUploadClick}
+                  onUpdateSlideLabel={handleEditLabel}
+                  onUpdateItemTitle={onUpdateItemTitle}
+                  onReorderSlides={onReorderSlides}
+                  isExpanded={expandedItems.has(item.id)}
+                  onToggleExpand={() => toggleExpand(item.id)}
+                  isSplitMode={isSplitMode}
+                  onSetSplitLeft={onSetSplitLeft}
+                  onSetSplitRight={onSetSplitRight}
+                  splitLeftSlide={splitLeftSlide}
+                  splitRightSlide={splitRightSlide}
+                  onOpenNotes={(itemId, slideId, notes) => {
+                    setNotesModal({ itemId, slideId, notes });
+                    setNotesValue(notes);
+                  }}
+                />
+              );
+            });
+          })()}
         </SortableContext>
       </DndContext>
 
@@ -1010,7 +1173,7 @@ const Playlist: React.FC<PlaylistProps> = ({
 
             <div className="p-6 space-y-5">
               {/* Title Input */}
-              <div className="space-y-2">
+              <div className="space-y-2 animate-in fade-in duration-300">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                   Nombre de la Sección
                 </label>
@@ -1024,7 +1187,11 @@ const Playlist: React.FC<PlaylistProps> = ({
                     if (e.key === 'Escape') setShowDividerModal(false);
                   }}
                   placeholder="Ej: Devocional, Alabanza, Predicación..."
-                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border-2 border-transparent focus:border-indigo-500 focus:bg-gray-950 transition-all outline-none text-lg font-medium"
+                  style={{
+                    borderColor: dividerTitle.trim() ? `${dividerColor}40` : 'transparent',
+                    boxShadow: dividerTitle.trim() ? `0 0 14px ${dividerColor}15` : undefined
+                  }}
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl border-2 transition-all outline-none text-lg font-medium focus:bg-gray-950 focus:border-indigo-500"
                 />
               </div>
 
@@ -1038,9 +1205,13 @@ const Playlist: React.FC<PlaylistProps> = ({
                     <button
                       key={icon}
                       onClick={() => setDividerIcon(icon)}
+                      style={{
+                        backgroundColor: dividerIcon === icon ? dividerColor : undefined,
+                        boxShadow: dividerIcon === icon ? `0 4px 10px ${dividerColor}35` : undefined
+                      }}
                       className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${dividerIcon === icon
-                        ? 'bg-indigo-600 ring-2 ring-indigo-400 scale-110'
-                        : 'bg-gray-800 hover:bg-gray-700'
+                        ? 'ring-2 ring-white/40 scale-110'
+                        : 'bg-gray-800 hover:bg-gray-700 hover:scale-105'
                         }`}
                     >
                       {icon}
@@ -1076,11 +1247,24 @@ const Playlist: React.FC<PlaylistProps> = ({
                   Vista Previa
                 </label>
                 <div
-                  className="p-4 rounded-xl flex items-center gap-3"
-                  style={{ backgroundColor: `${dividerColor}20`, borderLeft: `4px solid ${dividerColor}` }}
+                  className="p-4 rounded-xl flex items-center gap-3 border border-white/5 bg-slate-900/40 relative overflow-hidden transition-all duration-300 shadow-inner"
+                  style={{
+                    borderLeft: `4px solid ${dividerColor}`,
+                    boxShadow: `inset 2px 0 8px ${dividerColor}10`,
+                  }}
                 >
-                  <span className="text-2xl">{dividerIcon}</span>
-                  <span className="font-bold text-white text-lg">{dividerTitle || 'Nombre de la sección'}</span>
+                  <span className="text-2xl flex items-center justify-center filter drop-shadow">{dividerIcon}</span>
+                  <span
+                    className="font-black text-xs tracking-widest uppercase flex-1 truncate filter drop-shadow animate-pulse"
+                    style={{ color: dividerColor }}
+                  >
+                    {dividerTitle || 'VISTA PREVIA'}
+                  </span>
+                  {/* Divider Line with Gradient Fade */}
+                  <div
+                    className="flex-1 h-[1.5px] rounded-full transition-all duration-300"
+                    style={{ background: `linear-gradient(to right, ${dividerColor}60, transparent)` }}
+                  />
                 </div>
               </div>
 
@@ -1094,8 +1278,11 @@ const Playlist: React.FC<PlaylistProps> = ({
                 <button
                   onClick={handleAddDivider}
                   disabled={!dividerTitle.trim()}
-                  className="flex-1 px-4 py-3 rounded-xl text-white font-bold transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: dividerColor }}
+                  className="flex-1 px-4 py-3 rounded-xl text-white font-bold transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: dividerColor,
+                    boxShadow: dividerTitle.trim() ? `0 4px 14px ${dividerColor}40` : undefined
+                  }}
                 >
                   <Check size={18} />
                   {editingDividerId ? 'GUARDAR' : 'CREAR'}

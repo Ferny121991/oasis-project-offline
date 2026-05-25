@@ -11,6 +11,7 @@ interface LiveScreenProps {
   enableOverlay?: boolean;
   onUpdateTheme?: (theme: Theme) => void;
   hideText?: boolean;
+  hideBackground?: boolean;
   isLogoMode?: boolean;
   blackout?: boolean;
   autoPlay?: boolean; // New prop
@@ -29,6 +30,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   enableOverlay = false,
   onUpdateTheme,
   hideText = false,
+  hideBackground = false,
   isLogoMode = false,
   blackout = false,
   autoPlay = true,  // Default to true for backward compatibility
@@ -346,8 +348,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
           <div
             className="absolute inset-0 z-0"
             style={{
-              background: theme.background,
-              filter: `brightness(${theme.bgBrightness}) blur(${theme.bgImageBlur}px)`,
+              background: hideBackground ? '#000000' : theme.background,
+              filter: hideBackground ? 'none' : `brightness(${theme.bgBrightness}) blur(${theme.bgImageBlur}px)`,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             }}
@@ -355,7 +357,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
         )}
 
         {/* Animated Background Layer */}
-        {!isLogoMode && theme.bgAnimation && (
+        {!isLogoMode && !hideBackground && theme.bgAnimation && (
           <AnimatedBackground
             type={theme.bgAnimation.type}
             speed={theme.bgAnimation.speed}

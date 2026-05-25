@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import ControlPanel from './components/ControlPanel';
+import { ReflowEditor } from './components/ReflowEditor';
 import Playlist from './components/Playlist';
 import LiveScreen from './components/LiveScreen';
 import Onboarding from './components/Onboarding';
@@ -14,10 +15,10 @@ import CalendarView from './components/CalendarView';
 import ActionHistoryPanel from './components/ActionHistoryPanel';
 import { PresentationItem, Theme, Slide, Project } from './types';
 import { DEFAULT_THEME } from './constants';
-import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle, Lock, Download, Upload, Calendar, LayoutGrid, Smartphone, History, AlertCircle } from 'lucide-react';
+import { Maximize2, Eye, EyeOff, Square, ExternalLink, XCircle, AlignLeft, AlignCenter, AlignRight, Type, Plus, Minus, Image, Eraser, Clock, ChevronLeft, ChevronRight, Monitor, PlayCircle, Music, BookOpen, Trash2, X, Edit2, Check, LogIn, User as UserIcon, LogOut, RefreshCw, Timer, Columns, HelpCircle, Lock, Download, Upload, Calendar, LayoutGrid, Smartphone, History, AlertCircle, FileText } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
-import { fetchSongLyrics, fetchBiblePassage, DensityMode } from './services/geminiService';
+import { fetchSongLyrics, fetchBiblePassage, searchSongs, DensityMode } from './services/geminiService';
 import { createRealtimeSyncService, realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
 import { compressImage } from './services/imageService';
 import { storeMediaBlob, stripPlaylistMedia } from './services/mediaBlobStore';
@@ -153,9 +154,17 @@ const App: React.FC = () => {
   const audioIframeRef = useRef<HTMLIFrameElement>(null);
   const [isPreviewHidden, setIsPreviewHidden] = useState(false); // BLACKOUT
   const [isTextHidden, setIsTextHidden] = useState(false); // CLEAR TEXT (Background stays)
+  const [isBackgroundHidden, setIsBackgroundHidden] = useState(false); // CLEAR BACKGROUND
   const [isLogoActive, setIsLogoActive] = useState(false); // LOGO MODE
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Command Palette States
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const [paletteResults, setPaletteResults] = useState<import('./services/geminiService').SongSearchResult[]>([]);
+  const [paletteLoading, setPaletteLoading] = useState(false);
+  const [paletteActiveIndex, setPaletteActiveIndex] = useState(0);
 
   // State for External Projector Window
   const [externalWindow, setExternalWindow] = useState<Window | null>(null);
@@ -183,6 +192,7 @@ const App: React.FC = () => {
   const [showTimer, setShowTimer] = useState(false);
   const [showExportImport, setShowExportImport] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showReflow, setShowReflow] = useState(false);
   const [showMobileConnect, setShowMobileConnect] = useState(false);
   const [showActionHistory, setShowActionHistory] = useState(false);
 
@@ -526,6 +536,7 @@ const App: React.FC = () => {
         stagedTheme: safeLiveItem ? undefined : applyLogoSettings(stagedTheme, globalLogoSettings),
         isPreviewHidden,
         isTextHidden,
+        isBackgroundHidden,
         isLogoActive,
         showSplitScreen,
         splitLeftSlide,
@@ -547,7 +558,7 @@ const App: React.FC = () => {
         data: syncData
       });
     }
-  }, [liveItemId, liveSlideIndex, liveItem, stagedTheme, globalLogoSettings, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, isKaraokeActive, karaokeIndex]);
+  }, [liveItemId, liveSlideIndex, liveItem, stagedTheme, globalLogoSettings, isPreviewHidden, isTextHidden, isBackgroundHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitRatio, splitFontScale, isKaraokeActive, karaokeIndex]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -604,6 +615,7 @@ const App: React.FC = () => {
           }
           setIsPreviewHidden(prev => prev === data.isPreviewHidden ? prev : data.isPreviewHidden);
           setIsTextHidden(prev => prev === data.isTextHidden ? prev : data.isTextHidden);
+          setIsBackgroundHidden(prev => prev === data.isBackgroundHidden ? prev : data.isBackgroundHidden);
           setIsLogoActive(prev => prev === data.isLogoActive ? prev : data.isLogoActive);
 
           if (data.frozenLiveItem) {
@@ -676,7 +688,7 @@ const App: React.FC = () => {
     if (!isProjectorMode) {
       sendSyncState();
     }
-  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, globalLogoSettings, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitFontScale, isProjectorMode, sendSyncState, frozenLiveItem]);
+  }, [liveItemId, activeItemId, liveSlideIndex, activeSlideIndex, playlist, stagedTheme, globalLogoSettings, isPreviewHidden, isTextHidden, isBackgroundHidden, isLogoActive, showSplitScreen, splitLeftSlide, splitRightSlide, splitFontScale, isProjectorMode, sendSyncState, frozenLiveItem]);
 
   // Ensure sync when window focus changes (user comes back to tab)
   useEffect(() => {
@@ -2084,6 +2096,28 @@ const App: React.FC = () => {
     setIsSyncing(false);
   };
 
+  const handleDuplicateItem = useCallback((itemId: string) => {
+    setPlaylist(prev => {
+      const idx = prev.findIndex(item => item.id === itemId);
+      if (idx === -1) return prev;
+
+      const itemToDuplicate = prev[idx];
+      const duplicatedItem: import('./types').PresentationItem = {
+        ...itemToDuplicate,
+        id: `song_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title: `${itemToDuplicate.title} (Copia)`,
+        slides: itemToDuplicate.slides.map((slide, sIdx) => ({
+          ...slide,
+          id: `slide_${Date.now()}_${sIdx}_${Math.random().toString(36).substr(2, 9)}`
+        }))
+      };
+
+      const newPlaylist = [...prev];
+      newPlaylist.splice(idx + 1, 0, duplicatedItem);
+      return newPlaylist;
+    });
+  }, []);
+
   const handleUploadImages = async (files: FileList | null, itemId?: string) => {
     if (!files || files.length === 0) return;
 
@@ -2449,6 +2483,14 @@ const App: React.FC = () => {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(prev => !prev);
+        setPaletteQuery('');
+        setPaletteResults([]);
+        setPaletteActiveIndex(0);
+        return;
+      }
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
       switch (e.key) {
         case 'ArrowRight':
@@ -2481,11 +2523,27 @@ const App: React.FC = () => {
           }
           break;
         case 'Enter': case ' ': e.preventDefault(); makeLive(); break;
-        case 'Escape': e.preventDefault(); stopLive(); break;
+        case 'Escape':
+        case 'F9':
+          e.preventDefault();
+          setIsPreviewHidden(prev => !prev);
+          break;
+        case 'F10':
+          e.preventDefault();
+          setIsTextHidden(prev => !prev);
+          break;
+        case 'F11':
+          e.preventDefault();
+          setIsBackgroundHidden(prev => !prev);
+          break;
+        case 'F12':
+          e.preventDefault();
+          setIsLogoActive(prev => !prev);
+          break;
         case 'b': case 'B': case '.': setIsPreviewHidden(prev => !prev); break;
         case 'c': case 'C': setIsTextHidden(prev => !prev); break;
         case 'l': case 'L': setIsLogoActive(prev => !prev); break;
-        case 'f': case 'F': case 'F11': e.preventDefault(); toggleFullscreen(); break;
+        case 'f': case 'F': e.preventDefault(); toggleFullscreen(); break;
         case 'g': case 'G': e.preventDefault(); toggleProjectorFullscreen(); break;
 
         case 'p': case 'P':
@@ -2507,7 +2565,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigateNext, navigatePrev, toggleFullscreen, toggleProjectorFullscreen, openProjectorWindow, closeProjectorWindow, externalWindow]);
+  }, [navigateNext, navigatePrev, toggleFullscreen, toggleProjectorFullscreen, openProjectorWindow, closeProjectorWindow, externalWindow, showCommandPalette]);
 
   if (isProjectorMode) {
     return (
@@ -2572,6 +2630,7 @@ const App: React.FC = () => {
               isFullscreen={true}
               enableOverlay={false}
               hideText={isTextHidden}
+              hideBackground={isBackgroundHidden}
               isLogoMode={isLogoActive}
               blackout={isPreviewHidden}
               onVideoEnd={handleVideoEnd}
@@ -2582,6 +2641,58 @@ const App: React.FC = () => {
       </div>
     );
   }
+  // Command Palette Search Trigger
+  useEffect(() => {
+    if (!showCommandPalette || !paletteQuery.trim()) {
+      setPaletteResults([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setPaletteLoading(true);
+      try {
+        const query = paletteQuery.trim();
+        const songRes = await searchSongs(query);
+
+        // Prepend a virtual item if it looks like a Bible verse
+        const isBible = /\d/.test(query);
+        if (isBible) {
+          const virtualBibleItem = {
+            title: `📖 Importar Pasaje Bíblico: "${query}"`,
+            artist: 'Biblia Reina Valera 1960',
+            snippet: 'Genera diapositivas automáticas del pasaje'
+          };
+          setPaletteResults([virtualBibleItem, ...songRes]);
+        } else {
+          setPaletteResults(songRes);
+        }
+      } catch (err) {
+        console.error("Error in Command Palette search:", err);
+      } finally {
+        setPaletteLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [paletteQuery, showCommandPalette]);
+
+  const handleCommandPaletteSelect = async (result: import('./services/geminiService').SongSearchResult) => {
+    setPaletteLoading(true);
+    try {
+      let item;
+      if (result.title.startsWith('📖 Importar Pasaje Bíblico:')) {
+        item = await fetchBiblePassage(paletteQuery, 'Reina Valera 1960', 'classic');
+      } else {
+        item = await fetchSongLyrics(`${result.title} de ${result.artist}`, 'classic');
+      }
+      handleAddItem(item);
+      setShowCommandPalette(false);
+    } catch (err) {
+      alert("Error al cargar: " + (err as Error).message);
+    } finally {
+      setPaletteLoading(false);
+    }
+  };
 
   if (isRemoteControlMode) {
     if (!remoteControlIdFromUrl) {
@@ -2838,13 +2949,19 @@ const App: React.FC = () => {
           {/* Header Switcher */}
           <div className="flex bg-[#080d17] border-b border-white/10 p-2 gap-2 shrink-0">
             <button
-              onClick={() => setShowCalendar(false)}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${!showCalendar ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/25' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
+              onClick={() => { setShowCalendar(false); setShowReflow(false); }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${!showCalendar && !showReflow ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/25' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
             >
-              <LayoutGrid size={14} /> Editor
+              <LayoutGrid size={14} /> Rejilla
             </button>
             <button
-              onClick={() => setShowCalendar(true)}
+              onClick={() => { setShowCalendar(false); setShowReflow(true); }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${showReflow && !showCalendar ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/25' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
+            >
+              <FileText size={14} /> Reflow Editor
+            </button>
+            <button
+              onClick={() => { setShowCalendar(true); setShowReflow(false); }}
               className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${showCalendar ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/25' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
             >
               <Calendar size={14} /> Calendario
@@ -2857,10 +2974,46 @@ const App: React.FC = () => {
               onOpenProject={(id) => {
                 handleSelectProject(id);
                 setShowCalendar(false);
+                setShowReflow(false);
               }}
               onUpdateProjectDate={handleUpdateProjectDate}
               onCreateProjectAtDate={handleCreateProjectAtDate}
             />
+          ) : showReflow ? (
+            activeItem ? (
+              <ReflowEditor
+                item={activeItem}
+                onUpdateSlides={(itemId, newSlides) => {
+                  setPlaylist(prev => prev.map(item =>
+                    item.id === itemId ? { ...item, slides: newSlides } : item
+                  ));
+                }}
+                activeSlideIndex={activeSlideIndex}
+                onSlideClick={(index) => {
+                  setActiveSlideIndex(index);
+                  if (liveItemId === activeItemId) setLiveSlideIndex(index);
+                  setIsPreviewHidden(false);
+                  setIsLogoActive(false);
+                }}
+                onSlideDoubleClick={(index) => {
+                  makeLive(activeItemId, index);
+                }}
+                liveSlideIndex={liveSlideIndex}
+                isLiveActive={liveItemId === activeItemId}
+              />
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-slate-500 bg-[#060a13] select-none">
+                <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-400/20 flex items-center justify-center text-indigo-400 animate-bounce">
+                  <Music size={28} />
+                </div>
+                <div className="text-center max-w-sm">
+                  <h3 className="text-white font-black text-sm uppercase tracking-wider">Sin Canción Seleccionada</h3>
+                  <p className="text-xs text-slate-400 mt-2 leading-relaxed font-medium">
+                    Selecciona una canción o pasaje en tu playlist lateral izquierda primero, y luego abre el Reflow Editor para editarla fluidamente en texto corrido.
+                  </p>
+                </div>
+              </div>
+            )
           ) : (
             <>
               {/* Project Manager */}
@@ -2937,6 +3090,7 @@ const App: React.FC = () => {
                 onDeleteItem={handleDeleteItem}
                 onDeleteSlide={handleDeleteSlide}
                 onDuplicateSlide={handleDuplicateSlide}
+                onDuplicateItem={handleDuplicateItem}
                 onRefreshItem={handleRefreshItem}
 
                 onUploadImages={handleUploadImages}
@@ -3060,6 +3214,74 @@ const App: React.FC = () => {
           </div>
         </div>
 
+        {/* Hotline Emergency Panic Controls (ProPresenter-style) */}
+        <div className="bg-slate-950/80 backdrop-blur-md px-4 py-2 border-b border-white/10 flex gap-2 shrink-0 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setIsPreviewHidden(prev => !prev)}
+            className={`flex-1 min-w-[100px] py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-300 border ${
+              isPreviewHidden
+                ? 'bg-red-500/20 text-red-400 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse'
+                : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
+            }`}
+            title="Limpia texto y fondo (Pantalla a negro) [F9 o ESC]"
+          >
+            <div className={`w-2 h-2 rounded-full ${isPreviewHidden ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 'bg-red-500/40'}`} />
+            CLEAR ALL
+            <span className="hidden sm:inline opacity-50 text-[8px] font-normal">F9</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsTextHidden(prev => !prev);
+              setIsPreviewHidden(false);
+            }}
+            className={`flex-1 min-w-[100px] py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-300 border ${
+              isTextHidden
+                ? 'bg-amber-500/20 text-amber-400 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30'
+            }`}
+            title="Quita el texto manteniendo el fondo [F10]"
+          >
+            <div className={`w-2 h-2 rounded-full ${isTextHidden ? 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' : 'bg-amber-500/40'}`} />
+            CLEAR TEXT
+            <span className="hidden sm:inline opacity-50 text-[8px] font-normal">F10</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsBackgroundHidden(prev => !prev);
+              setIsPreviewHidden(false);
+            }}
+            className={`flex-1 min-w-[100px] py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-300 border ${
+              isBackgroundHidden
+                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30'
+            }`}
+            title="Quita el fondo y deja el texto sobre negro [F11]"
+          >
+            <div className={`w-2 h-2 rounded-full ${isBackgroundHidden ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-emerald-500/40'}`} />
+            CLEAR BG
+            <span className="hidden sm:inline opacity-50 text-[8px] font-normal">F11</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsLogoActive(prev => !prev);
+              setIsPreviewHidden(false);
+            }}
+            className={`flex-1 min-w-[100px] py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-300 border ${
+              isLogoActive
+                ? 'bg-blue-500/20 text-blue-400 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)]'
+                : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30'
+            }`}
+            title="Proyecta el Logotipo de la Iglesia [F12]"
+          >
+            <div className={`w-2 h-2 rounded-full ${isLogoActive ? 'bg-blue-500 shadow-[0_0_8px_#3b82f6]' : 'bg-blue-500/40'}`} />
+            SHOW LOGO
+            <span className="hidden sm:inline opacity-50 text-[8px] font-normal">F12</span>
+          </button>
+        </div>
+
         {/* PREVIEW AREA */}
         <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-[radial-gradient(circle_at_center,#111827_0%,#070b13_62%,#020409_100%)] p-4">
 
@@ -3117,6 +3339,7 @@ const App: React.FC = () => {
                 karaokeActive={isKaraokeActive && liveItemId === activeItem?.id}
                 karaokeIndex={karaokeIndex}
                 hideText={isTextHidden && liveItemId === activeItem?.id && !isLogoActive}
+                hideBackground={isBackgroundHidden}
                 isLogoMode={isLogoActive}
                 blackout={isPreviewHidden}
                 autoPlay={false}
@@ -3139,6 +3362,7 @@ const App: React.FC = () => {
                     isFullscreen={false}
                     enableOverlay={false}
                     hideText={isTextHidden}
+                    hideBackground={isBackgroundHidden}
                     isLogoMode={isLogoActive}
                     blackout={isPreviewHidden}
                     autoPlay={false} // PIP is static to avoid sync annoyance
@@ -3453,6 +3677,133 @@ const App: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Command Palette (Spotlight) Modal */}
+      {showCommandPalette && createPortal(
+        <div 
+          className="fixed inset-0 z-[999999] bg-slate-950/70 backdrop-blur-md flex items-start justify-center pt-[15vh] px-4 animate-in fade-in duration-200"
+          onClick={() => setShowCommandPalette(false)}
+        >
+          <div 
+            className="max-w-2xl w-full bg-slate-900/95 border border-indigo-500/30 rounded-3xl p-6 shadow-3xl shadow-indigo-950/50 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Search Input Row */}
+            <div className="relative flex items-center border-b border-white/10 pb-4">
+              <span className="absolute left-3 text-indigo-400">
+                <LayoutGrid size={20} className="animate-pulse" />
+              </span>
+              <input
+                type="text"
+                autoFocus
+                placeholder="Buscar canción o pasaje bíblico (ej: Genesis 1, Cuan Grande)..."
+                value={paletteQuery}
+                onChange={(e) => {
+                  setPaletteQuery(e.target.value);
+                  setPaletteActiveIndex(0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setShowCommandPalette(false);
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setPaletteActiveIndex(prev => (prev + 1) % (paletteResults.length || 1));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setPaletteActiveIndex(prev => (prev - 1 + (paletteResults.length || 1)) % (paletteResults.length || 1));
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (paletteResults[paletteActiveIndex]) {
+                      handleCommandPaletteSelect(paletteResults[paletteActiveIndex]);
+                    }
+                  }
+                }}
+                className="w-full pl-12 pr-10 py-3 bg-slate-950/50 border border-white/5 focus:border-indigo-500/50 rounded-2xl outline-none text-white text-base font-semibold focus:ring-4 focus:ring-indigo-500/10 placeholder-slate-500 transition-all caret-cyan-400"
+              />
+              <button 
+                onClick={() => setShowCommandPalette(false)}
+                className="absolute right-3 p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                title="Cerrar (Esc)"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Results Pane */}
+            <div className="max-h-[50vh] overflow-y-auto no-scrollbar space-y-2">
+              {paletteLoading ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse">Buscando en la Nube...</span>
+                </div>
+              ) : paletteResults.length > 0 ? (
+                paletteResults.map((res, idx) => {
+                  const isActive = paletteActiveIndex === idx;
+                  const isBible = res.title.startsWith('📖 Importar Pasaje Bíblico:');
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => handleCommandPaletteSelect(res)}
+                      className={`p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between gap-4 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-indigo-900/40 to-slate-950/80 border-indigo-500/60 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                          : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all ${
+                          isActive
+                            ? 'bg-indigo-500/10 border-indigo-400/30 text-indigo-300'
+                            : 'bg-white/5 border-white/5 text-slate-400'
+                        }`}>
+                          {isBible ? <BookOpen size={18} /> : <Music size={18} />}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-bold text-sm text-white truncate">{res.title}</span>
+                          <span className="text-xs text-slate-400 truncate mt-0.5">{res.artist}</span>
+                          {res.snippet && (
+                            <span className="text-[10px] text-slate-500 font-medium truncate mt-1 italic">{res.snippet}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isBible ? (
+                          <span className="text-[9px] font-black bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                            Pasaje
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-black bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                            Canción
+                          </span>
+                        )}
+                        {isActive && (
+                          <span className="text-[9px] font-black bg-white text-slate-950 px-2 py-0.5 rounded-md uppercase tracking-wider shadow animate-bounce">
+                            ENTER
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : paletteQuery.trim() ? (
+                <div className="py-12 text-center text-slate-500 text-sm font-semibold italic">
+                  No se encontraron canciones. Escribe números para importar pasajes bíblicos.
+                </div>
+              ) : (
+                <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-500">
+                  <LayoutGrid size={32} className="opacity-15 animate-bounce" />
+                  <span className="text-xs font-bold uppercase tracking-wider">FlujoEclesial Spotlight</span>
+                  <span className="text-[10px] text-slate-600 font-medium text-center max-w-sm leading-relaxed px-4">
+                    Escribe para buscar. Presiona <kbd className="bg-slate-950 px-1.5 py-0.5 rounded border border-white/10 text-[9px] mx-1 text-slate-400 font-mono">ENTER</kbd> para importar pasajes bíblicos y canciones en un clic.
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Toast slide-in animation */}

@@ -16,6 +16,7 @@ type ProjectorSyncState = {
   stagedTheme?: Theme;
   isPreviewHidden?: boolean;
   isTextHidden?: boolean;
+  isBackgroundHidden?: boolean;
   isLogoActive?: boolean;
   showSplitScreen?: boolean;
   splitLeftSlide?: Slide | null;
@@ -52,6 +53,7 @@ const ProjectorApp: React.FC = () => {
   const [globalLogoSettings, setGlobalLogoSettings] = useState<LogoSettings>(() => extractLogoSettings(DEFAULT_THEME));
   const [isPreviewHidden, setIsPreviewHidden] = useState(false);
   const [isTextHidden, setIsTextHidden] = useState(false);
+  const [isBackgroundHidden, setIsBackgroundHidden] = useState(false);
   const [isLogoActive, setIsLogoActive] = useState(false);
   const [showSplitScreen, setShowSplitScreen] = useState(false);
   const [splitLeftSlide, setSplitLeftSlide] = useState<Slide | null>(null);
@@ -111,6 +113,7 @@ const ProjectorApp: React.FC = () => {
       }
       setIsPreviewHidden(prev => prev === !!data.isPreviewHidden ? prev : !!data.isPreviewHidden);
       setIsTextHidden(prev => prev === !!data.isTextHidden ? prev : !!data.isTextHidden);
+      setIsBackgroundHidden(prev => prev === !!data.isBackgroundHidden ? prev : !!data.isBackgroundHidden);
       setIsLogoActive(prev => prev === !!data.isLogoActive ? prev : !!data.isLogoActive);
       setFrozenLiveItem(prev => JSON.stringify(prev) === JSON.stringify(data.frozenLiveItem || null) ? prev : data.frozenLiveItem || null);
       setShowSplitScreen(prev => prev === !!data.showSplitScreen ? prev : !!data.showSplitScreen);
@@ -235,6 +238,7 @@ const ProjectorApp: React.FC = () => {
             isFullscreen={true}
             enableOverlay={false}
             hideText={isTextHidden}
+            hideBackground={isBackgroundHidden}
             isLogoMode={isLogoActive}
             blackout={isPreviewHidden}
             onVideoEnd={handleVideoEnd}
