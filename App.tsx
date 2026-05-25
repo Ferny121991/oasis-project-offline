@@ -392,7 +392,6 @@ const App: React.FC = () => {
     if (project) {
       setCurrentProjectId(projectId);
       setPlaylist(project.playlist || []);
-      setCustomThemes(project.customThemes || []);
       setActiveSlideIndex(-1);
     }
 
@@ -811,7 +810,6 @@ const App: React.FC = () => {
             setProjects(prev => [...saveCurrentProjectInto(prev), newProject]);
             setCurrentProjectId(newProject.id);
             setPlaylist([]);
-            setCustomThemes([]);
             setActiveItemId(null);
             setActiveSlideIndex(-1);
             setTimeout(() => {
@@ -1069,7 +1067,15 @@ const App: React.FC = () => {
           if (currentProject) {
             setCurrentProjectId(settings.current_project_id);
             setPlaylist(currentProject.playlist);
-            setCustomThemes(currentProject.customThemes || []);
+            
+            // Unificar temas globales con los del proyecto de forma failsafe
+            const mergedThemes = [
+              ...(settings.custom_themes || []),
+              ...(currentProject.customThemes || [])
+            ].filter((theme, index, self) => 
+              self.findIndex(t => t.id === theme.id) === index
+            );
+            setCustomThemes(mergedThemes);
           } else {
             setCurrentProjectId(null);
             setPlaylist(migratePlaylist(settings.playlist));
