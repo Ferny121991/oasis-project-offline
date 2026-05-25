@@ -3729,7 +3729,7 @@ const App: React.FC = () => {
       }
 
       {/* MOBILE BOTTOM NAV - Enhanced Floating Glassmorphic Bar */}
-      <div className="lg:hidden fixed bottom-5 left-1/2 -translate-x-1/2 w-[90%] max-w-md h-[68px] bg-slate-950/75 backdrop-blur-xl border border-white/10 flex items-center justify-around z-50 px-3 py-2 rounded-[24px] shadow-[0_24px_50px_rgba(0,0,0,0.8),0_0_20px_rgba(99,102,241,0.15)] transition-all duration-300">
+      <div className="lg:hidden fixed bottom-5 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-[68px] bg-slate-950/75 backdrop-blur-xl border border-white/10 flex items-center justify-around z-50 px-3 py-2 rounded-[24px] shadow-[0_24px_50px_rgba(0,0,0,0.8),0_0_20px_rgba(99,102,241,0.15)] transition-all duration-300">
         <button
           onClick={() => setMobileTab('control')}
           className={`flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 h-full rounded-[18px] transition-all active:scale-90 ${mobileTab === 'control' ? 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 shadow-inner' : 'text-slate-400 border border-transparent'}`}
@@ -3743,16 +3743,6 @@ const App: React.FC = () => {
         >
           <Music size={20} className={mobileTab === 'playlist' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'} />
           <span className="text-[9px] font-black uppercase tracking-widest">Lista</span>
-        </button>
-        <button
-          onClick={() => setMobileTab('preview')}
-          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 h-full rounded-[18px] transition-all active:scale-90 relative ${mobileTab === 'preview' ? 'text-rose-400 bg-rose-500/10 border border-rose-500/20 shadow-inner' : 'text-slate-400 border border-transparent'}`}
-        >
-          {liveItemId && (
-            <div className="absolute top-1.5 right-1/4 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-red-400 shadow-[0_0_8px_#ef4444]" />
-          )}
-          <PlayCircle size={20} className={mobileTab === 'preview' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'} />
-          <span className="text-[9px] font-black uppercase tracking-widest">Vivo</span>
         </button>
       </div>
 

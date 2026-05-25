@@ -189,13 +189,103 @@ const STEPS: TutorialStep[] = [
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [isExiting, setIsExiting] = useState(false);
+    const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+    const [arrowDirection, setArrowDirection] = useState<'left' | 'right' | 'top' | 'bottom' | 'none'>('none');
 
     const step = STEPS[currentStep];
     const Icon = step.icon;
     const isLast = currentStep === STEPS.length - 1;
     const progress = Math.round(((currentStep + 1) / STEPS.length) * 100);
 
-    // Dynamic spotlight highlighting
+    // Calculate position relative to highlighted element
+    const updatePosition = () => {
+        const selector = step.selector;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        // If no selector or if screen is mobile, center the modal
+        if (!selector || windowWidth < 768) {
+            setTooltipStyle({
+                position: 'fixed',
+                top: windowWidth < 768 ? 'auto' : '50%',
+                bottom: windowWidth < 768 ? '1.5rem' : 'auto',
+                left: '50%',
+                transform: windowWidth < 768 ? 'translateX(-50%)' : 'translate(-50%, -50%)',
+                width: '92%',
+                maxWidth: '440px',
+                zIndex: 8500,
+                transition: 'all 0.3s ease-out'
+            });
+            setArrowDirection('none');
+            return;
+        }
+
+        const element = document.querySelector(selector);
+        if (!element) {
+            // Fallback to bottom right
+            setTooltipStyle({
+                position: 'fixed',
+                bottom: '1.5rem',
+                right: '1.5rem',
+                width: '92%',
+                maxWidth: '440px',
+                zIndex: 8500,
+                transition: 'all 0.3s ease-out'
+            });
+            setArrowDirection('none');
+            return;
+        }
+
+        const rect = element.getBoundingClientRect();
+
+        // Calculate available space
+        const spaceRight = windowWidth - rect.right;
+        const spaceLeft = rect.left;
+        const spaceBottom = windowHeight - rect.bottom;
+        const spaceTop = rect.top;
+
+        let style: React.CSSProperties = {
+            position: 'fixed',
+            width: '420px',
+            zIndex: 8500,
+            transition: 'all 0.3s ease-out'
+        };
+
+        // Decide where to position the card relative to the highlighted element
+        if (spaceRight > 440) {
+            // Right side of the element
+            style.left = `${rect.right + 20}px`;
+            style.top = `${Math.max(20, Math.min(rect.top + (rect.height - 400) / 2, windowHeight - 480))}px`;
+            setArrowDirection('left');
+        } else if (spaceLeft > 440) {
+            // Left side of the element
+            style.left = `${rect.left - 440}px`;
+            style.top = `${Math.max(20, Math.min(rect.top + (rect.height - 400) / 2, windowHeight - 480))}px`;
+            setArrowDirection('right');
+        } else if (spaceBottom > 420) {
+            // Below the element
+            style.left = `${Math.max(20, Math.min(rect.left + (rect.width - 420) / 2, windowWidth - 440))}px`;
+            style.top = `${rect.bottom + 20}px`;
+            setArrowDirection('top');
+        } else if (spaceTop > 420) {
+            // Above the element
+            style.left = `${Math.max(20, Math.min(rect.left + (rect.width - 420) / 2, windowWidth - 440))}px`;
+            style.top = `${rect.top - 420}px`;
+            setArrowDirection('bottom');
+        } else {
+            // Center modal on screen if there is absolutely no space
+            style.top = '50%';
+            style.left = '50%';
+            style.transform = 'translate(-50%, -50%)';
+            style.width = '92%';
+            style.maxWidth = '440px';
+            setArrowDirection('none');
+        }
+
+        setTooltipStyle(style);
+    };
+
+    // Handle spotlight scroll and active class
     useEffect(() => {
         const selector = step.selector;
         if (!selector) return;
@@ -212,6 +302,20 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
             }
         };
     }, [currentStep, step.selector]);
+
+    // Position updates
+    useEffect(() => {
+        updatePosition();
+        window.addEventListener('resize', updatePosition);
+        
+        // Timeout to handle panel opening/closing dimensions
+        const timer = setTimeout(updatePosition, 150);
+        
+        return () => {
+            window.removeEventListener('resize', updatePosition);
+            clearTimeout(timer);
+        };
+    }, [currentStep]);
 
     const handleNext = () => {
         if (isLast) {
@@ -232,7 +336,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     };
 
     return (
-        <div className={`fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-[9999] w-[92%] sm:w-[440px] max-h-[85vh] flex flex-col bg-slate-900/98 border border-white/10 rounded-[28px] shadow-[0_24px_80px_rgba(0,0,0,0.85),0_0_35px_rgba(34,211,238,0.18)] overflow-hidden transition-all duration-300 ${isExiting ? 'opacity-0 translate-y-12' : 'opacity-100 translate-y-0 animate-scale-up'}`}>
+        <>
+            {/* Backdrop Dimming Overlay */}
+            <div className={`fixed inset-0 bg-slate-950/85 backdrop-blur-[2px] z-[7000] pointer-events-auto transition-opacity duration-300 ${isExiting ? 'opacity-0' : 'opacity-100'}`} />
+
             <style>{`
                 @keyframes tutorialPulse {
                     0% {
@@ -241,7 +348,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                     }
                     50% {
                         outline-color: rgba(34, 211, 238, 1);
-                        box-shadow: 0 0 30px 10px rgba(34, 211, 238, 0.5);
+                        box-shadow: 0 0 35px 12px rgba(34, 211, 238, 0.6);
                     }
                     100% {
                         outline-color: rgba(34, 211, 238, 0.4);
@@ -252,94 +359,116 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                     position: relative !important;
                     z-index: 8000 !important;
                     animation: tutorialPulse 2s infinite ease-in-out !important;
-                    outline: 5px solid #22d3ee !important;
-                    outline-offset: 3px !important;
+                    outline: 6px solid #22d3ee !important;
+                    outline-offset: 4px !important;
+                    background-color: rgba(15, 23, 42, 0.95) !important;
                     transition: all 0.3s ease !important;
+                    border-radius: 12px;
                 }
             `}</style>
 
-            {/* Header Banner */}
-            <div className={`p-5 bg-gradient-to-br ${step.color} relative shrink-0`}>
-                <div className="absolute -right-10 -bottom-10 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
-                <div className="flex items-center justify-between relative z-10">
-                    <span className="bg-white/15 border border-white/20 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-white/90">
-                        {step.tag} • Paso {currentStep + 1} de {STEPS.length}
-                    </span>
-                    <button 
-                        onClick={handleComplete} 
-                        className="text-white/60 hover:text-white transition-colors"
-                        title="Saltar tutorial"
-                    >
-                        <X size={16} />
-                    </button>
-                </div>
-                <div className="flex items-center gap-3 mt-3 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-lg">
-                        <Icon size={20} className="text-white" />
+            {/* Guided Tutorial Tooltip Card */}
+            <div
+                style={tooltipStyle}
+                className={`flex flex-col bg-slate-900 border border-white/15 rounded-[28px] shadow-[0_24px_80px_rgba(0,0,0,0.9),0_0_35px_rgba(34,211,238,0.18)] overflow-visible transition-all duration-300 ${isExiting ? 'opacity-0 scale-95 translate-y-8' : 'opacity-100 scale-100 translate-y-0 animate-scale-up'}`}
+            >
+                {/* Arrow pointer styling */}
+                {arrowDirection === 'left' && (
+                    <div className="absolute left-[-10px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-r-[10px] border-r-slate-900 filter drop-shadow-[-2px_0_1px_rgba(255,255,255,0.15)] z-[8501]" />
+                )}
+                {arrowDirection === 'right' && (
+                    <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[10px] border-l-slate-900 filter drop-shadow-[2px_0_1px_rgba(255,255,255,0.15)] z-[8501]" />
+                )}
+                {arrowDirection === 'top' && (
+                    <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-slate-900 filter drop-shadow-[0_-2px_1px_rgba(255,255,255,0.15)] z-[8501]" />
+                )}
+                {arrowDirection === 'bottom' && (
+                    <div className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-slate-900 filter drop-shadow-[0_2px_1px_rgba(255,255,255,0.15)] z-[8501]" />
+                )}
+
+                {/* Header Banner */}
+                <div className={`p-5 bg-gradient-to-br ${step.color} relative shrink-0 rounded-t-[27px] overflow-hidden`}>
+                    <div className="absolute -right-10 -bottom-10 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
+                    <div className="flex items-center justify-between relative z-10">
+                        <span className="bg-white/20 border border-white/30 text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full text-white">
+                            {step.tag} • Paso {currentStep + 1} de {STEPS.length}
+                        </span>
+                        <button 
+                            onClick={handleComplete} 
+                            className="text-white/60 hover:text-white transition-colors"
+                            title="Saltar tutorial"
+                        >
+                            <X size={16} />
+                        </button>
                     </div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-wide leading-tight">{step.title}</h3>
-                </div>
-            </div>
-
-            {/* Content Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-950/20">
-                <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-                    {step.description}
-                </p>
-
-                <div className="space-y-2">
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Puntos Clave:</p>
-                    <div className="flex flex-col gap-2">
-                        {step.focus.map((item, idx) => (
-                            <div key={idx} className="flex items-start gap-2 bg-white/[0.02] border border-white/5 p-2.5 rounded-xl">
-                                <span className="mt-0.5 w-4 h-4 bg-indigo-500/10 border border-indigo-400/25 text-indigo-400 rounded-md flex items-center justify-center shrink-0 text-[10px]">
-                                    ✓
-                                </span>
-                                <span className="text-[10.5px] text-slate-300 font-medium leading-tight">{item}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="bg-cyan-950/40 border border-cyan-500/25 text-cyan-200/90 p-3.5 rounded-xl text-[10.5px] leading-relaxed shadow-inner">
-                    💡 Tip: {step.tip}
-                </div>
-            </div>
-
-            {/* Progress and Navigation Footer */}
-            <div className="p-4 bg-slate-950/80 border-t border-white/5 shrink-0 flex flex-col gap-3">
-                {/* Progress bar */}
-                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-500">
-                    <span>{progress}% completado</span>
-                    <div className="flex gap-1">
-                        {STEPS.map((_, idx) => (
-                            <button 
-                                key={idx}
-                                onClick={() => setCurrentStep(idx)}
-                                className={`h-1.5 rounded-full transition-all ${idx === currentStep ? 'w-4 bg-indigo-400' : idx < currentStep ? 'w-2 bg-indigo-400/50' : 'w-1 bg-slate-700'}`}
-                            />
-                        ))}
+                    <div className="flex items-center gap-3 mt-3 relative z-10">
+                        <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-lg">
+                            <Icon size={20} className="text-white" />
+                        </div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wide leading-tight">{step.title}</h3>
                     </div>
                 </div>
 
-                {/* Navigation Buttons */}
-                <div className="flex gap-2">
-                    <button
-                        onClick={handlePrev}
-                        className={`flex-1 h-9 rounded-xl border border-white/10 bg-white/[0.04] text-[10px] font-black uppercase tracking-wider text-slate-300 transition-all hover:bg-white/10 hover:text-white ${currentStep === 0 ? 'invisible' : ''}`}
-                    >
-                        Anterior
-                    </button>
-                    <button
-                        onClick={handleNext}
-                        className={`flex-[1.4] h-9 rounded-xl bg-gradient-to-r ${step.color} text-[10px] font-black uppercase tracking-wider text-white shadow-lg active:scale-95 transition-all hover:brightness-110 flex items-center justify-center gap-1.5`}
-                    >
-                        {isLast ? 'Entendido' : 'Siguiente'}
-                        {isLast ? <Check size={12} /> : <ArrowRight size={12} />}
-                    </button>
+                {/* Content Body */}
+                <div className="flex-1 overflow-y-auto max-h-[42vh] p-5 space-y-4 custom-scrollbar bg-slate-950/20">
+                    <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
+                        {step.description}
+                    </p>
+
+                    <div className="space-y-2">
+                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Puntos Clave:</p>
+                        <div className="flex flex-col gap-2">
+                            {step.focus.map((item, idx) => (
+                                <div key={idx} className="flex items-start gap-2 bg-white/[0.02] border border-white/5 p-2.5 rounded-xl">
+                                    <span className="mt-0.5 w-4 h-4 bg-cyan-500/10 border border-cyan-400/25 text-cyan-400 rounded-md flex items-center justify-center shrink-0 text-[10px] font-black">
+                                        ✓
+                                    </span>
+                                    <span className="text-[10.5px] text-slate-300 font-medium leading-tight">{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-cyan-950/40 border border-cyan-500/25 text-cyan-200/90 p-3.5 rounded-xl text-[10.5px] leading-relaxed shadow-inner">
+                        💡 Tip: {step.tip}
+                    </div>
+                </div>
+
+                {/* Progress and Navigation Footer */}
+                <div className="p-4 bg-slate-950/80 border-t border-white/5 rounded-b-[27px] shrink-0 flex flex-col gap-3">
+                    {/* Progress bar */}
+                    <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-500">
+                        <span>{progress}% completado</span>
+                        <div className="flex gap-1">
+                            {STEPS.map((_, idx) => (
+                                <button 
+                                    key={idx}
+                                    onClick={() => setCurrentStep(idx)}
+                                    className={`h-1.5 rounded-full transition-all ${idx === currentStep ? 'w-4 bg-indigo-400' : idx < currentStep ? 'w-2 bg-indigo-400/50' : 'w-1 bg-slate-700'}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Navigation Buttons */}
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handlePrev}
+                            className={`flex-1 h-9 rounded-xl border border-white/10 bg-white/[0.04] text-[10px] font-black uppercase tracking-wider text-slate-300 transition-all hover:bg-white/10 hover:text-white ${currentStep === 0 ? 'invisible' : ''}`}
+                        >
+                            Anterior
+                        </button>
+                        <button
+                            onClick={handleNext}
+                            className={`flex-[1.4] h-9 rounded-xl bg-gradient-to-r ${step.color} text-[10px] font-black uppercase tracking-wider text-white shadow-lg active:scale-95 transition-all hover:brightness-110 flex items-center justify-center gap-1.5`}
+                        >
+                            {isLast ? 'Entendido' : 'Siguiente'}
+                            {isLast ? <Check size={12} /> : <ArrowRight size={12} />}
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 

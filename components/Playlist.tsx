@@ -391,6 +391,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
   splitRightSlide,
   onOpenNotes
 }) => {
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState('');
 
@@ -576,13 +577,15 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
           >
             <Monitor size={16} />
           </button>
-          <button
-            onClick={() => onUploadClick(item.id)}
-            className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-900/20 rounded-lg transition-colors"
-            title="Subir imágenes"
-          >
-            <Upload size={16} />
-          </button>
+          {!isMobile && (
+            <button
+              onClick={() => onUploadClick(item.id)}
+              className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-900/20 rounded-lg transition-colors"
+              title="Subir imágenes"
+            >
+              <Upload size={16} />
+            </button>
+          )}
           <button
             onClick={() => onRefreshItem(item)}
             className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -808,6 +811,14 @@ const Playlist: React.FC<PlaylistProps> = ({
     }
   };
 
+  const [isMobile, setIsMobile] = React.useState(false);
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [activeUploadItemId, setActiveUploadItemId] = useState<string | undefined>();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(() => {
@@ -980,17 +991,21 @@ const Playlist: React.FC<PlaylistProps> = ({
           <Music className="opacity-20" size={32} />
         </div>
         <p className="text-sm text-gray-500">Tu lista está vacía.</p>
-        <p className="text-xs text-gray-600 mt-1 mb-6">Usa el panel izquierdo o sube imágenes, videos, PowerPoint o PDF.</p>
+        <p className="text-xs text-gray-600 mt-1 mb-6">
+          {isMobile ? "Usa la pestaña del Editor para buscar cantos y citas bíblicas." : "Usa el panel izquierdo o sube imágenes, videos, PowerPoint o PDF."}
+        </p>
 
-        <button
-          onClick={() => {
-            setActiveUploadItemId(undefined);
-            fileInputRef.current?.click();
-          }}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95"
-        >
-          <Upload size={18} /> SUBIR ARCHIVOS
-        </button>
+        {!isMobile && (
+          <button
+            onClick={() => {
+              setActiveUploadItemId(undefined);
+              fileInputRef.current?.click();
+            }}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95"
+          >
+            <Upload size={18} /> SUBIR ARCHIVOS
+          </button>
+        )}
       </div>
     );
   }

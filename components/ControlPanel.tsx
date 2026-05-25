@@ -245,11 +245,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onUpdateCustomThemes,
   onUploadImages,
 }) => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [activeTab, setActiveTab] = useState<'content' | 'theme' | 'logo'>('content');
   const [bgMode, setBgMode] = useState<'image' | 'solid' | 'gradient'>('image');
   const [loading, setLoading] = useState(false);
   const [inputText, setInputText] = useState('');
-  const [inputType, setInputType] = useState<'youtube' | 'scripture' | 'manual'>('youtube');
+  const [inputType, setInputType] = useState<'youtube' | 'scripture' | 'manual'>(
+    typeof window !== 'undefined' && window.innerWidth < 1024 ? 'scripture' : 'youtube'
+  );
+
+  useEffect(() => {
+    if (isMobile && inputType === 'youtube') {
+      setInputType('scripture');
+    }
+  }, [isMobile]);
+
   const [bibleVersion, setBibleVersion] = useState('Reina Valera 1960');
   const [density, setDensity] = useState<DensityMode>('classic');
   const [songResults, setSongResults] = useState<SongSearchResult[]>([]);
@@ -1025,26 +1042,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </button>
         {expandedSections.logoGeneral && (
           <div className="p-4 pt-0 space-y-4 border-t border-white/10 mt-2 animate-fade-in">
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <span className="text-[10px] font-black uppercase text-slate-400">Imagen de bienvenida</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => logoFileInputRef.current?.click()}
-                  className="rounded-xl bg-cyan-400 px-3 py-2 text-[11px] font-black uppercase text-slate-950 transition hover:bg-cyan-300 flex items-center gap-2"
-                >
-                  <Upload size={14} /> Logo
-                </button>
-                {currentTheme.logoUrl && (
+            {!isMobile && (
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <span className="text-[10px] font-black uppercase text-slate-400">Imagen de bienvenida</span>
+                <div className="flex gap-2">
                   <button
-                    onClick={() => updatePendingTheme({ ...currentTheme, logoUrl: undefined })}
-                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-black uppercase text-red-200 transition hover:bg-red-500/20 flex items-center gap-2"
-                    title="Restablecer al logo predeterminado"
+                    onClick={() => logoFileInputRef.current?.click()}
+                    className="rounded-xl bg-cyan-400 px-3 py-2 text-[11px] font-black uppercase text-slate-950 transition hover:bg-cyan-300 flex items-center gap-2"
                   >
-                    <Trash2 size={14} /> Restablecer
+                    <Upload size={14} /> Logo
                   </button>
-                )}
+                  {currentTheme.logoUrl && (
+                    <button
+                      onClick={() => updatePendingTheme({ ...currentTheme, logoUrl: undefined })}
+                      className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-black uppercase text-red-200 transition hover:bg-red-500/20 flex items-center gap-2"
+                      title="Restablecer al logo predeterminado"
+                    >
+                      <Trash2 size={14} /> Restablecer
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div
               className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 shadow-inner"
@@ -1897,16 +1916,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             <div className="bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(8,13,25,0.78))] rounded-[1.35rem] p-4 border border-white/10 shadow-2xl shadow-black/20">
               <label className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em] mb-3 block">Seleccionar Origen</label>
-              <div className="grid grid-cols-5 gap-3">
-                <button
-                  onClick={() => { setInputType('youtube'); setSongResults([]); }}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${inputType === 'youtube' ? 'bg-gradient-to-br from-red-600/35 to-rose-600/20 border-red-400/60 shadow-lg shadow-red-950/20' : 'bg-slate-950/60 border-white/10 hover:border-cyan-300/40 hover:bg-white/[0.04]'}`}
-                >
-                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${inputType === 'youtube' ? 'bg-red-500' : 'bg-slate-700'}`}>
-                    <Monitor size={18} className="text-white" />
-                  </div>
-                  <span className={`text-[10px] font-bold uppercase ${inputType === 'youtube' ? 'text-red-300' : 'text-gray-400'}`}>YouTube</span>
-                </button>
+              <div className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-5'} gap-3`}>
+                {!isMobile && (
+                  <button
+                    onClick={() => { setInputType('youtube'); setSongResults([]); }}
+                    className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${inputType === 'youtube' ? 'bg-gradient-to-br from-red-600/35 to-rose-600/20 border-red-400/60 shadow-lg shadow-red-950/20' : 'bg-slate-950/60 border-white/10 hover:border-cyan-300/40 hover:bg-white/[0.04]'}`}
+                  >
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${inputType === 'youtube' ? 'bg-red-500' : 'bg-slate-700'}`}>
+                      <Monitor size={18} className="text-white" />
+                    </div>
+                    <span className={`text-[10px] font-bold uppercase ${inputType === 'youtube' ? 'text-red-300' : 'text-gray-400'}`}>YouTube</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setInputType('manual');
@@ -1943,17 +1964,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </div>
                   <span className="text-[10px] font-bold uppercase text-gray-400 group-hover/nv:text-emerald-300">NV</span>
                 </button>
-                <button
-                  onClick={() => presentationFileInputRef.current?.click()}
-                  disabled={loading || !onUploadImages}
-                  className="p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 bg-slate-950/60 border-white/10 hover:border-cyan-400/60 hover:bg-cyan-950/30 disabled:opacity-50 disabled:cursor-not-allowed group/ppt"
-                  title="Agregar PDF o PowerPoint"
-                >
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-slate-700 group-hover/ppt:bg-cyan-500 transition-colors">
-                    {loading ? <Loader2 size={18} className="text-white animate-spin" /> : <FileText size={18} className="text-white" />}
-                  </div>
-                  <span className="text-[10px] font-bold uppercase text-gray-400 group-hover/ppt:text-cyan-300">PDF/PPT</span>
-                </button>
+                {!isMobile && (
+                  <button
+                    onClick={() => presentationFileInputRef.current?.click()}
+                    disabled={loading || !onUploadImages}
+                    className="p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 bg-slate-950/60 border-white/10 hover:border-cyan-400/60 hover:bg-cyan-950/30 disabled:opacity-50 disabled:cursor-not-allowed group/ppt"
+                    title="Agregar PDF o PowerPoint"
+                  >
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-slate-700 group-hover/ppt:bg-cyan-500 transition-colors">
+                      {loading ? <Loader2 size={18} className="text-white animate-spin" /> : <FileText size={18} className="text-white" />}
+                    </div>
+                    <span className="text-[10px] font-bold uppercase text-gray-400 group-hover/ppt:text-cyan-300">PDF/PPT</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2311,7 +2334,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
 
             {/* UNIFIED BACKGROUND AUDIO PLAYER & PLAYLIST */}
-            {(backgroundAudioItem || bgAudioPlaylist.length > 0) && (
+            {!isMobile && (backgroundAudioItem || bgAudioPlaylist.length > 0) && (
               <div className="bg-gray-900 border border-pink-500/30 rounded-xl overflow-hidden shadow-lg animate-fade-in mb-6 flex flex-col">
                 {/* TOP: Reproductor / Controles */}
                 {backgroundAudioItem && (
@@ -3182,14 +3205,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         {bgMode === 'image' && (
                           <div className="space-y-3">
                             <input type="text" placeholder="Pega URL de imagen..." className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-3 text-xs text-white outline-none focus:border-cyan-300/50" onChange={(e) => { if (e.target.value) updatePendingTheme({ ...currentTheme, background: `url(${e.target.value}) center/cover no-repeat` }); }} />
-                            <button
-                              onClick={() => bgFileInputRef.current?.click()}
-                              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cyan-300/25 bg-cyan-400/12 p-3 text-cyan-100 transition-all hover:bg-cyan-400/18"
-                            >
-                              <Upload size={16} />
-                              <span className="text-xs font-black uppercase">Subir Fondo Personalizado</span>
-                            </button>
-                            <input type="file" accept="image/*" ref={bgFileInputRef} className="hidden" onChange={handleBgUpload} />
+                            {!isMobile && (
+                              <>
+                                <button
+                                  onClick={() => bgFileInputRef.current?.click()}
+                                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cyan-300/25 bg-cyan-400/12 p-3 text-cyan-100 transition-all hover:bg-cyan-400/18"
+                                >
+                                  <Upload size={16} />
+                                  <span className="text-xs font-black uppercase">Subir Fondo Personalizado</span>
+                                </button>
+                                <input type="file" accept="image/*" ref={bgFileInputRef} className="hidden" onChange={handleBgUpload} />
+                              </>
+                            )}
                           </div>
                         )}
                         {bgMode === 'solid' && (
