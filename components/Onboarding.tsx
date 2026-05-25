@@ -13,7 +13,6 @@ import {
     Sparkles,
     UploadCloud,
     X,
-    ZoomIn,
     BookOpen,
     Cast,
     History,
@@ -39,104 +38,151 @@ const STEPS: TutorialStep[] = [
     {
         icon: Sparkles,
         tag: 'Bienvenida',
-        title: 'Bienvenido a FlujoEclesial Studio',
-        description: 'Aprende a operar la proyección eclesial como un profesional con este tour interactivo. La cabina ahora tiene más espacio y máxima seguridad.',
+        title: 'Cabina Profesional FlujoEclesial Studio',
+        description: 'Bienvenido al tour interactivo de la cabina moderna. Hemos diseñado una interfaz inspirada en ProPresenter para brindarte el máximo espacio de trabajo, fluidez en vivo y seguridad de datos.',
         focus: [
-            'Panel central de diapositivas expandible',
-            'Suite tipográfica para el texto del Logo',
-            'Prevención de borrados en auto-guardado',
-            'Historial de auditoría en tiempo real sin duplicados'
+            'Tres columnas integradas: Editor (Izq.), Playlist central y Proyección (Der.)',
+            'Workspace expansible para ocultar los paneles laterales y liberar espacio',
+            'Sincronización multi-ventana ultra-rápida y control remoto móvil',
+            'Historial de auditoría completo y protección activa contra borrados'
         ],
-        tip: 'Observa cómo el sistema resalta dinámicamente las áreas explicadas en la pantalla trasera.',
+        tip: 'Usa este tutorial para comprender cada botón y flujo del sistema. El panel activo se iluminará con un halo cian brillante.',
         color: 'from-indigo-600 via-violet-600 to-fuchsia-700'
     },
     {
         icon: Library,
-        tag: 'Editor & Logo',
-        title: 'Diseño en Acordeón y Suite del Logo',
-        description: 'En el panel izquierdo editas las canciones y creas logos espectaculares con textos completamente estilizados.',
+        tag: 'Búsqueda e Importación',
+        title: 'Biblioteca de Contenido y Biblia',
+        description: 'Prepara las canciones, lecturas bíblicas y avisos antes del servicio. Todo entra al flujo de trabajo desde el panel de contenido.',
         focus: [
-            'Secciones colapsables en acordeón',
-            'Suite tipográfica completa para el logo',
-            'Tamaño inteligente auto-escalable en cqh',
-            'Gradientes, bordes y sombras premium'
+            'Buscador general: Escribe títulos o letras para cargar canciones en un clic',
+            'Pasajes Bíblicos: Escribe referencias (ej: Juan 3:16) y obtén diapositivas al instante',
+            'Selección de versiones de la Biblia: RV1960, NVI, NTV, LBLA, KJV y más',
+            'Importador multimedia: Arrastra imágenes, canciones locales o videos'
         ],
-        tip: 'Haz clic en las secciones del logo en el panel de la izquierda para expandirlas de forma ultra-organizada.',
+        tip: 'Usa referencias directas con el capítulo y versículo. El autocompletado te guiará al escribir los libros.',
         color: 'from-sky-600 via-cyan-600 to-teal-700',
         selector: '#control-panel'
     },
     {
-        icon: Layout,
-        tag: 'Mesa Central',
-        title: 'Workspace Ultra-Espacioso',
-        description: 'La playlist central ahora es ultra-flexible. Puedes ocultar los paneles laterales para concentrarte en el servicio.',
+        icon: Palette,
+        tag: 'Diseñador de Logo',
+        title: 'Suite Tipográfica y Logo del Proyector',
+        description: 'La pestaña "Logo" te permite crear un logotipo estilizado para proyectar durante las transiciones o pausas del servicio.',
         focus: [
-            'Tirador izquierdo: oculta el Editor',
-            'Tirador derecho: oculta la Proyección',
-            'Espacio central expandido al 100% de ancho',
-            'Transición premium y fluida de 300ms'
+            'Acordeón colapsable: Cuatro áreas de diseño ordenadas y limpias',
+            'Soporte completo de texto: Agrega letras y personaliza fuentes',
+            'Estilizado premium: Gradientes, sombras neon y bordes de contorno',
+            'Escala inteligente cqh: El texto escala de forma perfecta en cualquier tamaño'
         ],
-        tip: 'Haz clic en las flechas flotantes de los bordes para deslizar y colapsar los paneles en tiempo real.',
+        tip: 'El botón "SHOW LOGO" de la derecha proyectará este logo con todos los estilos que configures aquí.',
+        color: 'from-purple-600 via-pink-600 to-rose-600',
+        selector: '#control-panel'
+    },
+    {
+        icon: BookOpen,
+        tag: 'Reflow Editor',
+        title: 'Edición en Bloque (Reflow Editor)',
+        description: 'El Reflow Editor te permite editar la letra de toda la canción de corrido, como si fuera un documento de Word, sin tener que abrir cada slide por separado.',
+        focus: [
+            'Botón "Reflow Editor" en la barra de rejilla del panel central',
+            'Edita todo el texto corrido de forma ágil y fluida',
+            'Inserta divisores con un solo clic para crear nuevas diapositivas',
+            'Los cambios se actualizan instantáneamente en las miniaturas'
+        ],
+        tip: 'Ideal para corregir errores ortográficos rápidos dictados por el director de alabanza durante el ensayo.',
+        color: 'from-amber-600 via-orange-600 to-rose-600',
+        selector: '#playlist-panel'
+    },
+    {
+        icon: List,
+        tag: 'Escaleta del Servicio',
+        title: 'Mesa Central y Playlist Interactiva',
+        description: 'La playlist central funciona como el timeline o escaleta de cabina. Aquí ordenas cronológicamente el servicio.',
+        focus: [
+            'Reordenación táctil y drag-and-drop de canciones y avisos',
+            'Divisores visuales de sección: Asigna colores rápidos (Naranja, Verde, etc.)',
+            'Acciones por elemento: Duplicar elementos, actualizar y borrar',
+            'Duplicar y reordenar diapositivas individuales dentro de cada canción'
+        ],
+        tip: 'Usa los divisores de colores para separar momentos del servicio: Alabanza, Anuncios, Ofrenda, Mensaje.',
         color: 'from-emerald-600 via-teal-600 to-cyan-700',
         selector: '#playlist-panel'
     },
     {
-        icon: Cast,
-        tag: 'En vivo',
-        title: 'Proyección y Vista Previa',
-        description: 'El panel derecho te muestra en tiempo real la proyección que ve la congregación y el monitor secundario.',
+        icon: Layout,
+        tag: 'Workspace',
+        title: 'Tiradores de Ocultación de Paneles',
+        description: 'Para pantallas de laptop o cabinas compactas, puedes ocultar los paneles laterales para ampliar al máximo la mesa de diapositivas central.',
         focus: [
-            'Visualización del proyector en vivo',
-            'Monitor activo y sincronización de ventanas',
-            'Control de escala y encuadre responsivo',
-            'Previsualización de animaciones premium'
+            'Tirador izquierdo (Flecha <): Desliza y oculta el Editor / Logo',
+            'Tirador derecho (Flecha >): Desliza y oculta el panel de Proyección',
+            'Expansión al 100% de la pantalla para el panel central de slides',
+            'Transiciones ultra-fluidas CSS de 300ms de ancho y opacidad'
         ],
-        tip: 'Puedes colapsar este panel con el tirador derecho cuando no estés operando el vivo directamente.',
+        tip: 'Haz clic en el tirador para ocultar un panel; vuelve a hacer clic en la flecha cian flotante para reabrirlo.',
+        color: 'from-teal-600 via-emerald-600 to-emerald-700',
+        selector: '#playlist-panel'
+    },
+    {
+        icon: Play,
+        tag: 'Vista Previa',
+        title: 'Operación del Vivo y Miniaturas',
+        description: 'Aprende a navegar y lanzar diapositivas en vivo con total confianza, usando el doble filtro de seguridad.',
+        focus: [
+            'Un Clic: Selecciona y edita el elemento en el panel central de diapositivas',
+            'Doble Clic (o Enter): Envía la diapositiva directamente al vivo',
+            'Barra inferior de diapositivas del vivo: Navega con un solo clic',
+            'Atajos del teclado: Espacio para siguiente diapositiva, Flechas para navegar'
+        ],
+        tip: 'Usa la barra espaciadora en tu teclado para avanzar la canción al ritmo de la alabanza sin usar el mouse.',
         color: 'from-violet-600 via-indigo-600 to-blue-700',
         selector: '#live-preview-panel'
     },
     {
-        icon: Play,
-        tag: 'Seguridad',
-        title: 'Acciones del Vivo (Estilo ProPresenter)',
-        description: 'Los botones de seguridad inferiores te otorgan control total e inmediato sobre la proyección ante cualquier imprevisto.',
+        icon: Cast,
+        tag: 'Acciones de Seguridad',
+        title: 'Botones del Vivo (ProPresenter-Style)',
+        description: 'La barra inferior derecha del vivo contiene los botones de acción inmediata ante cualquier imprevisto durante la proyección.',
         focus: [
-            'Blackout: envía la pantalla a negro absoluto',
-            'Clear Text: oculta letras manteniendo el fondo',
-            'Show Logo: proyecta el logo con texto estilizado',
-            'Split Screen: divide la pantalla para traducción o lectura'
+            'BLACK (Blackout) [F9 o ESC]: Apaga por completo la pantalla del proyector',
+            'CLEAR TEXT [F10]: Oculta la letra manteniendo el fondo de imagen o video',
+            'SHOW LOGO [F12]: Proyecta el logotipo de la iglesia estilizado',
+            'SPLIT SCREEN: Divide la pantalla para traducciones o soporte multi-idioma'
         ],
-        tip: 'Puedes presionar F9 (Black), F10 (Clear), F12 (Logo) en tu teclado para activarlos instantáneamente.',
+        tip: 'Aprende los atajos de teclado F9, F10, F12. Te salvarán de errores en vivo al instante.',
         color: 'from-orange-600 via-amber-600 to-yellow-600',
         selector: '#live-action-controls'
     },
     {
         icon: Cloud,
-        tag: 'Filtro Cloud',
-        title: 'Seguridad Antiborrados en la Nube',
-        description: 'Supabase mantiene tus datos a salvo. El sistema te protege contra eliminaciones locales accidentales.',
+        tag: 'Sincronización Nube',
+        title: 'Filtro Anti-Borrado y Guardado Seguro',
+        description: 'La sincronización con la nube en Supabase incluye un filtro de seguridad inteligente que te previene de pérdidas irreversibles de archivos.',
         focus: [
-            'Detección fina a nivel de diapositivas/archivos',
-            'Aviso de borrados en auto-guardado automático',
-            'Advertencia de seguridad en sincronización manual',
-            'Freno del sync para evitar pérdidas irreversibles'
+            'Sincronización Manual: Botón "Guardar manual" en el menú superior',
+            'Auto-Guardado (Auto-Sync): Sube los cambios automáticamente cada 5 segundos',
+            'Filtro de seguridad: Frena la subida si detecta diapositivas o proyectos eliminados',
+            'Modal detallada: Te enumera exactamente qué archivo o elemento se va a borrar'
         ],
-        tip: 'Si eliminas un archivo por error y guardas, la modal de advertencia te avisará qué diapositiva exacta se perderá.',
-        color: 'from-slate-700 via-blue-700 to-cyan-700'
+        tip: 'Si el auto-guardado se frena por una modal, puedes aceptar la eliminación en la nube o cancelar para restaurar.',
+        color: 'from-slate-700 via-blue-700 to-cyan-700',
+        selector: '#playlist-panel'
     },
     {
-        icon: History,
-        tag: 'Auditoría',
-        title: 'Historial Deduplicado & Atajos',
-        description: 'Sigue cada movimiento realizado en cabina y navega a la velocidad de la luz mediante el teclado.',
+        icon: MonitorSmartphone,
+        tag: 'Control Móvil',
+        title: 'QR y Aplicación Móvil de Altar',
+        description: 'El botón "Móvil" abre un panel con un código QR que te permite enlazar cualquier celular o tablet para controlar la proyección a distancia.',
         focus: [
-            'Historial libre de registros duplicados',
-            'Atajos rápidos: Espacio (Sig) y Flechas (Nav)',
-            'Filtrado instantáneo por categorías',
-            'Exportación de auditoría completa a texto'
+            'Conexión local instantánea escaneando el código QR con la cámara',
+            'Control remoto de diapositivas desde el altar por parte del predicador',
+            'Buscador móvil: Agrega canciones y pasajes desde el celular',
+            'Subir fotos directamente desde el móvil a la playlist principal'
         ],
-        tip: 'Accede al historial en el menú superior para ver quién y cuándo realizó cualquier modificación.',
-        color: 'from-rose-700 via-red-700 to-orange-700'
+        tip: 'El predicador puede avanzar los slides de su prédica a su propio ritmo usando su teléfono inteligente.',
+        color: 'from-cyan-600 via-blue-600 to-indigo-700',
+        selector: '#playlist-panel'
     }
 ];
 
