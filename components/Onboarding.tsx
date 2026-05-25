@@ -191,11 +191,37 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     const [isExiting, setIsExiting] = useState(false);
     const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
     const [arrowDirection, setArrowDirection] = useState<'left' | 'right' | 'top' | 'bottom' | 'none'>('none');
+    
+    // Interactive Checklist state
+    const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
 
     const step = STEPS[currentStep];
     const Icon = step.icon;
     const isLast = currentStep === STEPS.length - 1;
     const progress = Math.round(((currentStep + 1) / STEPS.length) * 100);
+
+    // Dynamic checks progress
+    const checkedCount = checkedItems.size;
+    const totalChecks = step.focus.length;
+    const isStepFullyChecked = checkedCount === totalChecks;
+
+    // Reset checklist on step change
+    useEffect(() => {
+        setCheckedItems(new Set());
+    }, [currentStep]);
+
+    // Handle check toggle
+    const handleToggleCheck = (idx: number) => {
+        setCheckedItems(prev => {
+            const next = new Set(prev);
+            if (next.has(idx)) {
+                next.delete(idx);
+            } else {
+                next.add(idx);
+            }
+            return next;
+        });
+    };
 
     // Calculate position relative to highlighted element
     const updatePosition = () => {
@@ -203,16 +229,19 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
 
-        // If no selector or if screen is mobile, center the modal
+        // If no selector or if screen is mobile, center the modal at the bottom
         if (!selector || windowWidth < 768) {
             setTooltipStyle({
                 position: 'fixed',
                 top: windowWidth < 768 ? 'auto' : '50%',
-                bottom: windowWidth < 768 ? '1.5rem' : 'auto',
+                bottom: windowWidth < 768 ? '1rem' : 'auto',
                 left: '50%',
                 transform: windowWidth < 768 ? 'translateX(-50%)' : 'translate(-50%, -50%)',
-                width: '92%',
-                maxWidth: '440px',
+                width: '94%',
+                maxWidth: '430px',
+                maxHeight: 'min(580px, 86vh)',
+                display: 'flex',
+                flexDirection: 'column',
                 zIndex: 8500,
                 transition: 'all 0.3s ease-out'
             });
@@ -227,8 +256,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                 position: 'fixed',
                 bottom: '1.5rem',
                 right: '1.5rem',
-                width: '92%',
-                maxWidth: '440px',
+                width: '420px',
+                maxHeight: 'min(580px, 85vh)',
+                display: 'flex',
+                flexDirection: 'column',
                 zIndex: 8500,
                 transition: 'all 0.3s ease-out'
             });
@@ -247,6 +278,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         let style: React.CSSProperties = {
             position: 'fixed',
             width: '420px',
+            maxHeight: 'min(580px, 85vh)', // ALWAYS restrict height so it fits on screen
+            display: 'flex',
+            flexDirection: 'column',
             zIndex: 8500,
             transition: 'all 0.3s ease-out'
         };
@@ -308,7 +342,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         updatePosition();
         window.addEventListener('resize', updatePosition);
         
-        // Timeout to handle panel opening/closing dimensions
+        // Timeout to handle panel dimensions correctly
         const timer = setTimeout(updatePosition, 150);
         
         return () => {
@@ -354,6 +388,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                         outline-color: rgba(34, 211, 238, 0.4);
                         box-shadow: 0 0 0 0px rgba(34, 211, 238, 0);
                     }
+                }
+                @keyframes subtleBounce {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-4px); }
+                }
+                .animate-bounce-subtle {
+                    animation: subtleBounce 2s infinite ease-in-out;
                 }
                 .tutorial-highlight-active {
                     position: relative !important;
@@ -409,23 +450,50 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                     </div>
                 </div>
 
-                {/* Content Body */}
-                <div className="flex-1 overflow-y-auto max-h-[42vh] p-5 space-y-4 custom-scrollbar bg-slate-950/20">
+                {/* Content Body - Pure Flex-1 with scrollbar */}
+                <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-950/20">
                     <p className="text-[11px] text-slate-300 leading-relaxed font-semibold">
                         {step.description}
                     </p>
 
                     <div className="space-y-2">
-                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Puntos Clave:</p>
+                        <div className="flex items-center justify-between">
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Puntos Clave:</p>
+                            <span className="text-[9px] text-cyan-400 font-bold bg-cyan-950/60 px-2 py-0.5 border border-cyan-800/30 rounded-full">
+                                {checkedCount} de {totalChecks} completados
+                            </span>
+                        </div>
+                        
                         <div className="flex flex-col gap-2">
-                            {step.focus.map((item, idx) => (
-                                <div key={idx} className="flex items-start gap-2 bg-white/[0.02] border border-white/5 p-2.5 rounded-xl">
-                                    <span className="mt-0.5 w-4 h-4 bg-cyan-500/10 border border-cyan-400/25 text-cyan-400 rounded-md flex items-center justify-center shrink-0 text-[10px] font-black">
-                                        ✓
-                                    </span>
-                                    <span className="text-[10.5px] text-slate-300 font-medium leading-tight">{item}</span>
-                                </div>
-                            ))}
+                            {step.focus.map((item, idx) => {
+                                const isChecked = checkedItems.has(idx);
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleToggleCheck(idx)}
+                                        className={`w-full text-left flex items-start gap-3 p-2.5 rounded-xl border transition-all duration-200 ${
+                                            isChecked 
+                                                ? 'bg-cyan-950/20 border-cyan-500/35 shadow-[0_0_12px_rgba(34,211,238,0.06)]' 
+                                                : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04] hover:border-white/10'
+                                        }`}
+                                    >
+                                        <div className={`mt-0.5 w-4 h-4 rounded-md flex items-center justify-center shrink-0 text-[10px] font-black border transition-all duration-200 ${
+                                            isChecked 
+                                                ? 'bg-cyan-500 border-cyan-400 text-slate-950' 
+                                                : 'border-slate-700 bg-slate-900/60 text-transparent hover:border-cyan-500/50'
+                                        }`}>
+                                            ✓
+                                        </div>
+                                        <span className={`text-[10.5px] font-medium leading-tight transition-all duration-200 ${
+                                            isChecked 
+                                                ? 'text-slate-400 line-through decoration-cyan-500/30' 
+                                                : 'text-slate-200'
+                                        }`}>
+                                            {item}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -460,7 +528,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                         </button>
                         <button
                             onClick={handleNext}
-                            className={`flex-[1.4] h-9 rounded-xl bg-gradient-to-r ${step.color} text-[10px] font-black uppercase tracking-wider text-white shadow-lg active:scale-95 transition-all hover:brightness-110 flex items-center justify-center gap-1.5`}
+                            className={`flex-[1.4] h-9 rounded-xl text-[10px] font-black uppercase tracking-wider text-white shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 ${
+                                isStepFullyChecked 
+                                    ? 'bg-cyan-400 text-slate-950 shadow-[0_0_15px_#22d3ee] brightness-125 animate-bounce-subtle' 
+                                    : `bg-gradient-to-r ${step.color} hover:brightness-110`
+                            }`}
                         >
                             {isLast ? 'Entendido' : 'Siguiente'}
                             {isLast ? <Check size={12} /> : <ArrowRight size={12} />}
