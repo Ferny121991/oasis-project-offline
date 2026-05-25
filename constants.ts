@@ -72,8 +72,27 @@ export const DEFAULT_THEME: Theme = {
   logoBackground: 'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)',
   logoSize: 78,
   logoOpacity: 1,
-  logoGlow: true,
-  logoBgAnimation: undefined
+  logoBgAnimation: undefined,
+
+  // Default Logo Text Styling
+  logoText: '',
+  logoTextFontFamily: 'Montserrat, sans-serif',
+  logoTextFontSize: 8,
+  logoTextColor: '#ffffff',
+  logoTextBold: true,
+  logoTextItalic: false,
+  logoTextUnderline: false,
+  logoTextAlignment: 'center',
+  logoTextShadow: true,
+  logoTextShadowColor: 'rgba(0,0,0,0.8)',
+  logoTextShadowBlur: 10,
+  logoTextShadowOffsetX: 2,
+  logoTextShadowOffsetY: 2,
+  logoTextStrokeWidth: 0,
+  logoTextStrokeColor: '#000000',
+  logoTextLineHeight: 1.2,
+  logoTextLetterSpacing: 0,
+  logoTextGradient: null
 };
 
 export const THEME_PRESETS: Theme[] = [

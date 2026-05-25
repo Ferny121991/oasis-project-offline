@@ -5,7 +5,32 @@ import SplitScreen from './components/SplitScreen';
 import { DEFAULT_THEME } from './constants';
 import { PresentationItem, Slide, Theme } from './types';
 
-type LogoSettings = Pick<Theme, 'logoUrl' | 'logoBackground' | 'logoSize' | 'logoOpacity' | 'logoGlow' | 'logoBgAnimation'>;
+type LogoSettings = Pick<Theme, 
+  | 'logoUrl' 
+  | 'logoBackground' 
+  | 'logoSize' 
+  | 'logoOpacity' 
+  | 'logoGlow' 
+  | 'logoBgAnimation'
+  | 'logoText'
+  | 'logoTextFontFamily'
+  | 'logoTextFontSize'
+  | 'logoTextColor'
+  | 'logoTextBold'
+  | 'logoTextItalic'
+  | 'logoTextUnderline'
+  | 'logoTextAlignment'
+  | 'logoTextShadow'
+  | 'logoTextShadowColor'
+  | 'logoTextShadowBlur'
+  | 'logoTextShadowOffsetX'
+  | 'logoTextShadowOffsetY'
+  | 'logoTextStrokeWidth'
+  | 'logoTextStrokeColor'
+  | 'logoTextLineHeight'
+  | 'logoTextLetterSpacing'
+  | 'logoTextGradient'
+>;
 
 type ProjectorSyncState = {
   liveItemId: string | null;
@@ -33,7 +58,25 @@ const extractLogoSettings = (theme: Theme): LogoSettings => ({
   logoSize: theme.logoSize,
   logoOpacity: theme.logoOpacity,
   logoGlow: theme.logoGlow,
-  logoBgAnimation: theme.logoBgAnimation
+  logoBgAnimation: theme.logoBgAnimation,
+  logoText: theme.logoText,
+  logoTextFontFamily: theme.logoTextFontFamily,
+  logoTextFontSize: theme.logoTextFontSize,
+  logoTextColor: theme.logoTextColor,
+  logoTextBold: theme.logoTextBold,
+  logoTextItalic: theme.logoTextItalic,
+  logoTextUnderline: theme.logoTextUnderline,
+  logoTextAlignment: theme.logoTextAlignment,
+  logoTextShadow: theme.logoTextShadow,
+  logoTextShadowColor: theme.logoTextShadowColor,
+  logoTextShadowBlur: theme.logoTextShadowBlur,
+  logoTextShadowOffsetX: theme.logoTextShadowOffsetX,
+  logoTextShadowOffsetY: theme.logoTextShadowOffsetY,
+  logoTextStrokeWidth: theme.logoTextStrokeWidth,
+  logoTextStrokeColor: theme.logoTextStrokeColor,
+  logoTextLineHeight: theme.logoTextLineHeight,
+  logoTextLetterSpacing: theme.logoTextLetterSpacing,
+  logoTextGradient: theme.logoTextGradient
 });
 
 const applyLogoSettings = (theme: Theme, logoSettings: LogoSettings): Theme => ({

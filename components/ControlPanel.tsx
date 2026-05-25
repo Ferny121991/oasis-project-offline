@@ -433,7 +433,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     logo: false,
     effects: false,
     imageFit: false,
-    imageEffects: false
+    imageEffects: false,
+    logoGeneral: true,
+    logoBackground: false,
+    logoAnimation: false,
+    logoText: false
   });
 
   const toggleSection = (section: string) => {
@@ -776,7 +780,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     logoSize: currentTheme.logoSize,
     logoOpacity: currentTheme.logoOpacity,
     logoGlow: currentTheme.logoGlow,
-    logoBgAnimation: currentTheme.logoBgAnimation
+    logoBgAnimation: currentTheme.logoBgAnimation,
+    logoText: currentTheme.logoText,
+    logoTextFontFamily: currentTheme.logoTextFontFamily,
+    logoTextFontSize: currentTheme.logoTextFontSize,
+    logoTextColor: currentTheme.logoTextColor,
+    logoTextBold: currentTheme.logoTextBold,
+    logoTextItalic: currentTheme.logoTextItalic,
+    logoTextUnderline: currentTheme.logoTextUnderline,
+    logoTextAlignment: currentTheme.logoTextAlignment,
+    logoTextShadow: currentTheme.logoTextShadow,
+    logoTextShadowColor: currentTheme.logoTextShadowColor,
+    logoTextShadowBlur: currentTheme.logoTextShadowBlur,
+    logoTextShadowOffsetX: currentTheme.logoTextShadowOffsetX,
+    logoTextShadowOffsetY: currentTheme.logoTextShadowOffsetY,
+    logoTextStrokeWidth: currentTheme.logoTextStrokeWidth,
+    logoTextStrokeColor: currentTheme.logoTextStrokeColor,
+    logoTextLineHeight: currentTheme.logoTextLineHeight,
+    logoTextLetterSpacing: currentTheme.logoTextLetterSpacing,
+    logoTextGradient: currentTheme.logoTextGradient
   });
 
   const renderBackgroundAnimationEditor = (
@@ -986,102 +1008,387 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
       )}
 
-      <div className="rounded-[1.35rem] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(8,13,25,0.95),rgba(13,20,35,0.86))] p-4 shadow-2xl shadow-black/30">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">Logo y Proyector</p>
-            <h2 className="mt-1 text-lg font-black text-white">Pantalla de bienvenida</h2>
+      {/* SECTION: Logo y Escala */}
+      <div className="overflow-hidden rounded-[1.35rem] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(8,13,25,0.92))] shadow-2xl shadow-black/25">
+        <button
+          onClick={() => toggleSection('logoGeneral')}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/[0.035] transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-200 border border-cyan-300/20"><ImageIcon size={17} /></div>
+            <div>
+              <p className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em]">Logo y Escala</p>
+              <p className="mt-1 text-xs font-bold text-slate-400">Imagen del logo, tamaño y opacidad</p>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => logoFileInputRef.current?.click()}
-              className="rounded-xl bg-cyan-400 px-3 py-2 text-[11px] font-black uppercase text-slate-950 transition hover:bg-cyan-300 flex items-center gap-2"
+          <ChevronDown size={16} className={`text-cyan-200 transition-transform duration-300 ${expandedSections.logoGeneral ? 'rotate-180' : ''}`} />
+        </button>
+        {expandedSections.logoGeneral && (
+          <div className="p-4 pt-0 space-y-4 border-t border-white/10 mt-2 animate-fade-in">
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <span className="text-[10px] font-black uppercase text-slate-400">Imagen de bienvenida</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => logoFileInputRef.current?.click()}
+                  className="rounded-xl bg-cyan-400 px-3 py-2 text-[11px] font-black uppercase text-slate-950 transition hover:bg-cyan-300 flex items-center gap-2"
+                >
+                  <Upload size={14} /> Logo
+                </button>
+                {currentTheme.logoUrl && (
+                  <button
+                    onClick={() => updatePendingTheme({ ...currentTheme, logoUrl: undefined })}
+                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-black uppercase text-red-200 transition hover:bg-red-500/20 flex items-center gap-2"
+                    title="Restablecer al logo predeterminado"
+                  >
+                    <Trash2 size={14} /> Restablecer
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div
+              className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 shadow-inner"
+              style={{ background: currentTheme.logoBackground || '#ffffff' }}
             >
-              <Upload size={14} /> Logo
+              {currentTheme.logoBgAnimation && (
+                <div className="absolute inset-0 opacity-90 pointer-events-none">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.18)_100%)]" />
+                </div>
+              )}
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 gap-3 text-center select-none">
+                {(currentTheme.logoUrl || !currentTheme.logoText) && (
+                  <img
+                    src={currentTheme.logoUrl || '/logo.png'}
+                    alt="Logo"
+                    className="max-h-[60%] max-w-[85%] object-contain"
+                    style={{
+                      opacity: currentTheme.logoOpacity ?? 1,
+                      filter: currentTheme.logoGlow ? 'drop-shadow(0 0 24px rgba(59,130,246,0.55)) drop-shadow(0 0 48px rgba(14,165,233,0.28))' : 'none'
+                    }}
+                  />
+                )}
+                {currentTheme.logoText && (
+                  <div
+                    className="w-full break-words max-w-[90%]"
+                    style={{
+                      fontFamily: currentTheme.logoTextFontFamily || 'Montserrat, sans-serif',
+                      fontSize: `${(currentTheme.logoTextFontSize || 8) * 1.5}px`,
+                      color: currentTheme.logoTextColor || '#ffffff',
+                      fontWeight: currentTheme.logoTextBold ? 'bold' : 'normal',
+                      fontStyle: currentTheme.logoTextItalic ? 'italic' : 'normal',
+                      textDecoration: currentTheme.logoTextUnderline ? 'underline' : 'none',
+                      textAlign: currentTheme.logoTextAlignment || 'center',
+                      lineHeight: currentTheme.logoTextLineHeight || 1.2,
+                      letterSpacing: `${currentTheme.logoTextLetterSpacing || 0}px`,
+                      textShadow: currentTheme.logoTextShadow
+                        ? `${currentTheme.logoTextShadowOffsetX || 2}px ${currentTheme.logoTextShadowOffsetY || 2}px ${currentTheme.logoTextShadowBlur || 10}px ${currentTheme.logoTextShadowColor || 'rgba(0,0,0,0.8)'}`
+                        : 'none',
+                      WebkitTextStrokeWidth: `${currentTheme.logoTextStrokeWidth || 0}px`,
+                      WebkitTextStrokeColor: currentTheme.logoTextStrokeColor || '#000000',
+                      background: currentTheme.logoTextGradient || 'none',
+                      WebkitBackgroundClip: currentTheme.logoTextGradient ? 'text' : 'unset',
+                      WebkitTextFillColor: currentTheme.logoTextGradient ? 'transparent' : 'unset'
+                    }}
+                  >
+                    {currentTheme.logoText}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+                <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Tamaño</span><span>{currentTheme.logoSize || 78}%</span></span>
+                <input type="range" min="20" max="100" value={currentTheme.logoSize || 78} onChange={(e) => updatePendingTheme({ ...currentTheme, logoSize: parseInt(e.target.value) })} className="w-full accent-cyan-400" />
+              </label>
+              <label className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+                <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Opacidad</span><span>{Math.round((currentTheme.logoOpacity ?? 1) * 100)}%</span></span>
+                <input type="range" min="0.2" max="1" step="0.05" value={currentTheme.logoOpacity ?? 1} onChange={(e) => updatePendingTheme({ ...currentTheme, logoOpacity: parseFloat(e.target.value) })} className="w-full accent-cyan-400" />
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* SECTION: Fondo */}
+      <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.045] shadow-xl">
+        <button
+          onClick={() => toggleSection('logoBackground')}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/[0.035] transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-200 border border-white/10"><Palette size={17} /></div>
+            <div>
+              <p className="text-[10px] uppercase text-slate-400 font-black tracking-[0.22em]">Fondo</p>
+              <p className="mt-1 text-xs font-bold text-slate-400">Color, degradado y brillo</p>
+            </div>
+          </div>
+          <ChevronDown size={16} className={`text-cyan-200 transition-transform duration-300 ${expandedSections.logoBackground ? 'rotate-180' : ''}`} />
+        </button>
+        {expandedSections.logoBackground && (
+          <div className="p-4 pt-0 space-y-4 border-t border-white/10 mt-2 animate-fade-in">
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <span className="text-[10px] font-black uppercase text-slate-400">Color personalizado</span>
+              <input type="color" value={currentTheme.logoBackground?.startsWith('#') ? currentTheme.logoBackground : '#ffffff'} onChange={(e) => updatePendingTheme({ ...currentTheme, logoBackground: e.target.value })} className="h-9 w-11 rounded-xl border border-white/10 bg-slate-900 cursor-pointer" />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)',
+                'radial-gradient(circle at center, #020617 0%, #111827 55%, #000000 100%)',
+                'linear-gradient(135deg, #111827 0%, #1e3a8a 50%, #f59e0b 100%)',
+                'linear-gradient(180deg, #f8fafc 0%, #bfdbfe 100%)',
+                'radial-gradient(circle at center, #fef3c7 0%, #92400e 100%)',
+                'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)'
+              ].map(bg => (
+                <button key={bg} onClick={() => updatePendingTheme({ ...currentTheme, logoBackground: bg })} className="h-14 rounded-xl border border-white/10 transition hover:scale-[1.02] hover:border-cyan-300/60" style={{ background: bg }} />
+              ))}
+            </div>
+            <button
+              onClick={() => updatePendingTheme({ ...currentTheme, logoGlow: !currentTheme.logoGlow })}
+              className={`w-full rounded-xl border px-3 py-3 text-[11px] font-black uppercase transition ${currentTheme.logoGlow ? 'border-cyan-300/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-slate-950/70 text-slate-400'}`}
+            >
+              Brillo del logo {currentTheme.logoGlow ? 'activo' : 'apagado'}
             </button>
-            {currentTheme.logoUrl && (
-              <button
-                onClick={() => updatePendingTheme({ ...currentTheme, logoUrl: undefined })}
-                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-black uppercase text-red-200 transition hover:bg-red-500/20 flex items-center gap-2"
-                title="Restablecer al logo predeterminado"
-              >
-                <Trash2 size={14} /> Restablecer
-              </button>
+          </div>
+        )}
+      </div>
+
+      {/* SECTION: Movimiento de fondo */}
+      <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.045] shadow-xl">
+        <button
+          onClick={() => toggleSection('logoAnimation')}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/[0.035] transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-200 border border-white/10"><Layers size={17} /></div>
+            <div>
+              <p className="text-[10px] uppercase text-slate-400 font-black tracking-[0.22em]">Movimiento de fondo</p>
+              <p className="mt-1 text-xs font-bold text-slate-400">Animaciones para el logo</p>
+            </div>
+          </div>
+          <ChevronDown size={16} className={`text-cyan-200 transition-transform duration-300 ${expandedSections.logoAnimation ? 'rotate-180' : ''}`} />
+        </button>
+        {expandedSections.logoAnimation && (
+          <div className="p-4 pt-0 space-y-4 border-t border-white/10 mt-2 animate-fade-in">
+            <div className="pt-2" />
+            {renderBackgroundAnimationEditor(
+              currentTheme.logoBgAnimation,
+              (logoBgAnimation) => updatePendingTheme({ ...currentTheme, logoBgAnimation }),
+              'accent-cyan-400'
             )}
           </div>
-        </div>
-
-        <div
-          className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 shadow-inner"
-          style={{ background: currentTheme.logoBackground || '#ffffff' }}
-        >
-          {currentTheme.logoBgAnimation && (
-            <div className="absolute inset-0 opacity-90 pointer-events-none">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.18)_100%)]" />
-            </div>
-          )}
-          <div className="absolute inset-0 flex items-center justify-center p-8">
-            <img
-              src={currentTheme.logoUrl || '/logo.png'}
-              alt="Logo"
-              className="max-h-full max-w-full object-contain"
-              style={{
-                opacity: currentTheme.logoOpacity ?? 1,
-                filter: currentTheme.logoGlow ? 'drop-shadow(0 0 24px rgba(59,130,246,0.55)) drop-shadow(0 0 48px rgba(14,165,233,0.28))' : 'none'
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-            <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Tamano</span><span>{currentTheme.logoSize || 78}%</span></span>
-            <input type="range" min="20" max="100" value={currentTheme.logoSize || 78} onChange={(e) => updatePendingTheme({ ...currentTheme, logoSize: parseInt(e.target.value) })} className="w-full accent-cyan-400" />
-          </label>
-          <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-            <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Opacidad</span><span>{Math.round((currentTheme.logoOpacity ?? 1) * 100)}%</span></span>
-            <input type="range" min="0.2" max="1" step="0.05" value={currentTheme.logoOpacity ?? 1} onChange={(e) => updatePendingTheme({ ...currentTheme, logoOpacity: parseFloat(e.target.value) })} className="w-full accent-cyan-400" />
-          </label>
-        </div>
+        )}
       </div>
 
-      <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.045] p-4 shadow-xl">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Fondo</p>
-            <h3 className="text-sm font-black text-white">Color, degradado y brillo</h3>
-          </div>
-          <input type="color" value={currentTheme.logoBackground?.startsWith('#') ? currentTheme.logoBackground : '#ffffff'} onChange={(e) => updatePendingTheme({ ...currentTheme, logoBackground: e.target.value })} className="h-9 w-11 rounded-xl border border-white/10 bg-slate-900" />
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)',
-            'radial-gradient(circle at center, #020617 0%, #111827 55%, #000000 100%)',
-            'linear-gradient(135deg, #111827 0%, #1e3a8a 50%, #f59e0b 100%)',
-            'linear-gradient(180deg, #f8fafc 0%, #bfdbfe 100%)',
-            'radial-gradient(circle at center, #fef3c7 0%, #92400e 100%)',
-            'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)'
-          ].map(bg => (
-            <button key={bg} onClick={() => updatePendingTheme({ ...currentTheme, logoBackground: bg })} className="h-14 rounded-xl border border-white/10 transition hover:scale-[1.02] hover:border-cyan-300/60" style={{ background: bg }} />
-          ))}
-        </div>
+      {/* SECTION: Texto del Logo */}
+      <div className="overflow-hidden rounded-[1.35rem] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(8,13,25,0.92))] shadow-2xl shadow-black/25">
         <button
-          onClick={() => updatePendingTheme({ ...currentTheme, logoGlow: !currentTheme.logoGlow })}
-          className={`mt-4 w-full rounded-xl border px-3 py-3 text-[11px] font-black uppercase transition ${currentTheme.logoGlow ? 'border-cyan-300/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-slate-950/70 text-slate-400'}`}
+          onClick={() => toggleSection('logoText')}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/[0.035] transition-colors text-left"
         >
-          Brillo del logo {currentTheme.logoGlow ? 'activo' : 'apagado'}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-200 border border-cyan-300/20"><Type size={17} /></div>
+            <div>
+              <p className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em]">Texto del Logo</p>
+              <p className="mt-1 text-xs font-bold text-slate-400">Iglesia, versículos o mensajes sobre el fondo</p>
+            </div>
+          </div>
+          <ChevronDown size={16} className={`text-cyan-200 transition-transform duration-300 ${expandedSections.logoText ? 'rotate-180' : ''}`} />
         </button>
-      </div>
+        {expandedSections.logoText && (
+          <div className="p-4 pt-0 space-y-4 border-t border-white/10 mt-2 animate-fade-in">
+            <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 pt-2">
+              <span className="mb-2 block text-[10px] font-black uppercase text-slate-400">Texto a mostrar</span>
+              <textarea
+                value={currentTheme.logoText || ''}
+                onChange={(e) => updatePendingTheme({ ...currentTheme, logoText: e.target.value })}
+                placeholder="Escribe aquí... (Ej. Iglesia Oasis de Gracia)"
+                className="w-full min-h-[70px] rounded-xl border border-white/10 bg-slate-900 p-3 text-xs font-bold text-white outline-none focus:border-cyan-400/50 transition-colors"
+              />
+            </div>
 
-      <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.045] p-4 shadow-xl">
-        <div className="mb-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Movimiento de fondo</p>
-          <h3 className="text-sm font-black text-white">Animaciones para el logo</h3>
-        </div>
-        {renderBackgroundAnimationEditor(
-          currentTheme.logoBgAnimation,
-          (logoBgAnimation) => updatePendingTheme({ ...currentTheme, logoBgAnimation }),
-          'accent-cyan-400'
+            {currentTheme.logoText && (
+              <div className="space-y-4 animate-fade-in">
+                {/* Typography controls */}
+                <div className="grid grid-cols-[1fr_112px] gap-3">
+                  <label className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+                    <span className="mb-2 block text-[10px] font-black uppercase text-slate-400">Familia</span>
+                    <select
+                      value={currentTheme.logoTextFontFamily || 'Montserrat, sans-serif'}
+                      onChange={(e) => updatePendingTheme({ ...currentTheme, logoTextFontFamily: e.target.value })}
+                      className="h-10 w-full rounded-xl border border-white/10 bg-slate-900 px-3 text-xs font-bold text-white outline-none"
+                    >
+                      {FONTS.map(font => <option key={font.name} value={font.value}>{font.name}</option>)}
+                    </select>
+                  </label>
+                  {renderRangeControl('Tamaño', currentTheme.logoTextFontSize || 8, 3, 25, 0.5, (val) => updatePendingTheme({ ...currentTheme, logoTextFontSize: val }), 'cqh', 'accent-cyan-400')}
+                </div>
+
+                {/* Styles and Alignment */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+                    <span className="mb-2 block text-[10px] font-black uppercase text-slate-400">Estilo</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => updatePendingTheme({ ...currentTheme, logoTextBold: !currentTheme.logoTextBold })}
+                        className={`h-10 rounded-xl border text-sm font-black transition ${currentTheme.logoTextBold ? 'border-cyan-300/60 bg-cyan-400/18 text-white' : 'border-white/10 text-slate-400'}`}
+                        title="Negrita"
+                      >
+                        <Bold size={15} className="mx-auto" />
+                      </button>
+                      <button
+                        onClick={() => updatePendingTheme({ ...currentTheme, logoTextItalic: !currentTheme.logoTextItalic })}
+                        className={`h-10 rounded-xl border text-sm font-black transition ${currentTheme.logoTextItalic ? 'border-cyan-300/60 bg-cyan-400/18 text-white' : 'border-white/10 text-slate-400'}`}
+                        title="Cursiva"
+                      >
+                        <Italic size={15} className="mx-auto" />
+                      </button>
+                      <button
+                        onClick={() => updatePendingTheme({ ...currentTheme, logoTextUnderline: !currentTheme.logoTextUnderline })}
+                        className={`h-10 rounded-xl border text-sm font-black transition ${currentTheme.logoTextUnderline ? 'border-cyan-300/60 bg-cyan-400/18 text-white' : 'border-white/10 text-slate-400'}`}
+                        title="Subrayado"
+                      >
+                        <Underline size={15} className="mx-auto" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+                    <span className="mb-2 block text-[10px] font-black uppercase text-slate-400">Alineación</span>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {(['left', 'center', 'right', 'justify'] as const).map(align => {
+                        const Icon = align === 'left' ? AlignLeft : align === 'center' ? AlignCenter : align === 'right' ? AlignRight : AlignJustify;
+                        return (
+                          <button
+                            key={align}
+                            onClick={() => updatePendingTheme({ ...currentTheme, logoTextAlignment: align })}
+                            className={`h-10 rounded-xl border transition ${currentTheme.logoTextAlignment === align ? 'border-cyan-300/60 bg-cyan-400/18 text-white' : 'border-white/10 text-slate-400'}`}
+                            title={align.toUpperCase()}
+                          >
+                            <Icon size={14} className="mx-auto" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Color, Spacings & Highlights */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-slate-400">Color letra</span>
+                      <input
+                        type="color"
+                        value={currentTheme.logoTextColor || '#ffffff'}
+                        onChange={(e) => updatePendingTheme({ ...currentTheme, logoTextColor: e.target.value })}
+                        className="h-9 w-11 rounded-xl border border-white/10 bg-slate-900 cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 justify-center">
+                      {['#ffffff', '#facc15', '#fb923c', '#ef4444', '#f472b6', '#a78bfa', '#60a5fa', '#34d399'].map(color => (
+                        <button
+                          key={color}
+                          onClick={() => updatePendingTheme({ ...currentTheme, logoTextColor: color })}
+                          className={`h-5 w-5 rounded-full border border-white/10 transition hover:scale-110 ${currentTheme.logoTextColor === color ? 'ring-2 ring-cyan-300 ring-offset-2 ring-offset-slate-950' : ''}`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-2">
+                    <span className="block text-[10px] font-black uppercase text-slate-400">Contorno (Stroke)</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={currentTheme.logoTextStrokeColor || '#000000'}
+                        onChange={(e) => updatePendingTheme({ ...currentTheme, logoTextStrokeColor: e.target.value })}
+                        className="h-8 w-10 shrink-0 rounded-xl border border-white/10 bg-slate-900 cursor-pointer"
+                      />
+                      <input
+                        type="range"
+                        min="0"
+                        max="5"
+                        step="0.5"
+                        value={currentTheme.logoTextStrokeWidth || 0}
+                        onChange={(e) => updatePendingTheme({ ...currentTheme, logoTextStrokeWidth: parseFloat(e.target.value) })}
+                        className="w-full accent-cyan-400"
+                      />
+                    </div>
+                    <div className="text-[9px] text-slate-400 flex justify-between font-bold">
+                      <span>Grosor:</span>
+                      <span>{currentTheme.logoTextStrokeWidth || 0}px</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Advanced Spacings */}
+                <div className="grid grid-cols-2 gap-3">
+                  {renderRangeControl('Interlineado', currentTheme.logoTextLineHeight || 1.2, 1, 2.5, 0.1, (val) => updatePendingTheme({ ...currentTheme, logoTextLineHeight: val }), '', 'accent-cyan-400')}
+                  {renderRangeControl('Espaciado Letras', currentTheme.logoTextLetterSpacing || 0, -2, 12, 1, (val) => updatePendingTheme({ ...currentTheme, logoTextLetterSpacing: val }), 'px', 'accent-cyan-400')}
+                </div>
+
+                {/* Text Shadow Section */}
+                <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="logoTextShadow"
+                        checked={currentTheme.logoTextShadow ?? true}
+                        onChange={(e) => updatePendingTheme({ ...currentTheme, logoTextShadow: e.target.checked })}
+                        className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/30 accent-cyan-400"
+                      />
+                      <label htmlFor="logoTextShadow" className="text-[10px] font-black uppercase text-slate-400 cursor-pointer select-none">Sombra de Texto</label>
+                    </div>
+                    {(currentTheme.logoTextShadow ?? true) && (
+                      <input
+                        type="color"
+                        value={currentTheme.logoTextShadowColor || 'rgba(0,0,0,0.8)'}
+                        onChange={(e) => updatePendingTheme({ ...currentTheme, logoTextShadowColor: e.target.value })}
+                        className="h-8 w-10 rounded-xl border border-white/10 bg-slate-900 cursor-pointer"
+                      />
+                    )}
+                  </div>
+                  {(currentTheme.logoTextShadow ?? true) && (
+                    <div className="grid grid-cols-2 gap-3 pt-1 animate-fade-in">
+                      {renderRangeControl('Difuminado Sombra', currentTheme.logoTextShadowBlur || 10, 0, 30, 1, (val) => updatePendingTheme({ ...currentTheme, logoTextShadowBlur: val }), 'px', 'accent-cyan-400')}
+                      <div className="grid grid-cols-2 gap-2">
+                        {renderRangeControl('Sombra X', currentTheme.logoTextShadowOffsetX || 2, -20, 20, 1, (val) => updatePendingTheme({ ...currentTheme, logoTextShadowOffsetX: val }), 'px', 'accent-cyan-400')}
+                        {renderRangeControl('Sombra Y', currentTheme.logoTextShadowOffsetY || 2, -20, 20, 1, (val) => updatePendingTheme({ ...currentTheme, logoTextShadowOffsetY: val }), 'px', 'accent-cyan-400')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Text Gradient Presets */}
+                <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-2">
+                  <span className="block text-[10px] font-black uppercase text-slate-400">Gradiente de Texto (Efecto Especial)</span>
+                  <div className="grid grid-cols-4 gap-2">
+                    <button
+                      onClick={() => updatePendingTheme({ ...currentTheme, logoTextGradient: null })}
+                      className={`py-2 rounded-xl text-[10px] font-black uppercase border transition ${!currentTheme.logoTextGradient ? 'border-cyan-300/40 bg-cyan-400/18 text-cyan-200' : 'border-white/10 text-slate-400 hover:text-white'}`}
+                    >
+                      Ninguno
+                    </button>
+                    {[
+                      { label: 'Oro', value: 'linear-gradient(to right, #f59e0b, #eab308, #fef08a)' },
+                      { label: 'Cielo', value: 'linear-gradient(to right, #38bdf8, #0ea5e9, #6366f1)' },
+                      { label: 'Fuego', value: 'linear-gradient(to right, #ef4444, #f97316, #facc15)' }
+                    ].map(grad => (
+                      <button
+                        key={grad.label}
+                        onClick={() => updatePendingTheme({ ...currentTheme, logoTextGradient: grad.value })}
+                        className={`py-2 rounded-xl text-[10px] font-black uppercase border transition ${currentTheme.logoTextGradient === grad.value ? 'border-cyan-300/40 bg-cyan-400/18 text-cyan-200' : 'border-white/10 text-slate-400 hover:text-white'}`}
+                      >
+                        {grad.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

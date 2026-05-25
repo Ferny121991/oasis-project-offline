@@ -141,6 +141,26 @@ export interface Theme {
   logoOpacity: number;
   logoGlow: boolean;
   logoBgAnimation?: BackgroundAnimationConfig;
+
+  // Projector Logo Mode - Text & Formatting
+  logoText?: string;
+  logoTextFontFamily?: string;
+  logoTextFontSize?: number;
+  logoTextColor?: string;
+  logoTextBold?: boolean;
+  logoTextItalic?: boolean;
+  logoTextUnderline?: boolean;
+  logoTextAlignment?: 'left' | 'center' | 'right' | 'justify';
+  logoTextShadow?: boolean;
+  logoTextShadowColor?: string;
+  logoTextShadowBlur?: number;
+  logoTextShadowOffsetX?: number;
+  logoTextShadowOffsetY?: number;
+  logoTextStrokeWidth?: number;
+  logoTextStrokeColor?: string;
+  logoTextLineHeight?: number;
+  logoTextLetterSpacing?: number;
+  logoTextGradient?: string | null;
 }
 
 export interface Slide {

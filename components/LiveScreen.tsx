@@ -670,20 +670,48 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                     />
                   )}
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.10)_100%)]" />
-                  <div className="relative z-10 flex items-center justify-center w-full h-full p-[5cqh]">
-                    <img
-                      src={theme.logoUrl || '/logo.png'}
-                      alt="Logo Principal"
-                      className={`relative object-contain ${disableAnimations ? '' : 'logo-stable-breathe'}`}
-                      style={{
-                        maxHeight: `${theme.logoSize || 78}cqh`,
-                        maxWidth: `${Math.min(96, (theme.logoSize || 78) + 10)}%`,
-                        opacity: theme.logoOpacity ?? 1,
-                        filter: theme.logoGlow
-                          ? 'drop-shadow(0 0 18px rgba(255,255,255,0.85)) drop-shadow(0 0 42px rgba(99,102,241,0.35))'
-                          : 'drop-shadow(0 10px 24px rgba(0,0,0,0.22))'
-                      }}
-                    />
+                  <div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-[5cqh] gap-6 text-center select-none">
+                    {(theme.logoUrl || !theme.logoText) && (
+                      <img
+                        src={theme.logoUrl || '/logo.png'}
+                        alt="Logo Principal"
+                        className={`relative object-contain ${disableAnimations ? '' : 'logo-stable-breathe'}`}
+                        style={{
+                          maxHeight: `${theme.logoSize || 78}cqh`,
+                          maxWidth: `${Math.min(96, (theme.logoSize || 78) + 10)}%`,
+                          opacity: theme.logoOpacity ?? 1,
+                          filter: theme.logoGlow
+                            ? 'drop-shadow(0 0 18px rgba(255,255,255,0.85)) drop-shadow(0 0 42px rgba(99,102,241,0.35))'
+                            : 'drop-shadow(0 10px 24px rgba(0,0,0,0.22))'
+                        }}
+                      />
+                    )}
+                    {theme.logoText && (
+                      <div
+                        className="w-full break-words max-w-[90%]"
+                        style={{
+                          fontFamily: theme.logoTextFontFamily || 'Montserrat, sans-serif',
+                          fontSize: `${theme.logoTextFontSize || 8}cqh`,
+                          color: theme.logoTextColor || '#ffffff',
+                          fontWeight: theme.logoTextBold ? 'bold' : 'normal',
+                          fontStyle: theme.logoTextItalic ? 'italic' : 'normal',
+                          textDecoration: theme.logoTextUnderline ? 'underline' : 'none',
+                          textAlign: theme.logoTextAlignment || 'center',
+                          lineHeight: theme.logoTextLineHeight || 1.2,
+                          letterSpacing: `${theme.logoTextLetterSpacing || 0}px`,
+                          textShadow: theme.logoTextShadow
+                            ? `${theme.logoTextShadowOffsetX || 2}px ${theme.logoTextShadowOffsetY || 2}px ${theme.logoTextShadowBlur || 10}px ${theme.logoTextShadowColor || 'rgba(0,0,0,0.8)'}`
+                            : 'none',
+                          WebkitTextStrokeWidth: `${theme.logoTextStrokeWidth || 0}px`,
+                          WebkitTextStrokeColor: theme.logoTextStrokeColor || '#000000',
+                          background: theme.logoTextGradient || 'none',
+                          WebkitBackgroundClip: theme.logoTextGradient ? 'text' : 'unset',
+                          WebkitTextFillColor: theme.logoTextGradient ? 'transparent' : 'unset'
+                        }}
+                      >
+                        {theme.logoText}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
