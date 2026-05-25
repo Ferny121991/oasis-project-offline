@@ -26,6 +26,17 @@ import { isPresentationFile, parsePptxFile, parsePdfFile, getPresentationTypeNam
 // Mobile Tab Type
 type MobileTab = 'control' | 'playlist' | 'preview';
 
+// Sync Confirmation Modal Configuration
+interface SyncConfirmConfig {
+  title: string;
+  message: string;
+  itemsList?: string[];
+  onConfirm: () => void;
+  confirmText?: string;
+  cancelText?: string;
+  type: 'warning' | 'danger' | 'info';
+}
+
 const LOCAL_PLAYLIST_KEY = 'flujo_playlist_v2';
 const LOCAL_THEMES_KEY = 'oasis_custom_themes';
 const LOCAL_PROJECTS_KEY = 'oasis_projects_v2';
@@ -124,6 +135,9 @@ const App: React.FC = () => {
     return localStorage.getItem(LOCAL_CURRENT_PROJECT_KEY);
   });
 
+
+  // Sync Confirmation Modal State
+  const [syncConfirm, setSyncConfirm] = useState<SyncConfirmConfig | null>(null);
 
   const [activeView, setActiveView] = useState<'main' | 'lyrics-search'>('main');
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -1121,14 +1135,123 @@ const App: React.FC = () => {
       return;
     }
 
-    // Log intent to history
-    actionHistoryService.log(
-      session.user.id,
-      'cloud_sync_started',
-      'Sincronización manual iniciada'
-    );
+    setIsSyncing(true);
+    try {
+      // 1. Obtener datos actuales en la nube
+      const { data: settings, error } = await supabase
+        .from('user_settings')
+        .select('playlist, custom_themes, projects, current_project_id, updated_at')
+        .eq('id', session.user.id)
+        .maybeSingle();
 
-    await fetchUserData();
+      if (error) {
+        console.error("Cloud check error:", error);
+        setSyncError(describeCloudError(error, "Error de red al comprobar la nube."));
+        setIsSyncing(false);
+        return;
+      }
+
+      // 2. Determinar si hay cambios locales no guardados en la nube
+      const currentPlaylistStr = JSON.stringify(stripPlaylistMedia(playlist));
+      const currentThemesStr = JSON.stringify(customThemes);
+      const currentProjectsStr = JSON.stringify(stripProjectsForStorage(saveCurrentProjectInto(projects)));
+
+      const hasLocalUnsavedChanges = 
+        (lastCloudPlaylist.current && currentPlaylistStr !== lastCloudPlaylist.current) ||
+        (lastCloudThemes.current && currentThemesStr !== lastCloudThemes.current) ||
+        (lastCloudProjects.current && currentProjectsStr !== lastCloudProjects.current);
+
+      // 3. Determinar si hay cambios en la nube
+      let hasCloudChanges = false;
+      const cloudChangesDesc: string[] = [];
+
+      if (settings) {
+        const cloudPlaylistStr = JSON.stringify(settings.playlist || []);
+        const cloudThemesStr = JSON.stringify(settings.custom_themes || []);
+        const cloudProjectsStr = JSON.stringify(settings.projects || []);
+
+        const cloudIsDifferentFromLastSync =
+          (lastCloudPlaylist.current && cloudPlaylistStr !== lastCloudPlaylist.current) ||
+          (lastCloudThemes.current && cloudThemesStr !== lastCloudThemes.current) ||
+          (lastCloudProjects.current && cloudProjectsStr !== lastCloudProjects.current);
+
+        const localIsDifferentFromCloud =
+          currentPlaylistStr !== cloudPlaylistStr ||
+          currentThemesStr !== cloudThemesStr ||
+          currentProjectsStr !== cloudProjectsStr;
+
+        if (cloudIsDifferentFromLastSync && localIsDifferentFromCloud) {
+          hasCloudChanges = true;
+          cloudChangesDesc.push("Se detectaron actualizaciones recientes en el servidor de la nube (ej. guardados desde el celular u otro dispositivo).");
+        }
+      }
+
+      const executeSync = async () => {
+        setIsSyncing(true);
+        actionHistoryService.log(
+          session.user.id,
+          'cloud_sync_started',
+          'Sincronización manual iniciada'
+        );
+        await fetchUserData();
+      };
+
+      setIsSyncing(false); // Liberar loading para el modal de confirmación
+
+      if (hasLocalUnsavedChanges && hasCloudChanges) {
+        setSyncConfirm({
+          title: "⚠️ ¡Conflicto de Sincronización!",
+          message: "Se detectaron cambios locales sin guardar Y actualizaciones recientes en la nube (realizadas desde tu celular). Si sincronizas ahora, se descargarán los datos de la nube y se SOBRESCRIBIRÁN y PERDERÁN tus cambios locales no guardados. ¿Deseas proceder?",
+          itemsList: [
+            "Tienes modificaciones locales actuales en tu computadora.",
+            "Hay datos más nuevos en la nube que sobrescribirán tu estado local."
+          ],
+          type: 'danger',
+          confirmText: "Descargar Nube y Sobrescribir",
+          cancelText: "Cancelar",
+          onConfirm: () => {
+            setSyncConfirm(null);
+            executeSync();
+          }
+        });
+      } else if (hasLocalUnsavedChanges) {
+        setSyncConfirm({
+          title: "⚠️ Cambios Locales sin Guardar",
+          message: "Tienes modificaciones en tu computadora que no has guardado en la nube. Al sincronizar (descargar de la nube), se restaurará el estado anterior de la nube y PERDERÁS tus modificaciones locales actuales. ¿Deseas sincronizar de todas formas?",
+          itemsList: [
+            "Se descartarán los cambios que hiciste localmente desde la última vez que guardaste."
+          ],
+          type: 'warning',
+          confirmText: "Sincronizar y descartar local",
+          cancelText: "Cancelar",
+          onConfirm: () => {
+            setSyncConfirm(null);
+            executeSync();
+          }
+        });
+      } else if (hasCloudChanges) {
+        setSyncConfirm({
+          title: "🔄 Cambios detectados en la Nube",
+          message: "El servidor detectó actualizaciones recientes en la nube (realizadas desde tu celular u otro dispositivo). ¿Estás de acuerdo en sincronizar y aplicar estos nuevos cambios en esta computadora?",
+          itemsList: [
+            "Se descargarán y aplicarán las canciones, pasajes o proyectos actualizados en la nube."
+          ],
+          type: 'info',
+          confirmText: "Sí, sincronizar y aplicar",
+          cancelText: "Cancelar",
+          onConfirm: () => {
+            setSyncConfirm(null);
+            executeSync();
+          }
+        });
+      } else {
+        await executeSync();
+      }
+    } catch (e) {
+      console.error("Cloud sync check error", e);
+      setIsSyncing(false);
+      await fetchUserData();
+    }
   };
 
   const handleManualCloudSave = async () => {
@@ -1139,38 +1262,109 @@ const App: React.FC = () => {
 
     setIsSyncing(true);
     try {
-      const safePlaylist = stripPlaylistMedia(playlist);
-      const finalProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
-
-      const { error } = await supabase
+      // 1. Obtener la data actual en la nube antes de sobrescribirla
+      const { data: settings } = await supabase
         .from('user_settings')
-        .upsert({
-          id: session.user.id,
-          playlist: safePlaylist,
-          custom_themes: customThemes,
-          projects: finalProjects,
-          current_project_id: currentProjectId,
-          updated_at: new Date().toISOString()
+        .select('playlist, projects')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      const deletedItems: string[] = [];
+
+      if (settings) {
+        // A. Comparar la playlist en la nube con la local para ver qué se eliminó
+        const cloudPlaylist = settings.playlist || [];
+        const localPlaylistIds = new Set(playlist.map(item => item.id));
+        
+        cloudPlaylist.forEach((item: any) => {
+          if (!localPlaylistIds.has(item.id)) {
+            deletedItems.push(`[Lista] ${item.title || 'Canción/Sección'}`);
+          }
         });
 
-      if (error) {
-        console.error("Cloud save error:", error);
-        setSyncError(describeCloudError(error, "Guardado local. Nube: error al guardar."));
-        return;
+        // B. Comparar proyectos en la nube con locales para ver qué se eliminó
+        const cloudProjects = settings.projects || [];
+        const localProjectIds = new Set(projects.map(p => p.id));
+        
+        cloudProjects.forEach((p: any) => {
+          if (!localProjectIds.has(p.id)) {
+            deletedItems.push(`[Proyecto] ${p.name || 'Proyecto sin nombre'}`);
+          } else {
+            const localProj = projects.find(lp => lp.id === p.id);
+            if (localProj) {
+              const localItemIds = new Set(localProj.playlist.map(item => item.id));
+              (p.playlist || []).forEach((item: any) => {
+                if (!localItemIds.has(item.id)) {
+                  deletedItems.push(`[En Proyecto ${p.name}] ${item.title || 'Elemento'}`);
+                }
+              });
+            }
+          }
+        });
       }
 
-      setSyncError(null);
-      actionHistoryService.log(
-        session.user.id,
-        'cloud_sync_saved',
-        'Cambios guardados manualmente en la nube'
-      );
-      localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(finalProjects));
-      if (currentProjectId) localStorage.setItem(LOCAL_CURRENT_PROJECT_KEY, currentProjectId);
+      const executeSave = async () => {
+        setIsSyncing(true);
+        try {
+          const safePlaylist = stripPlaylistMedia(playlist);
+          const finalProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
+
+          const { error } = await supabase
+            .from('user_settings')
+            .upsert({
+              id: session.user.id,
+              playlist: safePlaylist,
+              custom_themes: customThemes,
+              projects: finalProjects,
+              current_project_id: currentProjectId,
+              updated_at: new Date().toISOString()
+            });
+
+          if (error) {
+            console.error("Cloud save error:", error);
+            setSyncError(describeCloudError(error, "Guardado local. Nube: error al guardar."));
+            return;
+          }
+
+          setSyncError(null);
+          actionHistoryService.log(
+            session.user.id,
+            'cloud_sync_saved',
+            'Cambios guardados manualmente en la nube'
+          );
+          localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(finalProjects));
+          if (currentProjectId) localStorage.setItem(LOCAL_CURRENT_PROJECT_KEY, currentProjectId);
+          
+          // HUD Toast Success
+          triggerAppToast("Cambios guardados exitosamente en la nube", "success");
+        } catch (e) {
+          console.error("Critical save error", e);
+          setSyncError(describeCloudError(e, "Guardado local. Nube: error al guardar."));
+        } finally {
+          setIsSyncing(false);
+        }
+      };
+
+      if (deletedItems.length > 0) {
+        setIsSyncing(false); // Liberar carga
+        setSyncConfirm({
+          title: "Confirmar eliminación en la nube",
+          message: "Se detectaron elementos que eliminaste localmente. Si guardas ahora, se borrarán permanentemente también en la nube. ¿Estás de acuerdo en eliminarlos de la nube?",
+          itemsList: deletedItems,
+          type: 'danger',
+          confirmText: "Sí, borrar y guardar",
+          cancelText: "Cancelar",
+          onConfirm: () => {
+            setSyncConfirm(null);
+            executeSave();
+          }
+        });
+      } else {
+        await executeSave();
+      }
+
     } catch (e) {
-      console.error("Critical save error", e);
-      setSyncError(describeCloudError(e, "Guardado local. Nube: error al guardar."));
-    } finally {
+      console.error("Manual save error check", e);
       setIsSyncing(false);
     }
   };
@@ -2464,7 +2658,7 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row h-[100dvh] bg-[linear-gradient(135deg,#07111d_0%,#0b1020_46%,#020409_100%)] text-white font-sans overflow-hidden select-none">
       {/* LEFT: Control Center (30%) */}
-      <div id="control-panel" className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[28%] flex-shrink-0 scrollbar-hide overflow-hidden bg-[#080d17]/95 border-r border-white/10 flex-col shadow-2xl`}>
+      <div id="control-panel" className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[28%] flex-shrink-0 scrollbar-hide overflow-hidden bg-[#080d17]/95 border-r border-white/10 flex-col shadow-2xl`}>
         <ControlPanel
           onAddItem={handleAddItem}
           onUpdateTheme={handleUpdateActiveItemTheme}
@@ -2524,32 +2718,37 @@ const App: React.FC = () => {
       </div>
 
       {/* MIDDLE: Playlist & Management (45%) */}
-      <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-white/10 min-w-0 lg:min-w-[300px] overflow-hidden bg-[linear-gradient(180deg,#0a101b_0%,#080d17_52%,#050812_100%)]`}>
+      <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-white/10 min-w-0 lg:min-w-[300px] overflow-hidden bg-[linear-gradient(180deg,#0a101b_0%,#080d17_52%,#050812_100%)]`}>
         {/* Mobile Header - Compact with Live Status */}
-        <div className="lg:hidden bg-gradient-to-r from-gray-900 via-gray-850 to-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="Logo" className="w-10 h-10 object-contain brightness-110 contrast-125 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
-            <h1 className="text-lg font-black tracking-tight text-indigo-400">Flujo<span className="text-white font-light">Eclesial</span></h1>
+        <div className="lg:hidden bg-slate-900/80 backdrop-blur-md px-4 py-3 border-b border-white/10 flex justify-between items-center shrink-0 relative z-20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-400/20 flex items-center justify-center shadow-lg shadow-indigo-950/20">
+              <img src="/logo.svg" alt="Logo" className="w-7 h-7 object-contain brightness-110 contrast-125 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
+            </div>
+            <h1 className="text-base font-black tracking-tight text-white flex items-center gap-1">
+              <span className="bg-gradient-to-r from-cyan-300 via-indigo-300 to-amber-200 bg-clip-text text-transparent">FlujoEclesial</span>
+              <span className="font-light text-slate-400 text-xs">Studio</span>
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             {session && (
               <button
                 onClick={handleSyncCloud}
                 disabled={isSyncing}
-                className={`p-2 rounded-full bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 transition-all ${isSyncing ? 'animate-spin' : ''}`}
+                className={`p-2 rounded-xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-600/20 transition-all active:scale-90 ${isSyncing ? 'animate-spin' : ''}`}
                 title="Sincronizar con la nube"
               >
-                <RefreshCw size={18} />
+                <RefreshCw size={16} />
               </button>
             )}
             {liveItemId && (
-              <div className="flex items-center gap-1.5 bg-red-600/20 border border-red-500/50 rounded-full px-2.5 py-1">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                <span className="text-[10px] font-black text-red-400 uppercase">VIVO</span>
+              <div className="flex items-center gap-1.5 bg-red-600/15 border border-red-500/30 rounded-full px-2.5 py-1 shadow-[0_0_12px_rgba(239,68,68,0.2)]">
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_6px_#ef4444]"></div>
+                <span className="text-[9px] font-black text-red-400 uppercase tracking-wider">VIVO</span>
               </div>
             )}
             {session?.user?.user_metadata?.avatar_url && (
-              <img src={session.user.user_metadata.avatar_url} alt="" className="w-8 h-8 rounded-full border-2 border-indigo-500" />
+              <img src={session.user.user_metadata.avatar_url} alt="" className="w-7 h-7 rounded-full border border-indigo-500 shadow-lg shadow-indigo-500/20" />
             )}
           </div>
         </div>
@@ -2675,7 +2874,7 @@ const App: React.FC = () => {
                 onDuplicateProject={handleDuplicateProject}
               />
               {/* Export/Import Button */}
-              <div className="px-4 py-3 border-b border-white/10 flex gap-2 bg-[#0b1220]/80">
+              <div className="px-4 py-3 border-b border-white/10 flex flex-row overflow-x-auto no-scrollbar gap-2 bg-[#0a111e]/90 items-center scroll-smooth shrink-0">
                 {session && (
                   <>
                     <button
@@ -2837,7 +3036,7 @@ const App: React.FC = () => {
       </div>
 
       {/* RIGHT: Live Preview & Presenter Tools (35%) */}
-      <div id="live-preview-panel" className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[68px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[34%] flex-shrink-0 flex-col bg-[#070b13] relative border-l border-white/10 overflow-hidden`}>
+      <div id="live-preview-panel" className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none w-full lg:w-[34%] flex-shrink-0 flex-col bg-[#070b13] relative border-l border-white/10 overflow-hidden`}>
 
         {/* TOP BAR: Clock and Status - Responsive */}
         <div className="h-12 lg:h-14 bg-[#0a101b] border-b border-white/10 flex items-center justify-between px-3 lg:px-4 shrink-0 shadow-[0_16px_45px_rgba(0,0,0,0.24)]">
@@ -2894,7 +3093,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          <div ref={liveViewRef} className="w-full h-full flex items-center justify-center relative group">
+          <div ref={liveViewRef} className="w-full aspect-video max-h-full flex items-center justify-center relative group rounded-2xl overflow-hidden border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_40px_rgba(99,102,241,0.08)] bg-slate-950 transition-all duration-300">
             {/* Internal Preview renders logic (Always detailed "Staging" view) */}
             {showSplitScreen ? (
               <SplitScreen
@@ -3086,31 +3285,31 @@ const App: React.FC = () => {
         )
       }
 
-      {/* MOBILE BOTTOM NAV - Enhanced */}
-      <div className="lg:hidden shrink-0 h-[68px] bg-gradient-to-t from-gray-900 via-gray-850 to-gray-800 border-t border-gray-700 flex items-center justify-around z-50 px-2 pb-1 pt-1">
+      {/* MOBILE BOTTOM NAV - Enhanced Floating Glassmorphic Bar */}
+      <div className="lg:hidden fixed bottom-5 left-1/2 -translate-x-1/2 w-[90%] max-w-md h-[68px] bg-slate-950/75 backdrop-blur-xl border border-white/10 flex items-center justify-around z-50 px-3 py-2 rounded-[24px] shadow-[0_24px_50px_rgba(0,0,0,0.8),0_0_20px_rgba(99,102,241,0.15)] transition-all duration-300">
         <button
           onClick={() => setMobileTab('control')}
-          className={`flex flex-col items-center justify-center gap-0.5 py-2 flex-1 h-full rounded-2xl transition-all active:scale-95 ${mobileTab === 'control' ? 'text-indigo-400 bg-indigo-900/30 shadow-lg shadow-indigo-500/20' : 'text-gray-500'}`}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 h-full rounded-[18px] transition-all active:scale-90 ${mobileTab === 'control' ? 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 shadow-inner' : 'text-slate-400 border border-transparent'}`}
         >
-          <Edit2 size={22} />
-          <span className="text-[9px] font-black uppercase tracking-wide">Editor</span>
+          <Edit2 size={20} className={mobileTab === 'control' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'} />
+          <span className="text-[9px] font-black uppercase tracking-widest">Editor</span>
         </button>
         <button
           onClick={() => setMobileTab('playlist')}
-          className={`flex flex-col items-center justify-center gap-0.5 py-2 flex-1 h-full rounded-2xl transition-all active:scale-95 ${mobileTab === 'playlist' ? 'text-indigo-400 bg-indigo-900/30 shadow-lg shadow-indigo-500/20' : 'text-gray-500'}`}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 h-full rounded-[18px] transition-all active:scale-90 ${mobileTab === 'playlist' ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 shadow-inner' : 'text-slate-400 border border-transparent'}`}
         >
-          <Music size={22} />
-          <span className="text-[9px] font-black uppercase tracking-wide">Lista</span>
+          <Music size={20} className={mobileTab === 'playlist' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'} />
+          <span className="text-[9px] font-black uppercase tracking-widest">Lista</span>
         </button>
         <button
           onClick={() => setMobileTab('preview')}
-          className={`flex flex-col items-center justify-center gap-0.5 py-2 flex-1 h-full rounded-2xl transition-all active:scale-95 relative ${mobileTab === 'preview' ? 'text-indigo-400 bg-indigo-900/30 shadow-lg shadow-indigo-500/20' : 'text-gray-500'}`}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 h-full rounded-[18px] transition-all active:scale-90 relative ${mobileTab === 'preview' ? 'text-rose-400 bg-rose-500/10 border border-rose-500/20 shadow-inner' : 'text-slate-400 border border-transparent'}`}
         >
           {liveItemId && (
-            <div className="absolute top-1 right-1/4 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border border-red-400" />
+            <div className="absolute top-1.5 right-1/4 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-red-400 shadow-[0_0_8px_#ef4444]" />
           )}
-          <PlayCircle size={22} />
-          <span className="text-[9px] font-black uppercase tracking-wide">Vivo</span>
+          <PlayCircle size={20} className={mobileTab === 'preview' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'} />
+          <span className="text-[9px] font-black uppercase tracking-widest">Vivo</span>
         </button>
       </div>
 
@@ -3153,6 +3352,68 @@ const App: React.FC = () => {
         isOpen={showActionHistory}
         onClose={() => setShowActionHistory(false)}
       />
+
+      {/* ── Premium Sync Confirmation Modal ── */}
+      {syncConfirm && (
+        <div className="fixed inset-0 z-[99999] bg-black/65 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900/95 border border-white/10 rounded-[24px] max-w-md w-full overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.85),0_0_30px_rgba(99,102,241,0.06)] animate-fade-in">
+            {/* Header */}
+            <div className={`px-6 py-5 border-b border-white/5 flex items-center gap-3.5 ${
+              syncConfirm.type === 'danger' ? 'bg-rose-500/10' : syncConfirm.type === 'warning' ? 'bg-amber-500/10' : 'bg-indigo-500/10'
+            }`}>
+              <div className={`p-2 rounded-xl ${
+                syncConfirm.type === 'danger' ? 'bg-rose-500/15 text-rose-400' : syncConfirm.type === 'warning' ? 'bg-amber-500/15 text-amber-400' : 'bg-indigo-500/15 text-indigo-400'
+              }`}>
+                <AlertCircle size={20} className="animate-pulse" />
+              </div>
+              <h2 className="text-white font-black text-sm uppercase tracking-wider">{syncConfirm.title}</h2>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <p className="text-gray-300 text-xs leading-relaxed font-medium">{syncConfirm.message}</p>
+              
+              {syncConfirm.itemsList && syncConfirm.itemsList.length > 0 && (
+                <div className="bg-black/35 border border-white/5 rounded-xl p-3 max-h-40 overflow-y-auto no-scrollbar space-y-1.5">
+                  <div className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">Detalles:</div>
+                  <ul className="space-y-1">
+                    {syncConfirm.itemsList.map((item, idx) => (
+                      <li key={idx} className="text-[11px] text-gray-400 font-bold flex items-start gap-2">
+                        <span className="text-indigo-400 select-none">•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="px-6 py-4 bg-slate-950/65 border-t border-white/5 flex gap-3">
+              <button
+                onClick={() => {
+                  setSyncConfirm(null);
+                }}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-white/15 text-slate-300 hover:text-white hover:bg-white/[0.04] transition-all font-black text-[10px] uppercase tracking-wider active:scale-95"
+              >
+                {syncConfirm.cancelText || 'Cancelar'}
+              </button>
+              <button
+                onClick={syncConfirm.onConfirm}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-white font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 shadow-lg ${
+                  syncConfirm.type === 'danger' 
+                    ? 'bg-gradient-to-r from-red-600 to-rose-600 shadow-red-600/20 hover:from-red-500 hover:to-rose-500' 
+                    : syncConfirm.type === 'warning'
+                    ? 'bg-gradient-to-r from-amber-600 to-yellow-600 shadow-amber-600/20 hover:from-amber-500 hover:to-yellow-500'
+                    : 'bg-gradient-to-r from-indigo-600 to-cyan-600 shadow-indigo-600/20 hover:from-indigo-500 hover:to-cyan-500'
+                }`}
+              >
+                {syncConfirm.confirmText || 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Premium Toast Notification HUD ── */}
       {appToast && (

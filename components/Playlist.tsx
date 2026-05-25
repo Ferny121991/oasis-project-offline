@@ -522,7 +522,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
         <div className="p-4 bg-slate-950/70 border-t border-white/10">
           <DndContext sensors={slideSensors} collisionDetection={closestCenter} onDragEnd={handleSlideDragEnd}>
             <SortableContext items={item.slides.map(s => s.id)} strategy={rectSortingStrategy}>
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-row overflow-x-auto lg:flex-wrap gap-2.5 no-scrollbar pb-2 pt-1 scroll-smooth max-w-full">
                 {item.slides.map((slide, index) => (
                   <SortableSlide
                     key={slide.id}
