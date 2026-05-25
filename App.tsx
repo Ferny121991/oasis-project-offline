@@ -258,6 +258,14 @@ const App: React.FC = () => {
   const [zoomState, setZoomState] = useState<{ scale: number, x: number, y: number } | null>(null);
 
   // Mobile & Sync State
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [mobileTab, setMobileTab] = useState<MobileTab>('playlist');
   const [session, setSession] = useState<Session | null>(null);
   const [remoteLiveState, setRemoteLiveState] = useState<LiveState | null>(null);
@@ -2959,7 +2967,7 @@ const App: React.FC = () => {
         id="control-panel" 
         className={`${mobileTab === 'control' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none flex-shrink-0 scrollbar-hide overflow-hidden bg-[#080d17]/95 border-r border-white/10 flex-col shadow-2xl transition-all duration-300`}
         style={{
-          width: isLeftSidebarCollapsed ? '0px' : '28%',
+          width: isLeftSidebarCollapsed ? '0px' : (isMobile ? '100%' : '28%'),
           opacity: isLeftSidebarCollapsed ? 0 : 1,
           borderRightWidth: isLeftSidebarCollapsed ? '0px' : '1px'
         }}
@@ -3405,7 +3413,7 @@ const App: React.FC = () => {
         id="live-preview-panel" 
         className={`${mobileTab === 'preview' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex lg:flex-none flex-shrink-0 flex-col bg-[#070b13] relative border-l border-white/10 overflow-hidden transition-all duration-300`}
         style={{
-          width: isRightSidebarCollapsed ? '0px' : '34%',
+          width: isRightSidebarCollapsed ? '0px' : (isMobile ? '100%' : '34%'),
           opacity: isRightSidebarCollapsed ? 0 : 1,
           borderLeftWidth: isRightSidebarCollapsed ? '0px' : '1px'
         }}
