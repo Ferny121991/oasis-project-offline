@@ -208,6 +208,15 @@ export interface Theme {
   logo3DTiltX?: number; // -45 to 45
   logo3DTiltY?: number; // -45 to 45
   logoReflection?: boolean;
+
+  // Propiedades ultra-premium para mejorar las 5 secciones
+  logoBlendMode?: string; // multiply, screen, overlay, etc.
+  logoBgGradientAngle?: number; // 0 - 360
+  logoBgLegibilityBlur?: number; // 0 - 24px
+  logoBgAnimAngle?: number; // 0 - 360 degrees for wind/direction
+  logoBgAnimTrail?: number; // 0 - 100% trail opacity / clearing
+  logoAnimAmplitude?: number; // 0 - 200%
+  logoTextHighlightBlur?: number; // 0 - 24px for glassmorphism highlight box
 }
 
 export interface Slide {

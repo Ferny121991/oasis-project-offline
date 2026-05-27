@@ -44,59 +44,19 @@ const LOCAL_PROJECTS_KEY = 'oasis_projects_v2';
 const LOCAL_CURRENT_PROJECT_KEY = 'oasis_current_project_id';
 const LOCAL_LOGO_SETTINGS_KEY = 'oasis_global_logo_settings_v1';
 
-type LogoSettings = Pick<Theme, 
-  | 'logoUrl' 
-  | 'logoBackground' 
-  | 'logoSize' 
-  | 'logoOpacity' 
-  | 'logoGlow' 
-  | 'logoBgAnimation'
-  | 'logoText'
-  | 'logoTextFontFamily'
-  | 'logoTextFontSize'
-  | 'logoTextColor'
-  | 'logoTextBold'
-  | 'logoTextItalic'
-  | 'logoTextUnderline'
-  | 'logoTextAlignment'
-  | 'logoTextShadow'
-  | 'logoTextShadowColor'
-  | 'logoTextShadowBlur'
-  | 'logoTextShadowOffsetX'
-  | 'logoTextShadowOffsetY'
-  | 'logoTextStrokeWidth'
-  | 'logoTextStrokeColor'
-  | 'logoTextLineHeight'
-  | 'logoTextLetterSpacing'
-  | 'logoTextGradient'
->;
+type LogoSettings = {
+  [K in keyof Theme as K extends `logo${string}` ? K : never]: Theme[K];
+};
 
-const extractLogoSettings = (theme: Theme): LogoSettings => ({
-  logoUrl: theme.logoUrl,
-  logoBackground: theme.logoBackground,
-  logoSize: theme.logoSize,
-  logoOpacity: theme.logoOpacity,
-  logoGlow: theme.logoGlow,
-  logoBgAnimation: theme.logoBgAnimation,
-  logoText: theme.logoText,
-  logoTextFontFamily: theme.logoTextFontFamily,
-  logoTextFontSize: theme.logoTextFontSize,
-  logoTextColor: theme.logoTextColor,
-  logoTextBold: theme.logoTextBold,
-  logoTextItalic: theme.logoTextItalic,
-  logoTextUnderline: theme.logoTextUnderline,
-  logoTextAlignment: theme.logoTextAlignment,
-  logoTextShadow: theme.logoTextShadow,
-  logoTextShadowColor: theme.logoTextShadowColor,
-  logoTextShadowBlur: theme.logoTextShadowBlur,
-  logoTextShadowOffsetX: theme.logoTextShadowOffsetX,
-  logoTextShadowOffsetY: theme.logoTextShadowOffsetY,
-  logoTextStrokeWidth: theme.logoTextStrokeWidth,
-  logoTextStrokeColor: theme.logoTextStrokeColor,
-  logoTextLineHeight: theme.logoTextLineHeight,
-  logoTextLetterSpacing: theme.logoTextLetterSpacing,
-  logoTextGradient: theme.logoTextGradient
-});
+const extractLogoSettings = (theme: Theme): LogoSettings => {
+  const settings = {} as any;
+  Object.keys(theme).forEach(key => {
+    if (key.startsWith('logo')) {
+      settings[key] = (theme as any)[key];
+    }
+  });
+  return settings;
+};
 
 const applyLogoSettings = (theme: Theme, logoSettings: LogoSettings): Theme => ({
   ...theme,

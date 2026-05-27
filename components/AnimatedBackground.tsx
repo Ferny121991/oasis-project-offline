@@ -10,6 +10,8 @@ interface AnimatedBackgroundProps {
     size?: number;
     direction?: 'up' | 'down' | 'left' | 'right' | 'center' | 'random';
     shape?: 'circle' | 'square' | 'line' | 'cross' | 'diamond';
+    animAngle?: number;
+    animTrail?: number;
 }
 
 type Particle = {
@@ -34,7 +36,9 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
     intensity = 50,
     size = 12,
     direction = 'random',
-    shape = 'circle'
+    shape = 'circle',
+    animAngle = 0,
+    animTrail = 0
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number | null>(null);
@@ -59,6 +63,10 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 
         const velocityForDirection = () => {
             const base = Math.max(0.08, speed * 0.35);
+            if (animAngle !== undefined && animAngle !== 0) {
+                const rad = ((animAngle - 90) * Math.PI) / 180;
+                return { x: Math.cos(rad) * base, y: Math.sin(rad) * base };
+            }
             if (direction === 'up') return { x: 0, y: -base };
             if (direction === 'down') return { x: 0, y: base };
             if (direction === 'left') return { x: -base, y: 0 };
@@ -165,7 +173,14 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
                 return;
             }
 
-            ctx.clearRect(0, 0, displayWidth, displayHeight);
+            if (animTrail && animTrail > 0) {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.fillStyle = `rgba(0, 0, 0, ${1 - (animTrail / 100)})`;
+                ctx.fillRect(0, 0, displayWidth, displayHeight);
+                ctx.globalCompositeOperation = 'source-over';
+            } else {
+                ctx.clearRect(0, 0, displayWidth, displayHeight);
+            }
 
             if (type === 'waves') {
                 drawWaves(time);
@@ -396,7 +411,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
             window.removeEventListener('resize', updateDimensions);
         };
-    }, [type, speed, color, color2, intensity, size, direction, shape]);
+    }, [type, speed, color, color2, intensity, size, direction, shape, animAngle, animTrail]);
 
     if (type === 'none') return null;
 

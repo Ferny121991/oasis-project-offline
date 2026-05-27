@@ -655,7 +655,15 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                 /* FALLBACK LOGO: Shown if isLogoMode is true OR if no slide is provided */
                 <div
                   className="absolute inset-0 flex flex-col justify-center items-center gap-8 overflow-hidden"
-                  style={{ background: theme.logoBackground || 'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)' }}
+                  style={{ 
+                    background: (() => {
+                      const bg = theme.logoBackground || 'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)';
+                      if (theme.logoBgGradientAngle !== undefined && bg.includes('linear-gradient')) {
+                        return bg.replace(/linear-gradient\(\s*(?:\d+deg|to\s+[a-z\s]+)\s*,/gi, `linear-gradient(${theme.logoBgGradientAngle}deg,`);
+                      }
+                      return bg;
+                    })()
+                  }}
                 >
                   {theme.logoBgAnimation && (
                     <AnimatedBackground
@@ -667,6 +675,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                       size={theme.logoBgAnimation.size}
                       direction={theme.logoBgAnimation.direction}
                       shape={theme.logoBgAnimation.shape}
+                      animAngle={theme.logoBgAnimAngle}
+                      animTrail={theme.logoBgAnimTrail}
                     />
                   )}
                   {theme.logoBgOverlayOpacity !== undefined && theme.logoBgOverlayOpacity > 0 && (
@@ -675,6 +685,15 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                       style={{ 
                         backgroundColor: '#000000', 
                         opacity: theme.logoBgOverlayOpacity / 100 
+                      }} 
+                    />
+                  )}
+                  {theme.logoBgLegibilityBlur !== undefined && theme.logoBgLegibilityBlur > 0 && (
+                    <div 
+                      className="absolute inset-0 z-0 pointer-events-none" 
+                      style={{ 
+                        backdropFilter: `blur(${theme.logoBgLegibilityBlur}px)`,
+                        WebkitBackdropFilter: `blur(${theme.logoBgLegibilityBlur}px)`
                       }} 
                     />
                   )}
@@ -702,6 +721,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                           maxHeight: `${theme.logoSize || 78}cqh`,
                           maxWidth: `${Math.min(96, (theme.logoSize || 78) + 10)}%`,
                           opacity: theme.logoOpacity ?? 1,
+                          mixBlendMode: (theme.logoBlendMode || 'normal') as any,
                           filter: `
                             drop-shadow(${
                               theme.logoShadowBlur 
@@ -728,7 +748,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                           WebkitAnimationDuration: `${theme.logoAnimationSpeed || 5}s`,
                           // Pass scale animation duration as custom CSS variable
                           //@ts-ignore
-                          '--scale-anim-dur': `${theme.logoScaleAnimationSpeed || 5}s`
+                          '--scale-anim-dur': `${theme.logoScaleAnimationSpeed || 5}s`,
+                          '--logo-amp': `${(theme.logoAnimAmplitude ?? 100) / 100}`
                         } as any}
                       />
                     )}
@@ -764,6 +785,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                           backgroundColor: theme.logoTextHighlightColor || 'transparent',
                           padding: theme.logoTextHighlightPadding !== undefined ? `${theme.logoTextHighlightPadding}px` : 'unset',
                           borderRadius: theme.logoTextHighlightRadius !== undefined ? `${theme.logoTextHighlightRadius}px` : 'unset',
+                          backdropFilter: theme.logoTextHighlightBlur ? `blur(${theme.logoTextHighlightBlur}px)` : 'none',
+                          WebkitBackdropFilter: theme.logoTextHighlightBlur ? `blur(${theme.logoTextHighlightBlur}px)` : 'none',
                           animationDuration: `${theme.logoTextAnimationSpeed || 5}s`,
                           WebkitAnimationDuration: `${theme.logoTextAnimationSpeed || 5}s`
                         } as any}
@@ -831,7 +854,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes logoBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+        @keyframes logoBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(calc(1 + (0.025 * var(--logo-amp, 1)))); } }
         @keyframes auroraFlow { 0% { transform: translate3d(-6%, -4%, 0) rotate(0deg) scale(1); } 100% { transform: translate3d(6%, 5%, 0) rotate(18deg) scale(1.08); } }
         @keyframes slowSpin { from { transform: rotate(0deg) scale(1.1); } to { transform: rotate(360deg) scale(1.1); } }
         @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
@@ -883,24 +906,24 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
         .logo-anim-slide-infinite { animation: logoSlideInfinite linear infinite; transform-origin: center; }
         .logo-anim-wave-dance { animation: logoWaveDance ease-in-out infinite; transform-origin: center; }
 
-        @keyframes logoPulseFast { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); opacity: 0.9; } }
-        @keyframes logoFloatY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
-        @keyframes logoFloatX { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(12px); } }
+        @keyframes logoPulseFast { 0%, 100% { transform: scale(1); } 50% { transform: scale(calc(1 + (0.07 * var(--logo-amp, 1)))); opacity: 0.9; } }
+        @keyframes logoFloatY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(-12px * var(--logo-amp, 1))); } }
+        @keyframes logoFloatX { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(calc(12px * var(--logo-amp, 1))); } }
         @keyframes logoRotateSlow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes logoSpin3D { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(360deg); } }
-        @keyframes logoSwing { 0%, 100% { transform: rotate(0deg); } 20% { transform: rotate(8deg); } 40% { transform: rotate(-6deg); } 60% { transform: rotate(4deg); } 80% { transform: rotate(-2deg); } }
-        @keyframes logoShake { 0%, 100% { transform: translate(0,0) rotate(0deg); } 10%,30%,50%,70%,90% { transform: translate(-3px, 1px) rotate(-1deg); } 20%,40%,60%,80% { transform: translate(3px, -1px) rotate(1deg); } }
-        @keyframes logoWobble { 0%, 100% { transform: translateX(0%) rotate(0deg); } 15% { transform: translateX(-4%) rotate(-3deg); } 30% { transform: translateX(3%) rotate(2deg); } 45% { transform: translateX(-3%) rotate(-2deg); } 60% { transform: translateX(2%) rotate(1deg); } 75% { transform: translateX(-1%) rotate(-1deg); } }
-        @keyframes logoBounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-24px); } 60% { transform: translateY(-12px); } }
-        @keyframes logoHeartbeat { 0% { transform: scale(1); } 14% { transform: scale(1.1); } 28% { transform: scale(1); } 42% { transform: scale(1.15); } 70% { transform: scale(1); } }
-        @keyframes logoRubberBand { 0% { transform: scale3d(1,1,1); } 30% { transform: scale3d(1.2, 0.82, 1); } 40% { transform: scale3d(0.82, 1.2, 1); } 50% { transform: scale3d(1.13, 0.88, 1); } 65% { transform: scale3d(0.93, 1.07, 1); } 75% { transform: scale3d(1.05, 0.95, 1); } 100% { transform: scale3d(1,1,1); } }
+        @keyframes logoSwing { 0%, 100% { transform: rotate(0deg); } 20% { transform: rotate(calc(8deg * var(--logo-amp, 1))); } 40% { transform: rotate(calc(-6deg * var(--logo-amp, 1))); } 60% { transform: rotate(calc(4deg * var(--logo-amp, 1))); } 80% { transform: rotate(calc(-2deg * var(--logo-amp, 1))); } }
+        @keyframes logoShake { 0%, 100% { transform: translate(0,0) rotate(0deg); } 10%,30%,50%,70%,90% { transform: translate(calc(-3px * var(--logo-amp, 1)), calc(1px * var(--logo-amp, 1))) rotate(calc(-1deg * var(--logo-amp, 1))); } 20%,40%,60%,80% { transform: translate(calc(3px * var(--logo-amp, 1)), calc(-1px * var(--logo-amp, 1))) rotate(calc(1deg * var(--logo-amp, 1))); } }
+        @keyframes logoWobble { 0%, 100% { transform: translateX(0%) rotate(0deg); } 15% { transform: translateX(calc(-4% * var(--logo-amp, 1))) rotate(calc(-3deg * var(--logo-amp, 1))); } 30% { transform: translateX(calc(3% * var(--logo-amp, 1))) rotate(calc(2deg * var(--logo-amp, 1))); } 45% { transform: translateX(calc(-3% * var(--logo-amp, 1))) rotate(calc(-2deg * var(--logo-amp, 1))); } 60% { transform: translateX(calc(2% * var(--logo-amp, 1))) rotate(calc(1deg * var(--logo-amp, 1))); } 75% { transform: translateX(calc(-1% * var(--logo-amp, 1))) rotate(calc(-1deg * var(--logo-amp, 1))); } }
+        @keyframes logoBounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(calc(-24px * var(--logo-amp, 1))); } 60% { transform: translateY(calc(-12px * var(--logo-amp, 1))); } }
+        @keyframes logoHeartbeat { 0% { transform: scale(1); } 14% { transform: scale(calc(1 + (0.1 * var(--logo-amp, 1)))); } 28% { transform: scale(1); } 42% { transform: scale(calc(1 + (0.15 * var(--logo-amp, 1)))); } 70% { transform: scale(1); } }
+        @keyframes logoRubberBand { 0% { transform: scale3d(1,1,1); } 30% { transform: scale3d(calc(1 + (0.2 * var(--logo-amp, 1))), calc(1 - (0.18 * var(--logo-amp, 1))), 1); } 40% { transform: scale3d(calc(1 - (0.18 * var(--logo-amp, 1))), calc(1 + (0.2 * var(--logo-amp, 1))), 1); } 50% { transform: scale3d(calc(1 + (0.13 * var(--logo-amp, 1))), calc(1 - (0.12 * var(--logo-amp, 1))), 1); } 65% { transform: scale3d(calc(1 - (0.07 * var(--logo-amp, 1))), calc(1 + (0.07 * var(--logo-amp, 1))), 1); } 75% { transform: scale3d(calc(1 + (0.05 * var(--logo-amp, 1))), calc(1 - (0.05 * var(--logo-amp, 1))), 1); } 100% { transform: scale3d(1,1,1); } }
         @keyframes logoJello { 11.1% { transform: translate3d(0, 0, 0); } 22.2% { transform: skewX(-12.5deg) skewY(-12.5deg); } 33.3% { transform: skewX(6.25deg) skewY(6.25deg); } 44.4% { transform: skewX(-3.125deg) skewY(-3.125deg); } 55.5% { transform: skewX(1.5625deg) skewY(1.5625deg); } 66.6% { transform: skewX(-0.78125deg) skewY(-0.78125deg); } 77.7% { transform: skewX(0.390625deg) skewY(0.390625deg); } 88.8% { transform: skewX(-0.1953125deg) skewY(-0.1953125deg); } 100% { transform: translate3d(0, 0, 0); } }
         @keyframes logoFlash { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.35; } }
         @keyframes logoFlicker { 0%, 19.9%, 22%, 62.9%, 64%, 64.9%, 70%, 100% { opacity: 0.99; } 20%, 21.9%, 63%, 63.9%, 65%, 69.9% { opacity: 0.3; } }
         @keyframes logoGlitch { 0% { transform: translate(0) } 20% { transform: translate(-2px, 2px) } 40% { transform: translate(-2px, -2px) } 60% { transform: translate(2px, 2px) } 80% { transform: translate(2px, -2px) } 100% { transform: translate(0) } }
-        @keyframes logoOrbit { 0% { transform: rotate(0deg) translate(8px) rotate(0deg); } 100% { transform: rotate(360deg) translate(8px) rotate(-360deg); } }
+        @keyframes logoOrbit { 0% { transform: rotate(0deg) translate(calc(8px * var(--logo-amp, 1))) rotate(0deg); } 100% { transform: rotate(360deg) translate(calc(8px * var(--logo-amp, 1))) rotate(-360deg); } }
         @keyframes logoSlideInfinite { 0% { transform: translateX(-10vw); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateX(10vw); opacity: 0; } }
-        @keyframes logoWaveDance { 0%, 100% { transform: rotate(0deg) scale(1); } 25% { transform: rotate(4deg) scale(1.03); } 75% { transform: rotate(-4deg) scale(0.97); } }
+        @keyframes logoWaveDance { 0%, 100% { transform: rotate(0deg) scale(1); } 25% { transform: rotate(calc(4deg * var(--logo-amp, 1))) scale(calc(1 + (0.03 * var(--logo-amp, 1)))); } 75% { transform: rotate(calc(-4deg * var(--logo-amp, 1))) scale(calc(1 - (0.03 * var(--logo-amp, 1)))); } }
 
         /* ========================================= */
         /* 20 LOGO TEXT MOVEMENTS */

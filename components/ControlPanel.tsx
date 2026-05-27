@@ -1279,6 +1279,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
 
                 {renderRangeControl('Desenfoque (Blur)', currentTheme.logoBlur || 0, 0, 20, 1, (val) => updatePendingTheme({ ...currentTheme, logoBlur: val }), 'px', 'accent-cyan-400')}
+
+                <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-2">
+                  <span className="block text-[10px] font-black uppercase text-cyan-300">Modo de Mezcla de Capa (Blend Mode)</span>
+                  <select
+                    value={currentTheme.logoBlendMode || 'normal'}
+                    onChange={(e) => updatePendingTheme({ ...currentTheme, logoBlendMode: e.target.value })}
+                    className="h-10 w-full rounded-xl border border-white/10 bg-slate-900 px-3 text-xs font-bold text-white outline-none"
+                  >
+                    {['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'].map(m => (
+                      <option key={m} value={m}>{m.toUpperCase()}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           )}
@@ -1336,6 +1349,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {/* Overlay and perspective controls */}
             {renderRangeControl('Oscurecer Fondo', currentTheme.logoBgOverlayOpacity || 0, 0, 100, 5, (val) => updatePendingTheme({ ...currentTheme, logoBgOverlayOpacity: val }), '%', 'accent-cyan-400')}
+
+            <div className="grid grid-cols-2 gap-3">
+              {renderRangeControl('Ángulo Degradado', currentTheme.logoBgGradientAngle !== undefined ? currentTheme.logoBgGradientAngle : 135, 0, 360, 15, (val) => updatePendingTheme({ ...currentTheme, logoBgGradientAngle: val }), '°', 'accent-cyan-400')}
+              {renderRangeControl('Desenfoque del Fondo', currentTheme.logoBgLegibilityBlur || 0, 0, 24, 2, (val) => updatePendingTheme({ ...currentTheme, logoBgLegibilityBlur: val }), 'px', 'accent-cyan-400')}
+            </div>
             
             <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3">
               {renderRangeControl('Inclinación 3D X', currentTheme.logo3DTiltX || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logo3DTiltX: val }), '°', 'accent-cyan-400')}
@@ -1367,6 +1385,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               currentTheme.logoBgAnimation,
               (logoBgAnimation) => updatePendingTheme({ ...currentTheme, logoBgAnimation }),
               'accent-cyan-400'
+            )}
+
+            {currentTheme.logoBgAnimation && currentTheme.logoBgAnimation.type !== 'none' && (
+              <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3 animate-fade-in">
+                {renderRangeControl('Dirección por Ángulo', currentTheme.logoBgAnimAngle || 0, 0, 360, 15, (val) => updatePendingTheme({ ...currentTheme, logoBgAnimAngle: val }), '°', 'accent-cyan-400')}
+                {renderRangeControl('Estela de Partículas', currentTheme.logoBgAnimTrail || 0, 0, 95, 5, (val) => updatePendingTheme({ ...currentTheme, logoBgAnimTrail: val }), '%', 'accent-cyan-400')}
+              </div>
             )}
           </div>
         )}
@@ -1433,6 +1458,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 renderRangeControl('Velocidad Escala', currentTheme.logoScaleAnimationSpeed || 5, 0.5, 10, 0.5, (val) => updatePendingTheme({ ...currentTheme, logoScaleAnimationSpeed: val }), 's', 'accent-cyan-400')
               )}
             </div>
+
+            {/* Amplitude Strength Slider */}
+            {renderRangeControl('Fuerza/Amplitud de Movimiento', currentTheme.logoAnimAmplitude !== undefined ? currentTheme.logoAnimAmplitude : 100, 0, 200, 10, (val) => updatePendingTheme({ ...currentTheme, logoAnimAmplitude: val }), '%', 'accent-cyan-400')}
           </div>
         )}
       </div>
@@ -1685,6 +1713,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     {renderRangeControl('Margen Caja', currentTheme.logoTextHighlightPadding !== undefined ? currentTheme.logoTextHighlightPadding : 8, 0, 24, 2, (val) => updatePendingTheme({ ...currentTheme, logoTextHighlightPadding: val }), 'px', 'accent-cyan-400')}
                     {renderRangeControl('Redondeado Caja', currentTheme.logoTextHighlightRadius !== undefined ? currentTheme.logoTextHighlightRadius : 4, 0, 20, 2, (val) => updatePendingTheme({ ...currentTheme, logoTextHighlightRadius: val }), 'px', 'accent-cyan-400')}
                   </div>
+                  {renderRangeControl('Desenfoque Vidrio (Glassmorphism)', currentTheme.logoTextHighlightBlur || 0, 0, 24, 2, (val) => updatePendingTheme({ ...currentTheme, logoTextHighlightBlur: val }), 'px', 'accent-cyan-400')}
                 </div>
               </div>
             )}

@@ -124,7 +124,14 @@ export const DEFAULT_THEME: Theme = {
   logoTextHighlightRadius: 4,
   logo3DTiltX: 0,
   logo3DTiltY: 0,
-  logoReflection: false
+  logoReflection: false,
+  logoBlendMode: 'normal',
+  logoBgGradientAngle: 135,
+  logoBgLegibilityBlur: 0,
+  logoBgAnimAngle: 0,
+  logoBgAnimTrail: 0,
+  logoAnimAmplitude: 100,
+  logoTextHighlightBlur: 0
 };
 
 export const THEME_PRESETS: Theme[] = [
