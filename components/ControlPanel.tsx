@@ -168,6 +168,12 @@ const BG_ANIMATION_PRESETS: { name: string; value: BackgroundAnimationType }[] =
   { name: 'Nieve', value: 'snow' },
   { name: 'Espiral', value: 'spiral' },
   { name: 'Cruces de luz', value: 'cross-light' },
+  { name: 'Matrix Digital', value: 'matrix' },
+  { name: 'Nebulosa Flow', value: 'nebula' },
+  { name: 'Twist ADN', value: 'dna' },
+  { name: 'Cometas Veloz', value: 'comet' },
+  { name: 'Red Geometrica', value: 'geometric' },
+  { name: 'Flujo Fluido', value: 'fluid-flow' },
   { name: 'Personalizada', value: 'custom' },
 ];
 
@@ -997,131 +1003,282 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     });
   };
 
-  const renderLogoDesigner = () => (
-    <div className="p-5 pb-24 space-y-5 animate-fade-in">
-      {hasPendingChanges && (
-        <div className="sticky top-0 z-20 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3 shadow-xl shadow-emerald-950/20 backdrop-blur">
-          <div className="flex gap-2">
-            <button
-              onClick={applyChanges}
-              className="flex-1 rounded-xl bg-emerald-500 px-3 py-3 text-xs font-black uppercase tracking-wide text-slate-950 transition hover:bg-emerald-400 flex items-center justify-center gap-2"
-            >
-              <PlayCircle size={15} /> Aplicar al proyector
-            </button>
-            <button
-              onClick={discardChanges}
-              className="w-12 rounded-xl border border-red-400/30 bg-red-500/10 text-red-200 transition hover:bg-red-500/20 flex items-center justify-center"
-              title="Cancelar cambios"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+  const renderLogoDesigner = () => {
+    const LOGO_ANIMATION_OPTIONS = [
+      { name: 'Ninguna', value: 'none' },
+      { name: 'Respiración suave', value: 'breathe' },
+      { name: 'Pulso rápido', value: 'pulse-fast' },
+      { name: 'Flotación vertical', value: 'float-y' },
+      { name: 'Flotación horizontal', value: 'float-x' },
+      { name: 'Rotación lenta', value: 'rotate-slow' },
+      { name: 'Giro 3D', value: 'spin-3d' },
+      { name: 'Balanceo péndulo', value: 'swing' },
+      { name: 'Temblor sutil', value: 'shake' },
+      { name: 'Tambaleo divertido', value: 'wobble' },
+      { name: 'Rebote constante', value: 'bounce' },
+      { name: 'Latido cardíaco', value: 'heartbeat' },
+      { name: 'Banda elástica', value: 'rubberband' },
+      { name: 'Gelatina', value: 'jello' },
+      { name: 'Destello continuo', value: 'flash' },
+      { name: 'Parpadeo neón', value: 'flicker' },
+      { name: 'Efecto Glitch', value: 'glitch' },
+      { name: 'Órbita circular', value: 'orbit' },
+      { name: 'Desplazamiento infinito', value: 'slide-infinite' },
+      { name: 'Danza ondulada', value: 'wave-dance' },
+    ];
 
-      {/* SECTION: Logo y Escala */}
-      <div className="overflow-hidden rounded-[1.35rem] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(8,13,25,0.92))] shadow-2xl shadow-black/25">
-        <button
-          onClick={() => toggleSection('logoGeneral')}
-          className="w-full p-4 flex items-center justify-between hover:bg-white/[0.035] transition-colors text-left"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-200 border border-cyan-300/20"><ImageIcon size={17} /></div>
-            <div>
-              <p className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em]">Logo y Escala</p>
-              <p className="mt-1 text-xs font-bold text-slate-400">Imagen del logo, tamaño y opacidad</p>
-            </div>
-          </div>
-          <ChevronDown size={16} className={`text-cyan-200 transition-transform duration-300 ${expandedSections.logoGeneral ? 'rotate-180' : ''}`} />
-        </button>
-        {expandedSections.logoGeneral && (
-          <div className="p-4 pt-0 space-y-4 border-t border-white/10 mt-2 animate-fade-in">
-            {!isMobile && (
-              <div className="flex items-center justify-between gap-3 pt-2">
-                <span className="text-[10px] font-black uppercase text-slate-400">Imagen de bienvenida</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => logoFileInputRef.current?.click()}
-                    className="rounded-xl bg-cyan-400 px-3 py-2 text-[11px] font-black uppercase text-slate-950 transition hover:bg-cyan-300 flex items-center gap-2"
-                  >
-                    <Upload size={14} /> Logo
-                  </button>
-                  {currentTheme.logoUrl && (
-                    <button
-                      onClick={() => updatePendingTheme({ ...currentTheme, logoUrl: undefined })}
-                      className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-black uppercase text-red-200 transition hover:bg-red-500/20 flex items-center gap-2"
-                      title="Restablecer al logo predeterminado"
-                    >
-                      <Trash2 size={14} /> Restablecer
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
+    const LOGO_TEXT_ANIMATION_OPTIONS = [
+      { name: 'Sin movimiento', value: 'none' },
+      { name: 'Respiración sutil', value: 'breathe' },
+      { name: 'Flotación suave', value: 'float' },
+      { name: 'Ondulación de texto', value: 'wave' },
+      { name: 'Rotación lenta', value: 'rotate' },
+      { name: 'Giro 3D vertical', value: 'flip-y' },
+      { name: 'Deformación cíclica', value: 'skew-loop' },
+      { name: 'Expansión de letras', value: 'tracking' },
+      { name: 'Pulso de brillo', value: 'glow-pulse' },
+      { name: 'Rebote sutil', value: 'bounce' },
+      { name: 'Brillo deslizante (Oro)', value: 'shimmer' },
+      { name: 'Efecto Máquina de escribir', value: 'typewriter' },
+      { name: 'Parpadeo neón', value: 'neon-flicker' },
+      { name: 'Oscilación horizontal', value: 'slide-x' },
+      { name: 'Oscilación vertical', value: 'slide-y' },
+      { name: 'Enfoque cíclico', value: 'blur-loop' },
+      { name: 'Efecto Glitch', value: 'glitch' },
+      { name: 'Cambio de color fluido', value: 'color-shift' },
+      { name: 'Escala rítmica', value: 'scale-up-down' },
+      { name: 'Rebote elástico', value: 'elastic-bounce' },
+    ];
 
-            <div
-              className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 shadow-inner"
-              style={{ background: currentTheme.logoBackground || '#ffffff' }}
-            >
-              {currentTheme.logoBgAnimation && (
-                <div className="absolute inset-0 opacity-90 pointer-events-none">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.18)_100%)]" />
-                </div>
-              )}
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 gap-3 text-center select-none">
-                {(currentTheme.logoUrl || !currentTheme.logoText) && (
-                  <img
-                    src={currentTheme.logoUrl || '/logo.png'}
-                    alt="Logo"
-                    className="max-h-[60%] max-w-[85%] object-contain"
-                    style={{
-                      opacity: currentTheme.logoOpacity ?? 1,
-                      filter: currentTheme.logoGlow ? 'drop-shadow(0 0 24px rgba(59,130,246,0.55)) drop-shadow(0 0 48px rgba(14,165,233,0.28))' : 'none'
-                    }}
-                  />
-                )}
-                {currentTheme.logoText && (
-                  <div
-                    className="w-full break-words max-w-[90%]"
-                    style={{
-                      fontFamily: currentTheme.logoTextFontFamily || 'Montserrat, sans-serif',
-                      fontSize: `${(currentTheme.logoTextFontSize || 8) * 1.5}px`,
-                      color: currentTheme.logoTextColor || '#ffffff',
-                      fontWeight: currentTheme.logoTextBold ? 'bold' : 'normal',
-                      fontStyle: currentTheme.logoTextItalic ? 'italic' : 'normal',
-                      textDecoration: currentTheme.logoTextUnderline ? 'underline' : 'none',
-                      textAlign: currentTheme.logoTextAlignment || 'center',
-                      lineHeight: currentTheme.logoTextLineHeight || 1.2,
-                      letterSpacing: `${currentTheme.logoTextLetterSpacing || 0}px`,
-                      textShadow: currentTheme.logoTextShadow
-                        ? `${currentTheme.logoTextShadowOffsetX || 2}px ${currentTheme.logoTextShadowOffsetY || 2}px ${currentTheme.logoTextShadowBlur || 10}px ${currentTheme.logoTextShadowColor || 'rgba(0,0,0,0.8)'}`
-                        : 'none',
-                      WebkitTextStrokeWidth: `${currentTheme.logoTextStrokeWidth || 0}px`,
-                      WebkitTextStrokeColor: currentTheme.logoTextStrokeColor || '#000000',
-                      background: currentTheme.logoTextGradient || 'none',
-                      WebkitBackgroundClip: currentTheme.logoTextGradient ? 'text' : 'unset',
-                      WebkitTextFillColor: currentTheme.logoTextGradient ? 'transparent' : 'unset'
-                    }}
-                  >
-                    {currentTheme.logoText}
-                  </div>
-                )}
-              </div>
-            </div>
+    const LOGO_SCALE_ANIMATION_OPTIONS = [
+      { name: 'Ninguna', value: 'none' },
+      { name: 'Pulso de escala', value: 'scale-pulse' },
+      { name: 'Latido', value: 'scale-heartbeat' },
+      { name: 'Zoom in/out cíclico', value: 'scale-zoom-in-out' },
+      { name: 'Rebote de escala', value: 'scale-bounce' },
+      { name: 'Crecimiento suave', value: 'scale-grow' },
+      { name: 'Encogimiento suave', value: 'scale-shrink' },
+      { name: 'Escala elástica', value: 'scale-elastic' },
+      { name: 'Escala explosiva', value: 'scale-pop' },
+      { name: 'Escala por pasos (Retro)', value: 'scale-step' },
+      { name: 'Respiración amplia', value: 'scale-breathing-large' },
+      { name: 'Ola de escala', value: 'scale-wave' },
+      { name: 'Escala con parpadeo', value: 'scale-flicker' },
+      { name: 'Estiramiento horizontal', value: 'scale-stretch-x' },
+      { name: 'Estiramiento vertical', value: 'scale-stretch-y' },
+      { name: 'Compresión cíclica', value: 'scale-compress' },
+      { name: 'Escala 3D', value: 'scale-3d' },
+      { name: 'Escala con balanceo', value: 'scale-swing' },
+      { name: 'Vibración de tamaño', value: 'scale-jitter' },
+      { name: 'Escala hiper-activa', value: 'scale-hyper' },
+    ];
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
-                <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Tamaño</span><span>{currentTheme.logoSize || 78}%</span></span>
-                <input type="range" min="20" max="100" value={currentTheme.logoSize || 78} onChange={(e) => updatePendingTheme({ ...currentTheme, logoSize: parseInt(e.target.value) })} className="w-full accent-cyan-400" />
-              </label>
-              <label className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
-                <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Opacidad</span><span>{Math.round((currentTheme.logoOpacity ?? 1) * 100)}%</span></span>
-                <input type="range" min="0.2" max="1" step="0.05" value={currentTheme.logoOpacity ?? 1} onChange={(e) => updatePendingTheme({ ...currentTheme, logoOpacity: parseFloat(e.target.value) })} className="w-full accent-cyan-400" />
-              </label>
+    return (
+      <div className="p-5 pb-24 space-y-5 animate-fade-in">
+        {hasPendingChanges && (
+          <div className="sticky top-0 z-20 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3 shadow-xl shadow-emerald-950/20 backdrop-blur">
+            <div className="flex gap-2">
+              <button
+                onClick={applyChanges}
+                className="flex-1 rounded-xl bg-emerald-500 px-3 py-3 text-xs font-black uppercase tracking-wide text-slate-950 transition hover:bg-emerald-400 flex items-center justify-center gap-2"
+              >
+                <PlayCircle size={15} /> Aplicar al proyector
+              </button>
+              <button
+                onClick={discardChanges}
+                className="w-12 rounded-xl border border-red-400/30 bg-red-500/10 text-red-200 transition hover:bg-red-500/20 flex items-center justify-center"
+                title="Cancelar cambios"
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
         )}
-      </div>
+
+        {/* SECTION: Logo y Escala */}
+        <div className="overflow-hidden rounded-[1.35rem] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(8,13,25,0.92))] shadow-2xl shadow-black/25">
+          <button
+            onClick={() => toggleSection('logoGeneral')}
+            className="w-full p-4 flex items-center justify-between hover:bg-white/[0.035] transition-colors text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-200 border border-cyan-300/20"><ImageIcon size={17} /></div>
+              <div>
+                <p className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em]">Logo y Escala</p>
+                <p className="mt-1 text-xs font-bold text-slate-400">Imagen del logo, tamaño y opacidad</p>
+              </div>
+            </div>
+            <ChevronDown size={16} className={`text-cyan-200 transition-transform duration-300 ${expandedSections.logoGeneral ? 'rotate-180' : ''}`} />
+          </button>
+          {expandedSections.logoGeneral && (
+            <div className="p-4 pt-0 space-y-4 border-t border-white/10 mt-2 animate-fade-in">
+              {!isMobile && (
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <span className="text-[10px] font-black uppercase text-slate-400">Imagen de bienvenida</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => logoFileInputRef.current?.click()}
+                      className="rounded-xl bg-cyan-400 px-3 py-2 text-[11px] font-black uppercase text-slate-950 transition hover:bg-cyan-300 flex items-center gap-2"
+                    >
+                      <Upload size={14} /> Logo
+                    </button>
+                    {currentTheme.logoUrl && (
+                      <button
+                        onClick={() => updatePendingTheme({ ...currentTheme, logoUrl: undefined })}
+                        className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-black uppercase text-red-200 transition hover:bg-red-500/20 flex items-center gap-2"
+                        title="Restablecer al logo predeterminado"
+                      >
+                        <Trash2 size={14} /> Restablecer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div
+                className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 shadow-inner"
+                style={{ background: currentTheme.logoBackground || '#ffffff' }}
+              >
+                {currentTheme.logoBgAnimation && (
+                  <div className="absolute inset-0 opacity-90 pointer-events-none">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.18)_100%)]" />
+                  </div>
+                )}
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-4 gap-3 text-center select-none">
+                  {(currentTheme.logoUrl || !currentTheme.logoText) && (
+                    <img
+                      src={currentTheme.logoUrl || '/logo.png'}
+                      alt="Logo"
+                      className="max-h-[60%] max-w-[85%] object-contain"
+                      style={{
+                        opacity: currentTheme.logoOpacity ?? 1,
+                        filter: currentTheme.logoGlow ? 'drop-shadow(0 0 24px rgba(59,130,246,0.55)) drop-shadow(0 0 48px rgba(14,165,233,0.28))' : 'none'
+                      }}
+                    />
+                  )}
+                  {currentTheme.logoText && (
+                    <div
+                      className="w-full break-words max-w-[90%]"
+                      style={{
+                        fontFamily: currentTheme.logoTextFontFamily || 'Montserrat, sans-serif',
+                        fontSize: `${(currentTheme.logoTextFontSize || 8) * 1.5}px`,
+                        color: currentTheme.logoTextColor || '#ffffff',
+                        fontWeight: currentTheme.logoTextBold ? 'bold' : 'normal',
+                        fontStyle: currentTheme.logoTextItalic ? 'italic' : 'normal',
+                        textDecoration: currentTheme.logoTextUnderline ? 'underline' : 'none',
+                        textAlign: currentTheme.logoTextAlignment || 'center',
+                        lineHeight: currentTheme.logoTextLineHeight || 1.2,
+                        letterSpacing: `${currentTheme.logoTextLetterSpacing || 0}px`,
+                        textShadow: currentTheme.logoTextShadow
+                          ? `${currentTheme.logoTextShadowOffsetX || 2}px ${currentTheme.logoTextShadowOffsetY || 2}px ${currentTheme.logoTextShadowBlur || 10}px ${currentTheme.logoTextShadowColor || 'rgba(0,0,0,0.8)'}`
+                          : 'none',
+                        WebkitTextStrokeWidth: `${currentTheme.logoTextStrokeWidth || 0}px`,
+                        WebkitTextStrokeColor: currentTheme.logoTextStrokeColor || '#000000',
+                        background: currentTheme.logoTextGradient || 'none',
+                        WebkitBackgroundClip: currentTheme.logoTextGradient ? 'text' : 'unset',
+                        WebkitTextFillColor: currentTheme.logoTextGradient ? 'transparent' : 'unset'
+                      }}
+                    >
+                      {currentTheme.logoText}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+                  <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Tamaño</span><span>{currentTheme.logoSize || 78}%</span></span>
+                  <input type="range" min="20" max="100" value={currentTheme.logoSize || 78} onChange={(e) => updatePendingTheme({ ...currentTheme, logoSize: parseInt(e.target.value) })} className="w-full accent-cyan-400" />
+                </label>
+                <label className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+                  <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Opacidad</span><span>{Math.round((currentTheme.logoOpacity ?? 1) * 100)}%</span></span>
+                  <input type="range" min="0.2" max="1" step="0.05" value={currentTheme.logoOpacity ?? 1} onChange={(e) => updatePendingTheme({ ...currentTheme, logoOpacity: parseFloat(e.target.value) })} className="w-full accent-cyan-400" />
+                </label>
+              </div>
+
+              {/* Advanced Controls: Rotation and Borders */}
+              <div className="grid grid-cols-2 gap-3">
+                {renderRangeControl('Rotación Logo', currentTheme.logoRotation || 0, 0, 360, 5, (val) => updatePendingTheme({ ...currentTheme, logoRotation: val }), '°', 'accent-cyan-400')}
+                {renderRangeControl('Esquinas Redondas', currentTheme.logoBorderRadius || 0, 0, 100, 2, (val) => updatePendingTheme({ ...currentTheme, logoBorderRadius: val }), 'px', 'accent-cyan-400')}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-2">
+                  <span className="block text-[10px] font-black uppercase text-slate-400">Borde Logo</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={currentTheme.logoBorderColor || '#ffffff'}
+                      onChange={(e) => updatePendingTheme({ ...currentTheme, logoBorderColor: e.target.value })}
+                      className="h-8 w-10 shrink-0 rounded-xl border border-white/10 bg-slate-900 cursor-pointer"
+                    />
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="1"
+                      value={currentTheme.logoBorderWidth || 0}
+                      onChange={(e) => updatePendingTheme({ ...currentTheme, logoBorderWidth: parseInt(e.target.value) })}
+                      className="w-full accent-cyan-400"
+                    />
+                  </div>
+                  <div className="text-[9px] text-slate-400 flex justify-between font-bold">
+                    <span>Grosor Borde:</span>
+                    <span>{currentTheme.logoBorderWidth || 0}px</span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-2">
+                  <span className="block text-[10px] font-black uppercase text-slate-400">Sombra Logo (Blur)</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={currentTheme.logoShadowColor || '#000000'}
+                      onChange={(e) => updatePendingTheme({ ...currentTheme, logoShadowColor: e.target.value })}
+                      className="h-8 w-10 shrink-0 rounded-xl border border-white/10 bg-slate-900 cursor-pointer"
+                    />
+                    <input
+                      type="range"
+                      min="0"
+                      max="50"
+                      step="2"
+                      value={currentTheme.logoShadowBlur || 0}
+                      onChange={(e) => updatePendingTheme({ ...currentTheme, logoShadowBlur: parseInt(e.target.value) })}
+                      className="w-full accent-cyan-400"
+                    />
+                  </div>
+                  <div className="text-[9px] text-slate-400 flex justify-between font-bold">
+                    <span>Difuminado Sombra:</span>
+                    <span>{currentTheme.logoShadowBlur || 0}px</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters for Logo Image */}
+              <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4 space-y-4">
+                <span className="block text-[10px] font-black uppercase text-cyan-300 tracking-wider">Efectos y Filtros de Imagen (Logo)</span>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {renderRangeControl('Escala Grises', currentTheme.logoGrayscale || 0, 0, 100, 5, (val) => updatePendingTheme({ ...currentTheme, logoGrayscale: val }), '%', 'accent-cyan-400')}
+                  {renderRangeControl('Sepia', currentTheme.logoSepia || 0, 0, 100, 5, (val) => updatePendingTheme({ ...currentTheme, logoSepia: val }), '%', 'accent-cyan-400')}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {renderRangeControl('Rotación Tono', currentTheme.logoHueRotate || 0, 0, 360, 10, (val) => updatePendingTheme({ ...currentTheme, logoHueRotate: val }), '°', 'accent-cyan-400')}
+                  {renderRangeControl('Invertir', currentTheme.logoInvert || 0, 0, 100, 5, (val) => updatePendingTheme({ ...currentTheme, logoInvert: val }), '%', 'accent-cyan-400')}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {renderRangeControl('Brillo', currentTheme.logoBrightness !== undefined ? currentTheme.logoBrightness : 100, 50, 150, 5, (val) => updatePendingTheme({ ...currentTheme, logoBrightness: val }), '%', 'accent-cyan-400')}
+                  {renderRangeControl('Contraste', currentTheme.logoContrast !== undefined ? currentTheme.logoContrast : 100, 50, 150, 5, (val) => updatePendingTheme({ ...currentTheme, logoContrast: val }), '%', 'accent-cyan-400')}
+                  {renderRangeControl('Saturación', currentTheme.logoSaturation !== undefined ? currentTheme.logoSaturation : 100, 0, 200, 10, (val) => updatePendingTheme({ ...currentTheme, logoSaturation: val }), '%', 'accent-cyan-400')}
+                </div>
+
+                {renderRangeControl('Desenfoque (Blur)', currentTheme.logoBlur || 0, 0, 20, 1, (val) => updatePendingTheme({ ...currentTheme, logoBlur: val }), 'px', 'accent-cyan-400')}
+              </div>
+            </div>
+          )}
+        </div>
 
       {/* SECTION: Fondo */}
       <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.045] shadow-xl">
@@ -1156,12 +1313,30 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <button key={bg} onClick={() => updatePendingTheme({ ...currentTheme, logoBackground: bg })} className="h-14 rounded-xl border border-white/10 transition hover:scale-[1.02] hover:border-cyan-300/60" style={{ background: bg }} />
               ))}
             </div>
-            <button
-              onClick={() => updatePendingTheme({ ...currentTheme, logoGlow: !currentTheme.logoGlow })}
-              className={`w-full rounded-xl border px-3 py-3 text-[11px] font-black uppercase transition ${currentTheme.logoGlow ? 'border-cyan-300/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-slate-950/70 text-slate-400'}`}
-            >
-              Brillo del logo {currentTheme.logoGlow ? 'activo' : 'apagado'}
-            </button>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => updatePendingTheme({ ...currentTheme, logoGlow: !currentTheme.logoGlow })}
+                className={`rounded-xl border px-3 py-2 text-[10px] font-black uppercase transition ${currentTheme.logoGlow ? 'border-cyan-300/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-slate-950/70 text-slate-400'}`}
+              >
+                Brillo {currentTheme.logoGlow ? 'Activo' : 'Apagado'}
+              </button>
+              
+              <button
+                onClick={() => updatePendingTheme({ ...currentTheme, logoReflection: !currentTheme.logoReflection })}
+                className={`rounded-xl border px-3 py-2 text-[10px] font-black uppercase transition ${currentTheme.logoReflection ? 'border-cyan-300/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-slate-950/70 text-slate-400'}`}
+              >
+                Reflejo Cristal {currentTheme.logoReflection ? 'Activo' : 'Apagado'}
+              </button>
+            </div>
+
+            {/* Overlay and perspective controls */}
+            {renderRangeControl('Oscurecer Fondo', currentTheme.logoBgOverlayOpacity || 0, 0, 100, 5, (val) => updatePendingTheme({ ...currentTheme, logoBgOverlayOpacity: val }), '%', 'accent-cyan-400')}
+            
+            <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3">
+              {renderRangeControl('Inclinación 3D X', currentTheme.logo3DTiltX || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logo3DTiltX: val }), '°', 'accent-cyan-400')}
+              {renderRangeControl('Inclinación 3D Y', currentTheme.logo3DTiltY || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logo3DTiltY: val }), '°', 'accent-cyan-400')}
+            </div>
           </div>
         )}
       </div>
@@ -1189,6 +1364,71 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               (logoBgAnimation) => updatePendingTheme({ ...currentTheme, logoBgAnimation }),
               'accent-cyan-400'
             )}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION: Movimiento de Logo, Texto y Escala */}
+      <div className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.045] shadow-xl">
+        <button
+          onClick={() => toggleSection('logoScaleAndMotions')}
+          className="w-full p-4 flex items-center justify-between hover:bg-white/[0.035] transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-200 border border-white/10"><Layers size={17} /></div>
+            <div>
+              <p className="text-[10px] uppercase text-slate-400 font-black tracking-[0.22em]">Movimientos y Escalas</p>
+              <p className="mt-1 text-xs font-bold text-slate-400">Animaciones de logo, letras y escala (20 presets de cada uno)</p>
+            </div>
+          </div>
+          <ChevronDown size={16} className={`text-cyan-200 transition-transform duration-300 ${expandedSections.logoScaleAndMotions ? 'rotate-180' : ''}`} />
+        </button>
+        {expandedSections.logoScaleAndMotions && (
+          <div className="p-4 pt-0 space-y-5 border-t border-white/10 mt-2 animate-fade-in">
+            {/* Logo Motion Select and Speed */}
+            <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-3">
+              <span className="block text-[10px] font-black uppercase text-cyan-300">1. Movimiento del Logo ({LOGO_ANIMATION_OPTIONS.length} opciones)</span>
+              <select
+                value={currentTheme.logoAnimationType || 'none'}
+                onChange={(e) => updatePendingTheme({ ...currentTheme, logoAnimationType: e.target.value })}
+                className="h-10 w-full rounded-xl border border-white/10 bg-slate-900 px-3 text-xs font-bold text-white outline-none"
+              >
+                {LOGO_ANIMATION_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.name}</option>)}
+              </select>
+              {currentTheme.logoAnimationType && currentTheme.logoAnimationType !== 'none' && (
+                renderRangeControl('Velocidad Movimiento', currentTheme.logoAnimationSpeed || 5, 0.5, 10, 0.5, (val) => updatePendingTheme({ ...currentTheme, logoAnimationSpeed: val }), 's', 'accent-cyan-400')
+              )}
+            </div>
+
+            {/* Logo Text Motion Select and Speed */}
+            <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-3">
+              <span className="block text-[10px] font-black uppercase text-cyan-300">2. Movimiento de las Letras ({LOGO_TEXT_ANIMATION_OPTIONS.length} opciones)</span>
+              <select
+                value={currentTheme.logoTextAnimationType || 'none'}
+                onChange={(e) => updatePendingTheme({ ...currentTheme, logoTextAnimationType: e.target.value })}
+                className="h-10 w-full rounded-xl border border-white/10 bg-slate-900 px-3 text-xs font-bold text-white outline-none"
+              >
+                {LOGO_TEXT_ANIMATION_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.name}</option>)}
+              </select>
+              {currentTheme.logoTextAnimationType && currentTheme.logoTextAnimationType !== 'none' && (
+                renderRangeControl('Velocidad Letras', currentTheme.logoTextAnimationSpeed || 5, 0.5, 10, 0.5, (val) => updatePendingTheme({ ...currentTheme, logoTextAnimationSpeed: val }), 's', 'accent-cyan-400')
+              )}
+            </div>
+
+            {/* Logo Scale Motion Select and Speed */}
+            <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 space-y-3">
+              <span className="block text-[10px] font-black uppercase text-cyan-300">3. Escala y Ritmo ({LOGO_SCALE_ANIMATION_OPTIONS.length} opciones)</span>
+              <select
+                value={currentTheme.logoScaleAnimationType || 'none'}
+                onChange={(e) => updatePendingTheme({ ...currentTheme, logoScaleAnimationType: e.target.value })}
+                className="h-10 w-full rounded-xl border border-white/10 bg-slate-900 px-3 text-xs font-bold text-white outline-none"
+              >
+                {LOGO_SCALE_ANIMATION_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.name}</option>)}
+              </select>
+              {currentTheme.logoScaleAnimationType && currentTheme.logoScaleAnimationType !== 'none' && (
+                renderRangeControl('Velocidad Escala', currentTheme.logoScaleAnimationSpeed || 5, 0.5, 10, 0.5, (val) => updatePendingTheme({ ...currentTheme, logoScaleAnimationSpeed: val }), 's', 'accent-cyan-400')
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1399,6 +1639,49 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     ))}
                   </div>
                 </div>
+
+                {/* Advanced Text Format features */}
+                <div className="grid grid-cols-3 gap-2">
+                  {renderRangeControl('Rotación Letras', currentTheme.logoTextRotation || 0, -180, 180, 5, (val) => updatePendingTheme({ ...currentTheme, logoTextRotation: val }), '°', 'accent-cyan-400')}
+                  {renderRangeControl('Deformar X', currentTheme.logoTextSkewX || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logoTextSkewX: val }), '°', 'accent-cyan-400')}
+                  {renderRangeControl('Opacidad Letras', Math.round((currentTheme.logoTextOpacity !== undefined ? currentTheme.logoTextOpacity : 1) * 100), 20, 100, 5, (val) => updatePendingTheme({ ...currentTheme, logoTextOpacity: val / 100 }), '%', 'accent-cyan-400')}
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4 space-y-4">
+                  <span className="block text-[10px] font-black uppercase text-cyan-300 tracking-wider">Caja de Resaltado del Texto (Fondo Detrás)</span>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-slate-400">Color de Fondo Caja</span>
+                    <input
+                      type="color"
+                      value={currentTheme.logoTextHighlightColor && currentTheme.logoTextHighlightColor !== 'transparent' ? currentTheme.logoTextHighlightColor : '#000000'}
+                      onChange={(e) => updatePendingTheme({ ...currentTheme, logoTextHighlightColor: e.target.value })}
+                      className="h-9 w-11 rounded-xl border border-white/10 bg-slate-900 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => updatePendingTheme({ ...currentTheme, logoTextHighlightColor: 'transparent' })}
+                      className={`py-2 rounded-xl text-[10px] font-black uppercase border transition ${currentTheme.logoTextHighlightColor === 'transparent' || !currentTheme.logoTextHighlightColor ? 'border-cyan-300/40 bg-cyan-400/18 text-cyan-200' : 'border-white/10 text-slate-400 hover:text-white'}`}
+                      type="button"
+                    >
+                      Sin Fondo (Transparente)
+                    </button>
+                    <button
+                      onClick={() => updatePendingTheme({ ...currentTheme, logoTextHighlightColor: 'rgba(0,0,0,0.6)' })}
+                      className={`py-2 rounded-xl text-[10px] font-black uppercase border transition ${currentTheme.logoTextHighlightColor === 'rgba(0,0,0,0.6)' ? 'border-cyan-300/40 bg-cyan-400/18 text-cyan-200' : 'border-white/10 text-slate-400 hover:text-white'}`}
+                      type="button"
+                    >
+                      Fondo Oscuro Suave
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {renderRangeControl('Margen Caja', currentTheme.logoTextHighlightPadding !== undefined ? currentTheme.logoTextHighlightPadding : 8, 0, 24, 2, (val) => updatePendingTheme({ ...currentTheme, logoTextHighlightPadding: val }), 'px', 'accent-cyan-400')}
+                    {renderRangeControl('Redondeado Caja', currentTheme.logoTextHighlightRadius !== undefined ? currentTheme.logoTextHighlightRadius : 4, 0, 20, 2, (val) => updatePendingTheme({ ...currentTheme, logoTextHighlightRadius: val }), 'px', 'accent-cyan-400')}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1406,6 +1689,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       </div>
     </div>
   );
+};
 
   const renderYoutubeFullBrowser = () => {
     if (!isYoutubeFullBrowserOpen) return null;

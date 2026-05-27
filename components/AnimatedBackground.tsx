@@ -196,13 +196,42 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
                 } else if (type === 'snow') {
                     p.y += Math.max(0.25, speed * 0.55);
                     p.x += Math.sin(time * 0.001 + index) * 0.35;
+                } else if (type === 'matrix') {
+                    p.y += Math.max(1.2, speed * 2.2);
+                    if (p.y > displayHeight + 20) {
+                        p.y = -20;
+                        p.x = Math.random() * displayWidth;
+                    }
+                } else if (type === 'comet') {
+                    p.x -= Math.max(3.2, speed * 4.8);
+                    p.y += p.speedY * 0.05;
+                    if (p.x < -150) {
+                        p.x = displayWidth + 150;
+                        p.y = Math.random() * displayHeight;
+                    }
+                } else if (type === 'nebula') {
+                    p.x += Math.sin(time * 0.00015 + index) * 0.18 * speed;
+                    p.y += Math.cos(time * 0.00022 + index) * 0.18 * speed;
+                } else if (type === 'dna') {
+                    const angle = time * 0.0008 * speed + index * 0.22;
+                    const radius = Math.min(65, displayHeight * 0.22);
+                    p.x = (index / particles.length) * displayWidth;
+                    p.y = displayHeight / 2 + Math.sin(angle) * radius;
+                } else if (type === 'fluid-flow') {
+                    const angle = Math.sin(p.x * 0.006) * Math.cos(p.y * 0.006) * Math.PI * 2 + time * 0.00015 * speed;
+                    p.speedX = Math.cos(angle) * speed * 0.7;
+                    p.speedY = Math.sin(angle) * speed * 0.7;
+                    p.x += p.speedX;
+                    p.y += p.speedY;
                 } else {
                     p.x += p.speedX;
                     p.y += p.speedY;
                 }
 
                 p.rotation += p.spin;
-                wrapParticle(p);
+                if (type !== 'matrix' && type !== 'comet') {
+                    wrapParticle(p);
+                }
 
                 const mixedColor = p.hue > 0.5 ? color : color2;
                 ctx.fillStyle = mixedColor;
@@ -223,6 +252,68 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
                     ctx.beginPath();
                     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                     ctx.stroke();
+                } else if (type === 'matrix') {
+                    ctx.font = `bold ${Math.max(8, p.size + 4)}px monospace`;
+                    const char = Math.random() > 0.5 ? "1" : "0";
+                    ctx.fillText(char, p.x, p.y);
+                } else if (type === 'comet') {
+                    const grad = ctx.createLinearGradient(p.x, p.y, p.x + p.size * 6, p.y);
+                    grad.addColorStop(0, mixedColor);
+                    grad.addColorStop(1, 'transparent');
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = Math.max(1.8, p.size / 2.8);
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x + p.size * 6, p.y);
+                    ctx.stroke();
+                } else if (type === 'nebula') {
+                    const radGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 7);
+                    radGrad.addColorStop(0, mixedColor);
+                    radGrad.addColorStop(0.5, mixedColor + '22');
+                    radGrad.addColorStop(1, 'transparent');
+                    ctx.fillStyle = radGrad;
+                    ctx.globalAlpha = Math.min(0.18, p.alpha * 0.25 * (intensity / 80));
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 7, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (type === 'dna') {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 0.9, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    const angle = time * 0.0008 * speed + index * 0.22;
+                    const radius = Math.min(65, displayHeight * 0.22);
+                    const otherY = displayHeight / 2 - Math.sin(angle) * radius;
+                    
+                    ctx.fillStyle = color2;
+                    ctx.beginPath();
+                    ctx.arc(p.x, otherY, p.size * 0.9, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x, otherY);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                } else if (type === 'geometric') {
+                    drawParticleShape(p, 'circle');
+                    particles.forEach((other, oIdx) => {
+                        if (oIdx > index) {
+                            const dx = p.x - other.x;
+                            const dy = p.y - other.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < 90) {
+                                ctx.beginPath();
+                                ctx.moveTo(p.x, p.y);
+                                ctx.lineTo(other.x, other.y);
+                                ctx.strokeStyle = mixedColor;
+                                ctx.globalAlpha = (1 - dist / 90) * 0.22 * (intensity / 80);
+                                ctx.lineWidth = 0.8;
+                                ctx.stroke();
+                            }
+                        }
+                    });
                 } else if (type === 'custom') {
                     drawParticleShape(p, shape);
                 } else {

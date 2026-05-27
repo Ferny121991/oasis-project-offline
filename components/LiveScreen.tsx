@@ -669,26 +669,76 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                       shape={theme.logoBgAnimation.shape}
                     />
                   )}
+                  {theme.logoBgOverlayOpacity !== undefined && theme.logoBgOverlayOpacity > 0 && (
+                    <div 
+                      className="absolute inset-0 z-0 pointer-events-none" 
+                      style={{ 
+                        backgroundColor: '#000000', 
+                        opacity: theme.logoBgOverlayOpacity / 100 
+                      }} 
+                    />
+                  )}
+                  {theme.logoReflection && (
+                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-white/0 via-white/5 to-white/10 opacity-60 mix-blend-overlay z-20" />
+                  )}
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.10)_100%)]" />
-                  <div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-[5cqh] gap-6 text-center select-none">
+                  <div 
+                    className="relative z-10 flex flex-col items-center justify-center w-full h-full p-[5cqh] gap-6 text-center select-none"
+                    style={{
+                      transform: `perspective(1000px) rotateX(${theme.logo3DTiltX || 0}deg) rotateY(${theme.logo3DTiltY || 0}deg)`,
+                      transformStyle: 'preserve-3d'
+                    }}
+                  >
                     {(theme.logoUrl || !theme.logoText) && (
                       <img
                         src={theme.logoUrl || '/logo.png'}
                         alt="Logo Principal"
-                        className={`relative object-contain ${disableAnimations ? '' : 'logo-stable-breathe'}`}
+                        className={`relative object-contain ${
+                          disableAnimations 
+                            ? '' 
+                            : `logo-anim-${theme.logoAnimationType || 'none'} scale-anim-${theme.logoScaleAnimationType || 'none'}`
+                        }`}
                         style={{
                           maxHeight: `${theme.logoSize || 78}cqh`,
                           maxWidth: `${Math.min(96, (theme.logoSize || 78) + 10)}%`,
                           opacity: theme.logoOpacity ?? 1,
-                          filter: theme.logoGlow
-                            ? 'drop-shadow(0 0 18px rgba(255,255,255,0.85)) drop-shadow(0 0 42px rgba(99,102,241,0.35))'
-                            : 'drop-shadow(0 10px 24px rgba(0,0,0,0.22))'
-                        }}
+                          filter: `
+                            drop-shadow(${
+                              theme.logoShadowBlur 
+                                ? `0 0 ${theme.logoShadowBlur}px ${theme.logoShadowColor || 'rgba(0,0,0,0.5)'}` 
+                                : theme.logoGlow 
+                                  ? '0 0 18px rgba(255,255,255,0.85) drop-shadow(0 0 42px rgba(99,102,241,0.35))' 
+                                  : '0 10px 24px rgba(0,0,0,0.22)'
+                            })
+                            grayscale(${theme.logoGrayscale || 0}%)
+                            sepia(${theme.logoSepia || 0}%)
+                            hue-rotate(${theme.logoHueRotate || 0}deg)
+                            invert(${theme.logoInvert || 0}%)
+                            blur(${theme.logoBlur || 0}px)
+                            brightness(${theme.logoBrightness !== undefined ? theme.logoBrightness : 100}%)
+                            contrast(${theme.logoContrast !== undefined ? theme.logoContrast : 100}%)
+                            saturate(${theme.logoSaturation !== undefined ? theme.logoSaturation : 100}%)
+                          `,
+                          transform: `rotate(${theme.logoRotation || 0}deg)`,
+                          borderRadius: `${theme.logoBorderRadius || 0}px`,
+                          borderWidth: `${theme.logoBorderWidth || 0}px`,
+                          borderColor: theme.logoBorderColor || '#ffffff',
+                          borderStyle: theme.logoBorderWidth ? 'solid' : 'none',
+                          animationDuration: `${theme.logoAnimationSpeed || 5}s`,
+                          WebkitAnimationDuration: `${theme.logoAnimationSpeed || 5}s`,
+                          // Pass scale animation duration as custom CSS variable
+                          //@ts-ignore
+                          '--scale-anim-dur': `${theme.logoScaleAnimationSpeed || 5}s`
+                        } as any}
                       />
                     )}
                     {theme.logoText && (
                       <div
-                        className="w-full break-words max-w-[90%]"
+                        className={`w-full break-words max-w-[90%] ${
+                          disableAnimations 
+                            ? '' 
+                            : `text-anim-${theme.logoTextAnimationType || 'none'}`
+                        }`}
                         style={{
                           fontFamily: theme.logoTextFontFamily || 'Montserrat, sans-serif',
                           fontSize: `${theme.logoTextFontSize || 8}cqh`,
@@ -706,8 +756,17 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                           WebkitTextStrokeColor: theme.logoTextStrokeColor || '#000000',
                           background: theme.logoTextGradient || 'none',
                           WebkitBackgroundClip: theme.logoTextGradient ? 'text' : 'unset',
-                          WebkitTextFillColor: theme.logoTextGradient ? 'transparent' : 'unset'
-                        }}
+                          WebkitTextFillColor: theme.logoTextGradient ? 'transparent' : 'unset',
+                          
+                          // Advanced Text Attributes
+                          transform: `rotate(${theme.logoTextRotation || 0}deg) skewX(${theme.logoTextSkewX || 0}deg)`,
+                          opacity: theme.logoTextOpacity !== undefined ? theme.logoTextOpacity : 1,
+                          backgroundColor: theme.logoTextHighlightColor || 'transparent',
+                          padding: theme.logoTextHighlightPadding !== undefined ? `${theme.logoTextHighlightPadding}px` : 'unset',
+                          borderRadius: theme.logoTextHighlightRadius !== undefined ? `${theme.logoTextHighlightRadius}px` : 'unset',
+                          animationDuration: `${theme.logoTextAnimationSpeed || 5}s`,
+                          WebkitAnimationDuration: `${theme.logoTextAnimationSpeed || 5}s`
+                        } as any}
                       >
                         {theme.logoText}
                       </div>
@@ -799,6 +858,143 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
         @keyframes swingInTop { 0% { transform: rotateX(-100deg); transform-origin: top; opacity: 0; } 100% { transform: rotateX(0deg); transform-origin: top; opacity: 1; } }
         @keyframes slitInVertical { 0% { transform: translateZ(-800px) rotateY(90deg); opacity: 0; } 100% { transform: translateZ(0) rotateY(0); opacity: 1; } }
         @keyframes puffIn { 0% { transform: scale(2); filter: blur(4px); opacity: 0; } 100% { transform: scale(1); filter: blur(0px); opacity: 1; } }
+
+        /* ========================================= */
+        /* 20 LOGO IMAGE MOVEMENTS */
+        /* ========================================= */
+        .logo-anim-none { animation: none !important; }
+        .logo-anim-breathe { animation: logoBreathe linear infinite; transform-origin: center; }
+        .logo-anim-pulse-fast { animation: logoPulseFast linear infinite; transform-origin: center; }
+        .logo-anim-float-y { animation: logoFloatY ease-in-out infinite; transform-origin: center; }
+        .logo-anim-float-x { animation: logoFloatX ease-in-out infinite; transform-origin: center; }
+        .logo-anim-rotate-slow { animation: logoRotateSlow linear infinite; transform-origin: center; }
+        .logo-anim-spin-3d { animation: logoSpin3D linear infinite; transform-origin: center; }
+        .logo-anim-swing { animation: logoSwing ease-in-out infinite; transform-origin: center; }
+        .logo-anim-shake { animation: logoShake ease-in-out infinite; transform-origin: center; }
+        .logo-anim-wobble { animation: logoWobble ease-in-out infinite; transform-origin: center; }
+        .logo-anim-bounce { animation: logoBounce ease-in-out infinite; transform-origin: center; }
+        .logo-anim-heartbeat { animation: logoHeartbeat ease-in-out infinite; transform-origin: center; }
+        .logo-anim-rubberband { animation: logoRubberBand ease-in-out infinite; transform-origin: center; }
+        .logo-anim-jello { animation: logoJello ease-in-out infinite; transform-origin: center; }
+        .logo-anim-flash { animation: logoFlash ease-in-out infinite; transform-origin: center; }
+        .logo-anim-flicker { animation: logoFlicker ease-in-out infinite; transform-origin: center; }
+        .logo-anim-glitch { animation: logoGlitch ease-in-out infinite; transform-origin: center; }
+        .logo-anim-orbit { animation: logoOrbit ease-in-out infinite; transform-origin: center; }
+        .logo-anim-slide-infinite { animation: logoSlideInfinite linear infinite; transform-origin: center; }
+        .logo-anim-wave-dance { animation: logoWaveDance ease-in-out infinite; transform-origin: center; }
+
+        @keyframes logoPulseFast { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); opacity: 0.9; } }
+        @keyframes logoFloatY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+        @keyframes logoFloatX { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(12px); } }
+        @keyframes logoRotateSlow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes logoSpin3D { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(360deg); } }
+        @keyframes logoSwing { 0%, 100% { transform: rotate(0deg); } 20% { transform: rotate(8deg); } 40% { transform: rotate(-6deg); } 60% { transform: rotate(4deg); } 80% { transform: rotate(-2deg); } }
+        @keyframes logoShake { 0%, 100% { transform: translate(0,0) rotate(0deg); } 10%,30%,50%,70%,90% { transform: translate(-3px, 1px) rotate(-1deg); } 20%,40%,60%,80% { transform: translate(3px, -1px) rotate(1deg); } }
+        @keyframes logoWobble { 0%, 100% { transform: translateX(0%) rotate(0deg); } 15% { transform: translateX(-4%) rotate(-3deg); } 30% { transform: translateX(3%) rotate(2deg); } 45% { transform: translateX(-3%) rotate(-2deg); } 60% { transform: translateX(2%) rotate(1deg); } 75% { transform: translateX(-1%) rotate(-1deg); } }
+        @keyframes logoBounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-24px); } 60% { transform: translateY(-12px); } }
+        @keyframes logoHeartbeat { 0% { transform: scale(1); } 14% { transform: scale(1.1); } 28% { transform: scale(1); } 42% { transform: scale(1.15); } 70% { transform: scale(1); } }
+        @keyframes logoRubberBand { 0% { transform: scale3d(1,1,1); } 30% { transform: scale3d(1.2, 0.82, 1); } 40% { transform: scale3d(0.82, 1.2, 1); } 50% { transform: scale3d(1.13, 0.88, 1); } 65% { transform: scale3d(0.93, 1.07, 1); } 75% { transform: scale3d(1.05, 0.95, 1); } 100% { transform: scale3d(1,1,1); } }
+        @keyframes logoJello { 11.1% { transform: translate3d(0, 0, 0); } 22.2% { transform: skewX(-12.5deg) skewY(-12.5deg); } 33.3% { transform: skewX(6.25deg) skewY(6.25deg); } 44.4% { transform: skewX(-3.125deg) skewY(-3.125deg); } 55.5% { transform: skewX(1.5625deg) skewY(1.5625deg); } 66.6% { transform: skewX(-0.78125deg) skewY(-0.78125deg); } 77.7% { transform: skewX(0.390625deg) skewY(0.390625deg); } 88.8% { transform: skewX(-0.1953125deg) skewY(-0.1953125deg); } 100% { transform: translate3d(0, 0, 0); } }
+        @keyframes logoFlash { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.35; } }
+        @keyframes logoFlicker { 0%, 19.9%, 22%, 62.9%, 64%, 64.9%, 70%, 100% { opacity: 0.99; } 20%, 21.9%, 63%, 63.9%, 65%, 69.9% { opacity: 0.3; } }
+        @keyframes logoGlitch { 0% { transform: translate(0) } 20% { transform: translate(-2px, 2px) } 40% { transform: translate(-2px, -2px) } 60% { transform: translate(2px, 2px) } 80% { transform: translate(2px, -2px) } 100% { transform: translate(0) } }
+        @keyframes logoOrbit { 0% { transform: rotate(0deg) translate(8px) rotate(0deg); } 100% { transform: rotate(360deg) translate(8px) rotate(-360deg); } }
+        @keyframes logoSlideInfinite { 0% { transform: translateX(-10vw); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateX(10vw); opacity: 0; } }
+        @keyframes logoWaveDance { 0%, 100% { transform: rotate(0deg) scale(1); } 25% { transform: rotate(4deg) scale(1.03); } 75% { transform: rotate(-4deg) scale(0.97); } }
+
+        /* ========================================= */
+        /* 20 LOGO TEXT MOVEMENTS */
+        /* ========================================= */
+        .text-anim-none { animation: none !important; }
+        .text-anim-breathe { animation: textBreathe ease-in-out infinite; transform-origin: center; }
+        .text-anim-float { animation: textFloat ease-in-out infinite; transform-origin: center; }
+        .text-anim-wave { animation: textWave ease-in-out infinite; transform-origin: center; }
+        .text-anim-rotate { animation: textRotate ease-in-out infinite; transform-origin: center; }
+        .text-anim-flip-y { animation: textFlipY ease-in-out infinite; transform-origin: center; }
+        .text-anim-skew-loop { animation: textSkewLoop ease-in-out infinite; transform-origin: center; }
+        .text-anim-tracking { animation: textTracking ease-in-out infinite; transform-origin: center; }
+        .text-anim-glow-pulse { animation: textGlowPulse ease-in-out infinite; transform-origin: center; }
+        .text-anim-bounce { animation: textBounce ease-in-out infinite; transform-origin: center; }
+        .text-anim-shimmer { 
+          background-size: 200% auto !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+          animation: textShimmer linear infinite; 
+          transform-origin: center; 
+        }
+        .text-anim-typewriter { border-right: 2px solid; animation: typewriter steps(40) infinite; white-space: nowrap; overflow: hidden; }
+        .text-anim-neon-flicker { animation: textNeonFlicker ease-in-out infinite; }
+        .text-anim-slide-x { animation: textSlideX ease-in-out infinite; }
+        .text-anim-slide-y { animation: textSlideY ease-in-out infinite; }
+        .text-anim-blur-loop { animation: textBlurLoop ease-in-out infinite; }
+        .text-anim-glitch { animation: textGlitch ease-in-out infinite; }
+        .text-anim-color-shift { animation: textColorShift linear infinite; }
+        .text-anim-scale-up-down { animation: textScaleUpDown ease-in-out infinite; }
+        .text-anim-elastic-bounce { animation: textElasticBounce ease-in-out infinite; }
+
+        @keyframes textBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+        @keyframes textFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes textWave { 0%, 100% { transform: translateY(0) rotate(0deg); } 25% { transform: translateY(-4px) rotate(1deg); } 75% { transform: translateY(4px) rotate(-1deg); } }
+        @keyframes textRotate { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(3deg); } }
+        @keyframes textFlipY { 0% { transform: rotateY(0); } 50% { transform: rotateY(180deg); } 100% { transform: rotateY(360deg); } }
+        @keyframes textSkewLoop { 0%, 100% { transform: skewX(0); } 50% { transform: skewX(6deg); } }
+        @keyframes textTracking { 0%, 100% { letter-spacing: 0px; } 50% { letter-spacing: 4px; } }
+        @keyframes textGlowPulse { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,255,255,0.4)); } 50% { filter: drop-shadow(0 0 12px rgba(255,255,255,0.9)); } }
+        @keyframes textBounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-12px); } 60% { transform: translateY(-6px); } }
+        @keyframes textShimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+        @keyframes typewriter { from { width: 0; } to { width: 100%; } }
+        @keyframes textNeonFlicker { 0%, 100% { opacity: 1; text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #fff; } 50% { opacity: 0.7; text-shadow: 0 0 2px #fff; } }
+        @keyframes textSlideX { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(18px); } }
+        @keyframes textSlideY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(18px); } }
+        @keyframes textBlurLoop { 0%, 100% { filter: blur(0); } 50% { filter: blur(2px); } }
+        @keyframes textGlitch { 0% { transform: translate(0) } 10% { transform: translate(-1px, -1px) } 30% { transform: translate(1px, 1px) } 50% { transform: translate(-1px, 1px) } 70% { transform: translate(1px, -1px) } 90% { transform: translate(-1px, -1px) } 100% { transform: translate(0) } }
+        @keyframes textColorShift { 0% { color: #ffffff; } 33% { color: #a78bfa; } 66% { color: #60a5fa; } 100% { color: #ffffff; } }
+        @keyframes textScaleUpDown { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes textElasticBounce { 0% { transform: scale(1); } 30% { transform: scale(1.1) rotate(1deg); } 50% { transform: scale(0.95) rotate(-1deg); } 80% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
+        /* ========================================= */
+        /* 20 SCALE MOVEMENTS (FOR LOGO/TEXT) */
+        /* ========================================= */
+        .scale-anim-none { }
+        .scale-anim-scale-pulse { animation: scalePulse var(--scale-anim-dur, 4s) ease-in-out infinite; }
+        .scale-anim-scale-heartbeat { animation: scaleHeartbeat var(--scale-anim-dur, 1.8s) ease-in-out infinite; }
+        .scale-anim-scale-zoom-in-out { animation: scaleZoomInOut var(--scale-anim-dur, 5s) ease-in-out infinite; }
+        .scale-anim-scale-bounce { animation: scaleBounce var(--scale-anim-dur, 4s) ease-in-out infinite; }
+        .scale-anim-scale-grow { animation: scaleGrow var(--scale-anim-dur, 3s) ease-in-out infinite; }
+        .scale-anim-scale-shrink { animation: scaleShrink var(--scale-anim-dur, 3s) ease-in-out infinite; }
+        .scale-anim-scale-elastic { animation: scaleElastic var(--scale-anim-dur, 4s) ease-in-out infinite; }
+        .scale-anim-scale-pop { animation: scalePop var(--scale-anim-dur, 2.5s) ease-in-out infinite; }
+        .scale-anim-scale-step { animation: scaleStep var(--scale-anim-dur, 4s) steps(4) infinite; }
+        .scale-anim-scale-breathing-large { animation: scaleBreathingLarge var(--scale-anim-dur, 6s) ease-in-out infinite; }
+        .scale-anim-scale-wave { animation: scaleWave var(--scale-anim-dur, 5s) ease-in-out infinite; }
+        .scale-anim-scale-flicker { animation: scaleFlicker var(--scale-anim-dur, 4s) ease-in-out infinite; }
+        .scale-anim-scale-stretch-x { animation: scaleStretchX var(--scale-anim-dur, 3s) ease-in-out infinite; }
+        .scale-anim-scale-stretch-y { animation: scaleStretchY var(--scale-anim-dur, 3s) ease-in-out infinite; }
+        .scale-anim-scale-compress { animation: scaleCompress var(--scale-anim-dur, 4s) ease-in-out infinite; }
+        .scale-anim-scale-3d { animation: scale3D var(--scale-anim-dur, 5s) ease-in-out infinite; }
+        .scale-anim-scale-swing { animation: scaleSwing var(--scale-anim-dur, 4s) ease-in-out infinite; }
+        .scale-anim-scale-jitter { animation: scaleJitter var(--scale-anim-dur, 1.2s) ease-in-out infinite; }
+        .scale-anim-scale-hyper { animation: scaleHyper var(--scale-anim-dur, 1s) ease-in-out infinite; }
+
+        @keyframes scalePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        @keyframes scaleHeartbeat { 0% { transform: scale(1); } 14% { transform: scale(1.08); } 28% { transform: scale(1); } 42% { transform: scale(1.12); } 70% { transform: scale(1); } }
+        @keyframes scaleZoomInOut { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.92); } }
+        @keyframes scaleBounce { 0%, 20%, 50%, 80%, 100% { transform: scale(1); } 40% { transform: scale(1.08); } 60% { transform: scale(0.96); } }
+        @keyframes scaleGrow { 0%, 100% { transform: scale(0.95); } 50% { transform: scale(1.05); } }
+        @keyframes scaleShrink { 0%, 100% { transform: scale(1.05); } 50% { transform: scale(0.95); } }
+        @keyframes scaleElastic { 0% { transform: scale(1); } 25% { transform: scale(1.08); } 50% { transform: scale(0.94); } 75% { transform: scale(1.03); } 100% { transform: scale(1); } }
+        @keyframes scalePop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); opacity: 0.95; } }
+        @keyframes scaleStep { 0%, 100% { transform: scale(1); } 25% { transform: scale(1.04); } 50% { transform: scale(0.96); } 75% { transform: scale(1.02); } }
+        @keyframes scaleBreathingLarge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+        @keyframes scaleWave { 0%, 100% { transform: scale(1) translateY(0); } 33% { transform: scale(1.05) translateY(-3px); } 66% { transform: scale(0.95) translateY(3px); } }
+        @keyframes scaleFlicker { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.04); opacity: 0.8; } }
+        @keyframes scaleStretchX { 0%, 100% { transform: scaleX(1) scaleY(1); } 50% { transform: scaleX(1.12) scaleY(0.9); } }
+        @keyframes scaleStretchY { 0%, 100% { transform: scaleX(1) scaleY(1); } 50% { transform: scaleX(0.9) scaleY(1.12); } }
+        @keyframes scaleCompress { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.88); } }
+        @keyframes scale3D { 0% { transform: scale3d(1, 1, 1); } 50% { transform: scale3d(1.08, 0.92, 1.08); } 100% { transform: scale3d(1, 1, 1); } }
+        @keyframes scaleSwing { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.05) rotate(4deg); } }
+        @keyframes scaleJitter { 0%, 100% { transform: scale(1) translate(0); } 20% { transform: scale(1.03) translate(-1px, 1px); } 40% { transform: scale(0.97) translate(1px, -1px); } 60% { transform: scale(1.02) translate(-1px, -1px); } 80% { transform: scale(0.98) translate(1px, 1px); } }
+        @keyframes scaleHyper { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
       `}</style>
     </div >
   );

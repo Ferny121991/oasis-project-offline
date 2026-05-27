@@ -92,7 +92,39 @@ export const DEFAULT_THEME: Theme = {
   logoTextStrokeColor: '#000000',
   logoTextLineHeight: 1.2,
   logoTextLetterSpacing: 0,
-  logoTextGradient: null
+  logoTextGradient: null,
+
+  // 30 Nuevas funciones por defecto
+  logoRotation: 0,
+  logoBorderRadius: 0,
+  logoBorderWidth: 0,
+  logoBorderColor: '#ffffff',
+  logoShadowBlur: 0,
+  logoShadowColor: 'rgba(0,0,0,0.5)',
+  logoGrayscale: 0,
+  logoSepia: 0,
+  logoHueRotate: 0,
+  logoInvert: 0,
+  logoBlur: 0,
+  logoBrightness: 100,
+  logoContrast: 100,
+  logoSaturation: 100,
+  logoBgOverlayOpacity: 0,
+  logoAnimationType: 'none',
+  logoAnimationSpeed: 5,
+  logoTextAnimationType: 'none',
+  logoTextAnimationSpeed: 5,
+  logoScaleAnimationType: 'none',
+  logoScaleAnimationSpeed: 5,
+  logoTextSkewX: 0,
+  logoTextRotation: 0,
+  logoTextOpacity: 1,
+  logoTextHighlightColor: 'transparent',
+  logoTextHighlightPadding: 8,
+  logoTextHighlightRadius: 4,
+  logo3DTiltX: 0,
+  logo3DTiltY: 0,
+  logoReflection: false
 };
 
 export const THEME_PRESETS: Theme[] = [

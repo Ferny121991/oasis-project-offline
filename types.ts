@@ -38,6 +38,12 @@ export type BackgroundAnimationType =
   | 'snow'
   | 'spiral'
   | 'cross-light'
+  | 'matrix'
+  | 'nebula'
+  | 'dna'
+  | 'comet'
+  | 'geometric'
+  | 'fluid-flow'
   | 'custom';
 
 export interface BackgroundAnimationConfig {
@@ -161,6 +167,43 @@ export interface Theme {
   logoTextLineHeight?: number;
   logoTextLetterSpacing?: number;
   logoTextGradient?: string | null;
+
+  // 30 Nuevas funciones de control de Logo, Texto y Escala
+  logoRotation?: number; // 0 - 360
+  logoBorderRadius?: number; // 0 - 100px
+  logoBorderWidth?: number; // 0 - 10px
+  logoBorderColor?: string;
+  logoShadowBlur?: number; // 0 - 50px
+  logoShadowColor?: string;
+  logoGrayscale?: number; // 0 - 100%
+  logoSepia?: number; // 0 - 100%
+  logoHueRotate?: number; // 0 - 360
+  logoInvert?: number; // 0 - 100%
+  logoBlur?: number; // 0 - 20px
+  logoBrightness?: number; // 50 - 150%
+  logoContrast?: number; // 50 - 150%
+  logoSaturation?: number; // 0 - 200%
+  logoBgOverlayOpacity?: number; // 0 - 100%
+  
+  logoAnimationType?: string; // 20 presets
+  logoAnimationSpeed?: number; // 0.5 - 10s
+  
+  logoTextAnimationType?: string; // 20 presets
+  logoTextAnimationSpeed?: number; // 0.5 - 10s
+  
+  logoScaleAnimationType?: string; // 20 presets
+  logoScaleAnimationSpeed?: number; // 0.5 - 10s
+  
+  logoTextSkewX?: number; // -45 to 45
+  logoTextRotation?: number; // -180 to 180
+  logoTextOpacity?: number; // 0.2 - 1
+  logoTextHighlightColor?: string;
+  logoTextHighlightPadding?: number; // 0 - 24px
+  logoTextHighlightRadius?: number; // 0 - 20px
+  
+  logo3DTiltX?: number; // -45 to 45
+  logo3DTiltY?: number; // -45 to 45
+  logoReflection?: boolean;
 }
 
 export interface Slide {
