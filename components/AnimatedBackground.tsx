@@ -223,13 +223,38 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
                     p.speedY = Math.sin(angle) * speed * 0.7;
                     p.x += p.speedX;
                     p.y += p.speedY;
+                } else if (type === 'vortex') {
+                    const angle = time * 0.00025 * speed + index * 0.15;
+                    const radius = ((index % 60) / 60) * Math.min(displayWidth, displayHeight) * 0.65;
+                    p.x = displayWidth / 2 + Math.cos(angle) * radius;
+                    p.y = displayHeight / 2 + Math.sin(angle) * radius;
+                } else if (type === 'clouds') {
+                    p.x += speed * 0.12;
+                    p.y += Math.sin(time * 0.0002 + index) * 0.06 * speed;
+                } else if (type === 'sakura') {
+                    p.y += Math.max(0.35, speed * 0.65);
+                    p.x += Math.sin(time * 0.0008 + index) * 0.45 * speed;
+                } else if (type === 'digital-rain') {
+                    if (index % 2 === 0) {
+                        p.y += Math.max(1.8, speed * 2.8);
+                        if (p.y > displayHeight + 40) {
+                            p.y = -40;
+                            p.x = Math.random() * displayWidth;
+                        }
+                    } else {
+                        p.x -= Math.max(1.8, speed * 2.8);
+                        if (p.x < -40) {
+                            p.x = displayWidth + 40;
+                            p.y = Math.random() * displayHeight;
+                        }
+                    }
                 } else {
                     p.x += p.speedX;
                     p.y += p.speedY;
                 }
 
                 p.rotation += p.spin;
-                if (type !== 'matrix' && type !== 'comet') {
+                if (type !== 'matrix' && type !== 'comet' && type !== 'digital-rain') {
                     wrapParticle(p);
                 }
 
@@ -314,6 +339,43 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
                             }
                         }
                     });
+                } else if (type === 'vortex') {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, Math.max(1, p.size * 0.7), 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (type === 'clouds') {
+                    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 10);
+                    grad.addColorStop(0, mixedColor);
+                    grad.addColorStop(0.4, mixedColor + '18');
+                    grad.addColorStop(1, 'transparent');
+                    ctx.fillStyle = grad;
+                    ctx.globalAlpha = Math.min(0.24, p.alpha * 0.3 * (intensity / 80));
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 10, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (type === 'sakura') {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.bezierCurveTo(-p.size / 2, -p.size, -p.size, -p.size / 2, 0, p.size);
+                    ctx.bezierCurveTo(p.size, -p.size / 2, p.size / 2, -p.size, 0, 0);
+                    ctx.fillStyle = '#f472b6';
+                    ctx.globalAlpha = Math.min(0.72, p.alpha);
+                    ctx.fill();
+                    ctx.restore();
+                } else if (type === 'digital-rain') {
+                    ctx.beginPath();
+                    ctx.lineWidth = Math.max(1.5, p.size / 2.8);
+                    if (index % 2 === 0) {
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p.x, p.y + p.size * 4);
+                    } else {
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p.x - p.size * 4, p.y);
+                    }
+                    ctx.stroke();
                 } else if (type === 'custom') {
                     drawParticleShape(p, shape);
                 } else {

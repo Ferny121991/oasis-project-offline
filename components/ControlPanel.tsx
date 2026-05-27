@@ -174,6 +174,10 @@ const BG_ANIMATION_PRESETS: { name: string; value: BackgroundAnimationType }[] =
   { name: 'Cometas Veloz', value: 'comet' },
   { name: 'Red Geometrica', value: 'geometric' },
   { name: 'Flujo Fluido', value: 'fluid-flow' },
+  { name: 'Remolino Vortex', value: 'vortex' },
+  { name: 'Nubes Celestes', value: 'clouds' },
+  { name: 'Sakura de Gracia', value: 'sakura' },
+  { name: 'Rayas Digitales', value: 'digital-rain' },
   { name: 'Personalizada', value: 'custom' },
 ];
 

@@ -44,6 +44,10 @@ export type BackgroundAnimationType =
   | 'comet'
   | 'geometric'
   | 'fluid-flow'
+  | 'vortex'
+  | 'clouds'
+  | 'sakura'
+  | 'digital-rain'
   | 'custom';
 
 export interface BackgroundAnimationConfig {
