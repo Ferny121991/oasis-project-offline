@@ -3,7 +3,7 @@ import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, Den
 import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry, BackgroundAnimationConfig, BackgroundAnimationType } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
-import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star, AlertCircle, ArrowLeft, Copy } from 'lucide-react';
+import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Undo, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star, AlertCircle, ArrowLeft, Copy } from 'lucide-react';
 import RichTextEditor, { textToSegments, segmentsToText } from './RichTextEditor';
 import HistoryPanel from './HistoryPanel';
 
@@ -1098,6 +1098,90 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
           </div>
         )}
+
+        {/* ACCIONES DE LOGO: RESTABLECER Y DESHACER */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => {
+              const resetLogoTheme = {
+                ...currentTheme,
+                logoUrl: '/logo.png',
+                logoBackground: 'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)',
+                logoSize: 78,
+                logoOpacity: 1,
+                logoBgAnimation: undefined,
+                logoText: '',
+                logoTextFontFamily: 'Montserrat, sans-serif',
+                logoTextFontSize: 8,
+                logoTextColor: '#ffffff',
+                logoTextBold: true,
+                logoTextItalic: false,
+                logoTextUnderline: false,
+                logoTextAlignment: 'center',
+                logoTextShadow: true,
+                logoTextShadowColor: 'rgba(0,0,0,0.8)',
+                logoTextShadowBlur: 10,
+                logoTextShadowOffsetX: 2,
+                logoTextShadowOffsetY: 2,
+                logoTextStrokeWidth: 0,
+                logoTextStrokeColor: '#000000',
+                logoTextLineHeight: 1.2,
+                logoTextLetterSpacing: 0,
+                logoTextGradient: null,
+                logoRotation: 0,
+                logoBorderRadius: 0,
+                logoBorderWidth: 0,
+                logoBorderColor: '#ffffff',
+                logoShadowBlur: 0,
+                logoShadowColor: 'rgba(0,0,0,0.5)',
+                logoGrayscale: 0,
+                logoSepia: 0,
+                logoHueRotate: 0,
+                logoInvert: 0,
+                logoBlur: 0,
+                logoBrightness: 100,
+                logoContrast: 100,
+                logoSaturation: 100,
+                logoBgOverlayOpacity: 0,
+                logoAnimationType: 'none',
+                logoAnimationSpeed: 5,
+                logoTextAnimationType: 'none',
+                logoTextAnimationSpeed: 5,
+                logoScaleAnimationType: 'none',
+                logoScaleAnimationSpeed: 5,
+                logoTextSkewX: 0,
+                logoTextRotation: 0,
+                logoTextOpacity: 1,
+                logoTextHighlightColor: 'transparent',
+                logoTextHighlightPadding: 8,
+                logoTextHighlightRadius: 4,
+                logo3DTiltX: 0,
+                logo3DTiltY: 0,
+                logoReflection: false,
+                logoBlendMode: 'normal',
+                logoBgGradientAngle: 135,
+                logoBgLegibilityBlur: 0,
+                logoBgAnimAngle: 0,
+                logoBgAnimTrail: 0,
+                logoAnimAmplitude: 100,
+                logoTextHighlightBlur: 0
+              };
+              updatePendingTheme(resetLogoTheme);
+            }}
+            className="rounded-xl border border-red-500/30 bg-red-600/10 px-3 py-3 text-[10px] font-black uppercase tracking-wider text-red-300 transition hover:bg-red-600/20 hover:border-red-500/50 flex items-center justify-center gap-2"
+            type="button"
+          >
+            <RotateCcw size={14} /> Restablecer Logo
+          </button>
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            className={`rounded-xl border px-3 py-3 text-[10px] font-black uppercase tracking-wider transition flex items-center justify-center gap-2 ${canUndo ? 'border-cyan-500/30 bg-cyan-600/10 text-cyan-300 hover:bg-cyan-600/20 hover:border-cyan-500/50' : 'border-white/5 bg-slate-950/20 text-slate-600 cursor-not-allowed'}`}
+            type="button"
+          >
+            <Undo size={14} /> Deshacer Cambio
+          </button>
+        </div>
 
         {/* SECTION: Logo y Escala */}
         <div className="overflow-hidden rounded-[1.35rem] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(8,13,25,0.92))] shadow-2xl shadow-black/25">
