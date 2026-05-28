@@ -129,6 +129,18 @@ const ProjectorApp: React.FC = () => {
     syncChannel.current.onmessage = (event: MessageEvent) => {
       const { type, data } = event.data || {};
       if (type === 'SYNC_STATE') applyState(data);
+      if (type === 'TOGGLE_FULLSCREEN') {
+        if (!document.fullscreenElement) {
+          setShowStartOverlay(false);
+          document.documentElement.requestFullscreen().catch(() => {
+            // Browser security blocks automatic fullscreen from window postMessage.
+            // We elegantly show the friendly overlay so a single click executes it.
+            setShowStartOverlay(true);
+          });
+        } else {
+          document.exitFullscreen?.().catch(() => undefined);
+        }
+      }
     };
 
     syncChannel.current.postMessage({ type: 'REQUEST_STATE' });

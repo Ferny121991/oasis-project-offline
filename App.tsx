@@ -2545,13 +2545,17 @@ const App: React.FC = () => {
   }, [externalWindow]);
 
   const toggleProjectorFullscreen = useCallback(() => {
+    // Send command via BroadcastChannel so it reaches any open projector window, even after page reloads!
+    const bc = new BroadcastChannel('flujo_projector_sync');
+    bc.postMessage({ type: 'TOGGLE_FULLSCREEN' });
+    bc.close();
+
     if (externalWindow && !externalWindow.closed) {
       sendSyncState(true);
       externalWindow.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
       externalWindow.focus();
     } else {
       setExternalWindow(null);
-      // If window is closed/null, try to reopen it
       openProjectorWindow();
     }
   }, [externalWindow, openProjectorWindow, sendSyncState]);
