@@ -2141,6 +2141,10 @@ const App: React.FC = () => {
     const lastEntry = history[0];
     setHistory(prev => prev.slice(1));
 
+    if (logoSettingsChanged(lastEntry.data, globalLogoSettings)) {
+      setGlobalLogoSettings(extractLogoSettings(lastEntry.data));
+    }
+
     setPlaylist(prev => prev.map(item =>
       item.id === activeItemId ? { ...item, theme: lastEntry.data } : item
     ));
@@ -2150,9 +2154,10 @@ const App: React.FC = () => {
   const handleRestoreHistory = (entry: import('./types').HistoryEntry) => {
     if (!activeItemId) return;
 
-    // When restoring, we might want to save the CURRENT state to history too, or just revert.
-    // For now, let's just revert to that state and keep history intact (or maybe move that entry to top?)
-    // Simple restore: apply the theme
+    if (logoSettingsChanged(entry.data, globalLogoSettings)) {
+      setGlobalLogoSettings(extractLogoSettings(entry.data));
+    }
+
     setPlaylist(prev => prev.map(item =>
       item.id === activeItemId ? { ...item, theme: entry.data } : item
     ));
