@@ -2082,11 +2082,50 @@ const App: React.FC = () => {
     }
   }, [activeItemId, defaultCustomTheme]);
 
+  // Logo-specific history stack with debounced commits
+  const [logoHistory, setLogoHistory] = useState<LogoSettings[]>([]);
+  const lastSavedSettings = useRef<LogoSettings>(extractLogoSettings(DEFAULT_THEME));
+  const logoDebounceTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (globalLogoSettings) {
+      lastSavedSettings.current = globalLogoSettings;
+    }
+  }, [activeItemId]);
+
   const handleUpdateStagedTheme = (newTheme: Theme) => {
     if (logoSettingsChanged(newTheme, globalLogoSettings)) {
-      setGlobalLogoSettings(extractLogoSettings(newTheme));
+      const nextSettings = extractLogoSettings(newTheme);
+      
+      if (logoDebounceTimer.current) {
+        window.clearTimeout(logoDebounceTimer.current);
+      }
+      
+      const prevStable = lastSavedSettings.current;
+      logoDebounceTimer.current = window.setTimeout(() => {
+        if (JSON.stringify(prevStable) !== JSON.stringify(nextSettings)) {
+          setLogoHistory(prev => [prevStable, ...prev].slice(0, 50));
+          lastSavedSettings.current = nextSettings;
+        }
+      }, 500);
+
+      setGlobalLogoSettings(nextSettings);
     }
     setStagedTheme(prev => keepThemeLogoFields(newTheme, prev));
+  };
+
+  const handleLogoUndo = () => {
+    if (logoHistory.length === 0) return;
+    const lastSettings = logoHistory[0];
+    setLogoHistory(prev => prev.slice(1));
+    
+    setGlobalLogoSettings(lastSettings);
+    lastSavedSettings.current = lastSettings;
+    
+    setStagedTheme(prev => ({
+      ...prev,
+      ...lastSettings
+    }));
   };
 
   // History System for Undo/Redo
@@ -2966,6 +3005,8 @@ const App: React.FC = () => {
           onUndo={handleUndo}
           onRestoreOriginal={handleRestoreOriginal}
           canUndo={history.length > 0}
+          onLogoUndo={handleLogoUndo}
+          canLogoUndo={logoHistory.length > 0}
           onDeselect={() => {
             setActiveItemId(null);
             setActiveSlideIndex(-1);

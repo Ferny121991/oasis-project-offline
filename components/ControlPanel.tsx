@@ -26,6 +26,8 @@ interface ControlPanelProps {
   onUndo: () => void;
   onRestoreOriginal: () => void;
   canUndo: boolean;
+  onLogoUndo?: () => void;
+  canLogoUndo?: boolean;
   onDeselect?: () => void;
   // Audio Control Props
   isAudioPlaying?: boolean;
@@ -237,6 +239,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onUndo,
   onRestoreOriginal,
   canUndo,
+  onLogoUndo,
+  canLogoUndo,
   onDeselect,
   isAudioPlaying,
   backgroundAudioItem,
@@ -1174,9 +1178,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <RotateCcw size={14} /> Restablecer Logo
           </button>
           <button
-            onClick={onUndo}
-            disabled={!canUndo}
-            className={`rounded-xl border px-3 py-3 text-[10px] font-black uppercase tracking-wider transition flex items-center justify-center gap-2 ${canUndo ? 'border-cyan-500/30 bg-cyan-600/10 text-cyan-300 hover:bg-cyan-600/20 hover:border-cyan-500/50' : 'border-white/5 bg-slate-950/20 text-slate-600 cursor-not-allowed'}`}
+            onClick={onLogoUndo}
+            disabled={!canLogoUndo}
+            className={`rounded-xl border px-3 py-3 text-[10px] font-black uppercase tracking-wider transition flex items-center justify-center gap-2 ${canLogoUndo ? 'border-cyan-500/30 bg-cyan-600/10 text-cyan-300 hover:bg-cyan-600/20 hover:border-cyan-500/50' : 'border-white/5 bg-slate-950/20 text-slate-600 cursor-not-allowed'}`}
             type="button"
           >
             <Undo size={14} /> Deshacer Cambio
