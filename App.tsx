@@ -2520,11 +2520,16 @@ const App: React.FC = () => {
       newWindow.onbeforeunload = () => setExternalWindow(null);
       setExternalWindow(newWindow);
 
+      // Attempt synchronous fullscreen while user activation is still hot!
+      try {
+        newWindow.document.documentElement.requestFullscreen().catch(() => undefined);
+      } catch (e) {}
+
       // Send current state immediately to the new window
       setTimeout(() => sendSyncState(true), 250);
       setTimeout(() => sendSyncState(true), 900);
 
-      // Give it a moment to load then try to focus and fullscreen
+      // Give it a moment to load then try to focus and fullscreen as a fallback
       setTimeout(() => {
         if (newWindow && !newWindow.closed) {
           newWindow.focus();
@@ -2552,7 +2557,21 @@ const App: React.FC = () => {
 
     if (externalWindow && !externalWindow.closed) {
       sendSyncState(true);
-      externalWindow.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
+      
+      // Attempt synchronous fullscreen from the active user click in the parent window!
+      try {
+        const doc = externalWindow.document;
+        if (!doc.fullscreenElement) {
+          doc.documentElement.requestFullscreen().catch(() => {
+            externalWindow.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
+          });
+        } else {
+          doc.exitFullscreen().catch(() => undefined);
+        }
+      } catch (e) {
+        externalWindow.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
+      }
+
       externalWindow.focus();
     } else {
       setExternalWindow(null);
