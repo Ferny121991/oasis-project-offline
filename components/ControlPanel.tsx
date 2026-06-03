@@ -690,9 +690,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     if (BIBLE_BOOKS.includes(bookTrim)) {
       setInputText(bookTrim + ' ');
       setShowBibleSuggestions(true);
-    } else if (bookTrim.match(/\s+\d+$/)) {
-      setInputText(bookTrim + ':');
-      setShowBibleSuggestions(true);
     } else {
       setInputText(bookTrim);
       setShowBibleSuggestions(false);
