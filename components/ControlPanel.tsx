@@ -213,6 +213,24 @@ const BIBLE_BOOKS = [
   'Santiago', '1 Pedro', '2 Pedro', '1 Juan', '2 Juan', '3 Juan',
   'Judas', 'Apocalipsis'
 ];
+
+const BIBLE_CHAPTERS: Record<string, number> = {
+  'Genesis': 50, 'Exodo': 40, 'Levitico': 27, 'Numeros': 36, 'Deuteronomio': 34,
+  'Josue': 24, 'Jueces': 21, 'Rut': 4, '1 Samuel': 31, '2 Samuel': 24,
+  '1 Reyes': 22, '2 Reyes': 25, '1 Cronicas': 29, '2 Cronicas': 36, 'Esdras': 10,
+  'Nehemias': 13, 'Ester': 10, 'Job': 42, 'Salmos': 150, 'Proverbios': 31,
+  'Eclesiastes': 12, 'Cantares': 8, 'Isaias': 66, 'Jeremias': 52, 'Lamentaciones': 5,
+  'Ezequiel': 48, 'Daniel': 12, 'Oseas': 14, 'Joel': 3, 'Amos': 9,
+  'Abdias': 1, 'Jonas': 4, 'Miqueas': 7, 'Nahum': 3, 'Habacuc': 3,
+  'Sofonias': 3, 'Hageo': 2, 'Zacarias': 14, 'Malaquias': 4,
+  'Mateo': 28, 'Marcos': 16, 'Lucas': 24, 'Juan': 21, 'Hechos': 28,
+  'Romanos': 16, '1 Corintios': 16, '2 Corintios': 13, 'Galatas': 6, 'Efesios': 6,
+  'Filipenses': 4, 'Colosenses': 4, '1 Tesalonicenses': 5, '2 Tesalonicenses': 3,
+  '1 Timoteo': 6, '2 Timoteo': 4, 'Tito': 3, 'Filemon': 1, 'Hebreos': 13,
+  'Santiago': 5, '1 Pedro': 5, '2 Pedro': 3, '1 Juan': 5, '2 Juan': 1, '3 Juan': 1,
+  'Judas': 1, 'Apocalipsis': 22
+};
+
 const getYouTubeVideoId = (value: string): string => {
   const text = value.trim();
   if (!text) return '';
@@ -598,26 +616,67 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Bible book autocomplete effect
   useEffect(() => {
     if (inputType === 'scripture' && inputText.trim().length > 0) {
-      // Get the book name part (before any numbers like "3:16")
-      const bookPart = inputText.split(/\s+\d/)[0].trim().toLowerCase();
+      const text = inputText;
+      
+      let matchedBook = '';
+      let remaining = '';
+      
+      for (const book of BIBLE_BOOKS) {
+        const bookLower = book.toLowerCase();
+        const normalizedBook = bookLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const normalizedInput = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        
+        if (normalizedInput === normalizedBook || 
+            normalizedInput.startsWith(normalizedBook + ' ') || 
+            /^[1-9]/.test(text.substring(book.length).trim())) {
+          if (text.toLowerCase().startsWith(bookLower) || normalizedInput.startsWith(normalizedBook)) {
+            matchedBook = book;
+            remaining = text.substring(book.length).trim();
+            break;
+          }
+        }
+      }
 
-      if (bookPart.length > 0) {
-        // Filter books that start with or contain the input
+      if (matchedBook) {
+        const totalChapters = BIBLE_CHAPTERS[matchedBook] || 1;
+        
+        if (remaining.includes(':')) {
+          const parts = remaining.split(':');
+          const chapterStr = parts[0].trim();
+          const verseStr = parts[1].trim();
+          
+          const suggestions: string[] = [];
+          for (let v = 1; v <= 45; v++) {
+            const opt = `${matchedBook} ${chapterStr}:${v}`;
+            if (!verseStr || v.toString().startsWith(verseStr)) {
+              suggestions.push(opt);
+            }
+          }
+          setBibleSuggestions(suggestions.slice(0, 6));
+          setShowBibleSuggestions(suggestions.length > 0);
+        } else {
+          const suggestions: string[] = [];
+          for (let c = 1; c <= totalChapters; c++) {
+            const opt = `${matchedBook} ${c}`;
+            if (!remaining || c.toString().startsWith(remaining)) {
+              suggestions.push(opt);
+            }
+          }
+          setBibleSuggestions(suggestions.slice(0, 6));
+          setShowBibleSuggestions(suggestions.length > 0);
+        }
+      } else {
+        const normalizedInput = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const matches = BIBLE_BOOKS.filter(book => {
           const bookLower = book.toLowerCase();
-          // Remove accents for comparison
           const normalizedBook = bookLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const normalizedInput = bookPart.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          return bookLower.startsWith(bookPart) ||
+          return bookLower.startsWith(text.toLowerCase()) ||
             normalizedBook.startsWith(normalizedInput) ||
-            bookLower.includes(bookPart);
+            bookLower.includes(text.toLowerCase());
         });
 
-        setBibleSuggestions(matches.slice(0, 6)); // Limit to 6 suggestions
+        setBibleSuggestions(matches.slice(0, 6));
         setShowBibleSuggestions(matches.length > 0);
-      } else {
-        setBibleSuggestions([]);
-        setShowBibleSuggestions(false);
       }
     } else {
       setBibleSuggestions([]);
@@ -627,10 +686,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   // Handle selecting a Bible book suggestion
   const handleSelectBibleBook = (book: string) => {
-    // If the input has a verse reference, keep it
-    const verseMatch = inputText.match(/\s+(\d+[:\-,\d\s]*)/);
-    setInputText(book + (verseMatch ? verseMatch[0] : ' '));
-    setShowBibleSuggestions(false);
+    const bookTrim = book.trim();
+    if (BIBLE_BOOKS.includes(bookTrim)) {
+      setInputText(bookTrim + ' ');
+      setShowBibleSuggestions(true);
+    } else if (bookTrim.match(/\s+\d+$/)) {
+      setInputText(bookTrim + ':');
+      setShowBibleSuggestions(true);
+    } else {
+      setInputText(bookTrim);
+      setShowBibleSuggestions(false);
+    }
   };
 
   // Close YouTube full browser on Escape key
@@ -2621,9 +2687,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                     {/* Bible Book Suggestions Dropdown */}
                     {showBibleSuggestions && bibleSuggestions.length > 0 && inputType === 'scripture' && (
-                      <div className="absolute z-50 w-full mt-1 bg-gray-900 border border-indigo-500/50 rounded-xl shadow-2xl overflow-hidden animate-fade-in">
-                        <div className="px-3 py-2 bg-indigo-900/30 border-b border-gray-700">
-                          <span className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">Libros sugeridos</span>
+                      <div className="absolute top-full left-0 z-50 w-full mt-1 bg-gray-900 border border-indigo-500/50 rounded-xl shadow-2xl overflow-hidden animate-fade-in">
+                        <div className="px-3 py-2 bg-indigo-900/30 border-b border-gray-700 flex justify-between items-center">
+                          <span className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">Sugerencias Bíblicas</span>
+                          <span className="text-[8px] text-slate-500">Libros, capítulos y versículos</span>
                         </div>
                         <div className="max-h-48 overflow-y-auto">
                           {bibleSuggestions.map((book, idx) => (
@@ -2633,7 +2700,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               onClick={() => handleSelectBibleBook(book)}
                               className={`w-full text-left px-4 py-2.5 hover:bg-indigo-600/30 transition-colors flex items-center gap-3 ${idx === 0 ? 'bg-indigo-600/20' : ''}`}
                             >
-                              <Book size={14} className="text-amber-400" />
+                              {book.includes(':') ? (
+                                <Type size={14} className="text-cyan-400 shrink-0" />
+                              ) : book.match(/\s+\d+$/) ? (
+                                <FileText size={14} className="text-indigo-400 shrink-0" />
+                              ) : (
+                                <Book size={14} className="text-amber-400 shrink-0" />
+                              )}
                               <span className="text-white font-medium">{book}</span>
                               {idx === 0 && (
                                 <span className="ml-auto text-[9px] text-gray-500 bg-gray-700 px-1.5 py-0.5 rounded">Enter</span>
