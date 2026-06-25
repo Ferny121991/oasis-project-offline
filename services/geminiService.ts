@@ -892,6 +892,7 @@ export interface YouTubePlaylistVideo {
   thumbnail: string;
   duration?: string;
   index?: number;
+  playlistTitle?: string;
 }
 
 // Backward-compatible helper to perform fetch with custom abort timeout
@@ -1393,7 +1394,8 @@ const fetchYouTubePlaylistLocalEndpoint = async (playlistId: string, maxVideos =
         author: item.author || 'YouTube',
         thumbnail: item.thumbnail || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
         duration: item.duration,
-        index: typeof item.index === 'number' ? item.index : index + 1
+        index: typeof item.index === 'number' ? item.index : index + 1,
+        playlistTitle: item.playlistTitle || data?.title || undefined
       } as YouTubePlaylistVideo;
     })
     .filter(Boolean) as YouTubePlaylistVideo[];

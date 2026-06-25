@@ -43,6 +43,23 @@ function decode_text($value) {
   return trim(html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_XML1, 'UTF-8'));
 }
 
+function extract_playlist_title($html) {
+  if ($html === '') return '';
+  $patterns = [
+    '/<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']/i',
+    '/<meta\s+name=["\']title["\']\s+content=["\']([^"\']+)["\']/i',
+    '/<title>([\s\S]*?)<\/title>/i'
+  ];
+  foreach ($patterns as $pattern) {
+    if (preg_match($pattern, $html, $match)) {
+      $title = decode_text($match[1]);
+      $title = preg_replace('/\s*-\s*YouTube\s*$/i', '', $title);
+      if ($title !== '') return $title;
+    }
+  }
+  return '';
+}
+
 function collect_playlist_videos($node, &$videos, &$seen, $maxVideos) {
   if (count($videos) >= $maxVideos || !is_array($node)) return;
 
@@ -286,6 +303,7 @@ function parse_playlist_feed($xml, $maxVideos) {
 }
 
 $html = fetch_url('https://www.youtube.com/playlist?list=' . rawurlencode($playlistId));
+$playlistTitle = extract_playlist_title($html);
 $videos = fetch_playlist_browse($playlistId, $html, $maxVideos);
 
 if (count($videos) === 0) {
@@ -299,6 +317,7 @@ if (count($videos) === 0) {
 
 echo json_encode([
   'playlistId' => $playlistId,
+  'title' => $playlistTitle,
   'count' => count($videos),
   'videos' => $videos
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

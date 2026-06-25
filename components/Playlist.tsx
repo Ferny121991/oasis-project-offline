@@ -440,6 +440,28 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
 
   const isItemLive = liveItemId === item.id;
   const isItemActive = activeItemId === item.id;
+  const slideTypeCounts = item.slides.reduce<Record<string, number>>((counts, slide) => {
+    counts[slide.type] = (counts[slide.type] || 0) + 1;
+    return counts;
+  }, {});
+  const itemKindLabel = item.type === 'scripture'
+    ? 'Biblia'
+    : item.type === 'image-deck'
+      ? 'Imágenes'
+      : item.slides.some(slide => slide.type === 'youtube')
+        ? 'YouTube'
+        : item.type === 'song'
+          ? 'Canción'
+          : 'Proyecto';
+  const typeSummary = [
+    slideTypeCounts.youtube ? `${slideTypeCounts.youtube} videos` : '',
+    slideTypeCounts.image ? `${slideTypeCounts.image} imagenes` : '',
+    slideTypeCounts.video ? `${slideTypeCounts.video} archivos` : '',
+    slideTypeCounts.text ? `${slideTypeCounts.text} textos` : ''
+  ].filter(Boolean).join(' · ');
+  const selectedSlideLabel = isItemActive && item.slides[activeSlideIndex]
+    ? item.slides[activeSlideIndex].label || `Slide ${activeSlideIndex + 1}`
+    : null;
 
   return (
     <div
@@ -449,9 +471,9 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
         borderLeft: item.dividerColor ? `5px solid ${item.dividerColor}` : undefined
       }}
       className={`rounded-2xl border overflow-hidden transition-all duration-300 shadow-xl ${isDragging ? 'border-indigo-400 shadow-indigo-500/20' :
-        isItemLive ? 'border-red-400/70 bg-gradient-to-br from-red-950/70 to-slate-950 shadow-red-950/30' :
-          isItemActive ? 'border-indigo-400/60 bg-gradient-to-br from-indigo-950/70 to-slate-950 shadow-indigo-950/30' :
-            'border-white/10 bg-white/[0.04] hover:border-indigo-400/30 hover:bg-white/[0.06]'
+        isItemLive ? 'border-red-400/70 bg-gradient-to-br from-red-950/70 via-slate-950 to-slate-950 shadow-red-950/30' :
+          isItemActive ? 'border-cyan-300/70 bg-gradient-to-br from-cyan-950/35 via-indigo-950/35 to-slate-950 shadow-cyan-950/20 ring-1 ring-cyan-300/20' :
+            'border-white/10 bg-white/[0.04] hover:border-cyan-300/35 hover:bg-white/[0.06]'
         }`}
     >
       {/* Collapsible Header */}
@@ -496,7 +518,19 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
 
         {/* Icon & Title */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          {item.type === 'song' ? <Music size={18} className="text-pink-400 shrink-0" /> : <BookOpen size={18} className="text-blue-400 shrink-0" />}
+          <div className={`h-10 w-10 rounded-2xl border flex items-center justify-center shrink-0 ${
+            isItemLive
+              ? 'bg-red-500/15 border-red-400/30 text-red-200'
+              : isItemActive
+                ? 'bg-cyan-400/15 border-cyan-300/30 text-cyan-200'
+                : 'bg-slate-950/70 border-white/10 text-slate-300'
+          }`}>
+            {item.slides.some(slide => slide.type === 'youtube')
+              ? <Monitor size={17} />
+              : item.type === 'song'
+                ? <Music size={17} />
+                : <BookOpen size={17} />}
+          </div>
 
           {editingItemId === item.id ? (
             <div className="flex items-center gap-2 flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
@@ -515,12 +549,21 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
               <button onClick={() => setEditingItemId(null)} className="text-red-500 hover:text-red-400"><X size={16} /></button>
             </div>
           ) : (
-            <span
-              className="font-bold text-white text-sm truncate flex-1 hover:text-indigo-300 transition-colors"
+            <button
+              className="text-left min-w-0 flex-1 hover:text-indigo-300 transition-colors"
               onClick={(e) => { e.stopPropagation(); startEditingItem(e); }}
+              type="button"
+              title="Editar nombre"
             >
-              {item.title}
-            </span>
+              <span className="block font-black text-white text-sm truncate">
+                {item.title}
+              </span>
+              <span className="mt-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-wider text-slate-500">
+                <span className="text-cyan-300">{itemKindLabel}</span>
+                {typeSummary && <span className="truncate">{typeSummary}</span>}
+                {selectedSlideLabel && <span className="hidden xl:inline truncate text-emerald-300">Activo: {selectedSlideLabel}</span>}
+              </span>
+            </button>
           )}
         </div>
 
@@ -557,7 +600,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
         </div>
 
         {/* Slide Count Badge */}
-        <span className="text-xs bg-white/10 text-slate-200 px-2 py-1 rounded-lg font-bold border border-white/10">
+        <span className="min-w-11 text-center text-xs bg-white/10 text-slate-200 px-2 py-1.5 rounded-xl font-black border border-white/10" title={`${item.slides.length} diapositivas`}>
           {item.slides.length}
         </span>
 

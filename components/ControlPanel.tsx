@@ -272,6 +272,36 @@ const fetchPlaylistVideosWithTimeout = async (playlistId: string, timeoutMs = 16
   ]);
 };
 
+const isGenericYouTubeName = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  return [
+    'playlist de youtube',
+    'playlist de fondo',
+    'video de youtube',
+    'audio de youtube'
+  ].includes(normalized);
+};
+
+const getPlaylistImportName = (fallback: string, videos: YouTubePlaylistVideo[]) => {
+  if (!isGenericYouTubeName(fallback)) return fallback;
+  const playlistTitle = videos.find(video => video.playlistTitle)?.playlistTitle?.trim();
+  if (playlistTitle) return playlistTitle;
+  const firstTitle = videos[0]?.title?.trim();
+  if (!firstTitle) return fallback;
+  return videos.length > 1 ? `${firstTitle} + ${videos.length - 1} mas` : firstTitle;
+};
+
+const getYouTubeResultImportName = (
+  sourceType: 'video' | 'playlist',
+  action: 'project' | 'background',
+  result?: YouTubeSearchResult | null
+) => {
+  const title = result?.title?.trim();
+  if (title) return title;
+  if (sourceType === 'playlist') return action === 'background' ? 'Playlist de fondo' : 'Playlist de YouTube';
+  return action === 'background' ? 'Audio de YouTube' : 'Video de YouTube';
+};
+
 const ControlPanel: React.FC<ControlPanelProps> = ({
   onAddItem,
   onUpdateTheme,
@@ -444,7 +474,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       alert("Todavia no hay canciones listas para agregar. Espera a que termine la busqueda de la playlist.");
       return;
     }
-    const finalName = importName.trim() || pendingVideoImport.defaultName;
+    const requestedName = importName.trim() || pendingVideoImport.defaultName;
+    const finalName = playlistId
+      ? getPlaylistImportName(requestedName, resolvedPlaylistVideos)
+      : requestedName;
     const sourceLink = getYouTubeSourceLink({ videoId, playlistId });
 
     setLoading(true);
@@ -2623,7 +2656,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         playlistVideos: activePortalResult?.playlistVideos,
                         sourceType: source.sourceType,
                         action: 'project',
-                        defaultName: source.sourceType === 'playlist' ? 'Playlist de YouTube' : 'Video de YouTube',
+                        defaultName: getYouTubeResultImportName(source.sourceType, 'project', activePortalResult),
                         destination: hasActiveItem ? 'current' : 'new'
                       });
                       setImportName('');
@@ -2653,7 +2686,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         playlistVideos: activePortalResult?.playlistVideos,
                         sourceType: source.sourceType,
                         action: 'background',
-                        defaultName: source.sourceType === 'playlist' ? 'Playlist de fondo' : 'Audio de YouTube'
+                        defaultName: getYouTubeResultImportName(source.sourceType, 'background', activePortalResult)
                       });
                       setImportName('');
                     } catch (err) {
@@ -2988,7 +3021,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   playlistVideos: activePortalResult?.playlistVideos,
                                   sourceType: source.sourceType,
                                   action: 'project',
-                                  defaultName: source.sourceType === 'playlist' ? 'Playlist de YouTube' : 'Video de YouTube',
+                                  defaultName: getYouTubeResultImportName(source.sourceType, 'project', activePortalResult),
                                   destination: hasActiveItem ? 'current' : 'new'
                                 });
                                 setImportName('');
@@ -3019,7 +3052,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   playlistVideos: activePortalResult?.playlistVideos,
                                   sourceType: source.sourceType,
                                   action: 'background',
-                                  defaultName: source.sourceType === 'playlist' ? 'Playlist de fondo' : 'Audio de YouTube'
+                                  defaultName: getYouTubeResultImportName(source.sourceType, 'background', activePortalResult)
                                 });
                                 setImportName('');
                               } catch (err) {

@@ -2004,6 +2004,8 @@ const App: React.FC = () => {
     };
 
     setPlaylist(prev => [...prev, newItem]);
+    setActiveItemId(newItem.id);
+    setActiveSlideIndex(newItem.slides.length > 0 ? 0 : -1);
 
     // Log to action history
     actionHistoryService.log(
@@ -3466,6 +3468,11 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2 text-cyan-300 font-black text-xs lg:text-sm truncate max-w-[55%] lg:max-w-[50%]">
             <PlayCircle size={14} className="shrink-0" />
             <span className="truncate">{activeItem ? activeItem.title : 'Sin Selección'}</span>
+            {activeItem && (
+              <span className="hidden xl:inline text-[10px] text-slate-500 font-black">
+                {activeSlideIndex + 1}/{activeItem.slides.length}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
             {/* Timer Toggle Button */}
@@ -3495,7 +3502,7 @@ const App: React.FC = () => {
             title="Limpia texto y fondo (Pantalla a negro) [F9 o ESC]"
           >
             <div className={`w-2 h-2 rounded-full ${isPreviewHidden ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 'bg-red-500/40'}`} />
-            CLEAR ALL
+            NEGRO
             <span className="hidden sm:inline opacity-50 text-[8px] font-normal">F9</span>
           </button>
 
@@ -3512,7 +3519,7 @@ const App: React.FC = () => {
             title="Quita el texto manteniendo el fondo [F10]"
           >
             <div className={`w-2 h-2 rounded-full ${isTextHidden ? 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' : 'bg-amber-500/40'}`} />
-            CLEAR TEXT
+            SIN TEXTO
             <span className="hidden sm:inline opacity-50 text-[8px] font-normal">F10</span>
           </button>
 
@@ -3529,7 +3536,7 @@ const App: React.FC = () => {
             title="Quita el fondo y deja el texto sobre negro [F11]"
           >
             <div className={`w-2 h-2 rounded-full ${isBackgroundHidden ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-emerald-500/40'}`} />
-            CLEAR BG
+            SIN FONDO
             <span className="hidden sm:inline opacity-50 text-[8px] font-normal">F11</span>
           </button>
 
@@ -3546,7 +3553,7 @@ const App: React.FC = () => {
             title="Proyecta el Logotipo de la Iglesia [F12]"
           >
             <div className={`w-2 h-2 rounded-full ${isLogoActive ? 'bg-blue-500 shadow-[0_0_8px_#3b82f6]' : 'bg-blue-500/40'}`} />
-            SHOW LOGO
+            LOGO
             <span className="hidden sm:inline opacity-50 text-[8px] font-normal">F12</span>
           </button>
         </div>
@@ -3585,6 +3592,19 @@ const App: React.FC = () => {
           )}
 
           <div ref={liveViewRef} className="w-full aspect-video max-h-full flex items-center justify-center relative group rounded-2xl overflow-hidden border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_40px_rgba(99,102,241,0.08)] bg-slate-950 transition-all duration-300">
+            {!activeItem && !isLogoActive && !isPreviewHidden && (
+              <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/88 px-8 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-400/10 text-cyan-200">
+                  <Monitor size={24} />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white">
+                  Selecciona contenido
+                </h3>
+                <p className="mt-2 max-w-sm text-xs font-medium leading-relaxed text-slate-400">
+                  Haz clic en una fila de la rejilla para ver sus diapositivas, editarla o enviarla al proyector.
+                </p>
+              </div>
+            )}
             {/* Internal Preview renders logic (Always detailed "Staging" view) */}
             {showSplitScreen ? (
               <SplitScreen
