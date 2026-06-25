@@ -20,7 +20,7 @@ interface ControlPanelProps {
   onUpdateSlideContent?: (slideId: string, newContent: string) => void;
   onUpdateSlideSegments?: (slideId: string, segments: TextSegment[]) => void;
   onPreviewSlideUpdate?: (slide: Slide | null) => void;
-  onSetBackgroundAudio?: (videoId: string | null, title?: string, playlistId?: string) => void;
+  onSetBackgroundAudio?: (videoId: string | null, title?: string, playlistId?: string, meta?: { sourcePlaylistId?: string; sourcePlaylistTitle?: string }) => void;
   onStopLive?: () => void;
   isLiveActive?: boolean;
   onUndo: () => void;
@@ -31,8 +31,8 @@ interface ControlPanelProps {
   onDeselect?: () => void;
   // Audio Control Props
   isAudioPlaying?: boolean;
-  backgroundAudioItem?: { id?: string; videoId?: string; playlistId?: string; title: string } | null;
-  bgAudioPlaylist?: { id: string; videoId?: string; playlistId?: string; title: string }[];
+  backgroundAudioItem?: { id?: string; videoId?: string; playlistId?: string; title: string; sourcePlaylistId?: string; sourcePlaylistTitle?: string } | null;
+  bgAudioPlaylist?: { id: string; videoId?: string; playlistId?: string; title: string; sourcePlaylistId?: string; sourcePlaylistTitle?: string }[];
   onToggleAudioPlayback?: () => void;
   onSeekAudio?: (seconds: number) => void;
   onNextAudio?: () => void;
@@ -357,6 +357,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     destination?: 'current' | 'new';
   } | null>(null);
   const [importName, setImportName] = useState('');
+  const [playlistImportProgress, setPlaylistImportProgress] = useState<{
+    active: boolean;
+    label: string;
+    current: number;
+    total: number;
+    mode: 'project' | 'background';
+  } | null>(null);
+  const [audioPanelTab, setAudioPanelTab] = useState<'queue' | 'playlists'>('queue');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   const confirmVideoImport = async (destinationOverride?: 'current' | 'new') => {
@@ -367,6 +375,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     const sourceLink = getYouTubeSourceLink({ videoId, playlistId });
 
     setLoading(true);
+    if (playlistId) {
+      setPlaylistImportProgress({
+        active: true,
+        label: 'Buscando videos de la playlist...',
+        current: 0,
+        total: pendingVideoImport.playlistVideos?.length || 0,
+        mode: action
+      });
+    }
     try {
       if (action === 'project') {
         const destination = destinationOverride ?? pendingVideoImport.destination;
@@ -376,6 +393,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         if (playlistId) {
           const playlistVideos = await fetchPlaylistVideosWithTimeout(playlistId);
           const videosToImport = playlistVideos.length > 0 ? playlistVideos : (fallbackPlaylistVideos || []);
+          setPlaylistImportProgress({
+            active: true,
+            label: videosToImport.length > 0 ? 'Agregando videos al proyecto...' : 'No se pudo leer la lista completa.',
+            current: 0,
+            total: videosToImport.length,
+            mode: 'project'
+          });
           slides = videosToImport.map((video, index) => ({
             id: Math.random().toString(36).substr(2, 9),
             type: 'youtube',
@@ -402,7 +426,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         }
 
         if (shouldAddToCurrent) {
-          slides.forEach(slide => onAddSlide(slide));
+          slides.forEach((slide, index) => {
+            onAddSlide(slide);
+            if (playlistId) {
+              setPlaylistImportProgress({
+                active: true,
+                label: 'Agregando videos al proyecto...',
+                current: index + 1,
+                total: slides.length,
+                mode: 'project'
+              });
+            }
+          });
           alert(playlistId && slides.length > 1
             ? `Playlist agregada completa: ${slides.length} videos.`
             : "Video agregado exitosamente a la diapositiva actual!");
@@ -414,6 +449,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             slides,
             theme: currentTheme
           });
+          if (playlistId) {
+            setPlaylistImportProgress({
+              active: true,
+              label: 'Agregando videos al proyecto...',
+              current: slides.length,
+              total: slides.length,
+              mode: 'project'
+            });
+          }
           alert(playlistId && slides.length > 1
             ? `Playlist agregada completa: ${slides.length} videos.`
             : "Video agregado exitosamente!");
@@ -422,9 +466,26 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         if (playlistId) {
           const playlistVideos = await fetchPlaylistVideosWithTimeout(playlistId);
           const videosToImport = playlistVideos.length > 0 ? playlistVideos : (fallbackPlaylistVideos || []);
+          setPlaylistImportProgress({
+            active: true,
+            label: videosToImport.length > 0 ? 'Agregando canciones a fondo...' : 'No se pudo leer la lista completa.',
+            current: 0,
+            total: videosToImport.length,
+            mode: 'background'
+          });
           if (videosToImport.length > 0) {
             videosToImport.forEach((video, index) => {
-              onSetBackgroundAudio?.(video.id, video.title || `${finalName} ${index + 1}`);
+              onSetBackgroundAudio?.(video.id, video.title || `${finalName} ${index + 1}`, undefined, {
+                sourcePlaylistId: playlistId,
+                sourcePlaylistTitle: finalName
+              });
+              setPlaylistImportProgress({
+                active: true,
+                label: 'Agregando canciones a fondo...',
+                current: index + 1,
+                total: videosToImport.length,
+                mode: 'background'
+              });
             });
             alert(`Playlist agregada al fondo: ${videosToImport.length} videos.`);
           } else {
@@ -443,12 +504,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       alert("No se pudo leer la playlist completa. Intenta de nuevo o usa otra playlist publica.");
     } finally {
       setLoading(false);
+      setTimeout(() => setPlaylistImportProgress(null), 900);
     }
   };
 
   const cancelVideoImport = () => {
     setPendingVideoImport(null);
     setImportName('');
+    setPlaylistImportProgress(null);
   };
 
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(
@@ -2499,6 +2562,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     );
   };
 
+  const backgroundPlaylistGroups = bgAudioPlaylist.reduce((groups, track, index) => {
+    if (!track.sourcePlaylistId) return groups;
+    const existing = groups.find(group => group.id === track.sourcePlaylistId);
+    if (existing) {
+      existing.tracks.push({ ...track, index });
+    } else {
+      groups.push({
+        id: track.sourcePlaylistId,
+        title: track.sourcePlaylistTitle || 'Playlist de fondo',
+        tracks: [{ ...track, index }]
+      });
+    }
+    return groups;
+  }, [] as Array<{ id: string; title: string; tracks: Array<(typeof bgAudioPlaylist)[number] & { index: number }> }>);
+
   return (
     <div className="h-full flex flex-col bg-[#080d17] border-r border-white/10 font-sans">
       <div className="p-3 border-b border-white/10 bg-[#080d17]/95">
@@ -3011,43 +3089,104 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 {/* BOTTOM: Playlist */}
                 {bgAudioPlaylist.length > 0 && (
                   <div className="bg-gray-950/80 oasis-audio-playlist-container flex flex-col max-h-48 relative z-0">
-                    <div className="px-3 py-2 bg-pink-900/10 border-b border-pink-500/10 flex items-center justify-between sticky top-0 z-10 backdrop-blur-md">
+                    <div className="px-3 py-2 bg-pink-900/10 border-b border-pink-500/10 flex items-center justify-between gap-2 sticky top-0 z-10 backdrop-blur-md">
                       <span className="text-[10px] text-pink-300 font-bold uppercase tracking-widest flex items-center gap-2">
                         <Layers size={12} /> Siguiente en la fila ({bgAudioPlaylist.length})
                       </span>
+                      <div className="flex rounded-lg border border-pink-400/15 bg-black/25 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setAudioPanelTab('queue')}
+                          className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-wider transition ${audioPanelTab === 'queue' ? 'bg-pink-600 text-white' : 'text-pink-200/70 hover:text-white'}`}
+                        >
+                          Cola
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAudioPanelTab('playlists')}
+                          className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-wider transition ${audioPanelTab === 'playlists' ? 'bg-indigo-600 text-white' : 'text-pink-200/70 hover:text-white'}`}
+                        >
+                          Playlists {backgroundPlaylistGroups.length > 0 ? `(${backgroundPlaylistGroups.length})` : ''}
+                        </button>
+                      </div>
                     </div>
                     <div className="overflow-y-auto no-scrollbar pb-2">
-                      {bgAudioPlaylist.map((track, idx) => (
-                        <div
-                          key={track.id}
-                          className={`flex items-center gap-3 px-3 py-2 border-b border-gray-800/50 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''} oasis-audio-track-row`}
-                          onClick={() => onSelectAudio?.(idx)}
-                        >
-                          <div className="w-4 flex justify-center shrink-0">
-                            {backgroundAudioItem?.id === track.id && isAudioPlaying ? (
-                              <div className="flex items-end gap-[2px] h-3">
-                                <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_0ms] h-full rounded-t-sm"></div>
-                                <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_200ms] h-2/3 rounded-t-sm"></div>
-                                <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_400ms] h-full rounded-t-sm"></div>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] font-bold text-gray-600">{idx + 1}</span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-medium truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-400 group-hover:text-gray-300'}`}>
-                              {track.title}
-                            </p>
-                          </div>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all shrink-0"
-                            title="Quitar de la fila"
+                      {audioPanelTab === 'queue' ? (
+                        bgAudioPlaylist.map((track, idx) => (
+                          <div
+                            key={track.id}
+                            className={`flex items-center gap-3 px-3 py-2 border-b border-gray-800/50 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''} oasis-audio-track-row`}
+                            onClick={() => onSelectAudio?.(idx)}
                           >
-                            <Trash2 size={14} />
-                          </button>
+                            <div className="w-4 flex justify-center shrink-0">
+                              {backgroundAudioItem?.id === track.id && isAudioPlaying ? (
+                                <div className="flex items-end gap-[2px] h-3">
+                                  <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_0ms] h-full rounded-t-sm"></div>
+                                  <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_200ms] h-2/3 rounded-t-sm"></div>
+                                  <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_400ms] h-full rounded-t-sm"></div>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] font-bold text-gray-600">{idx + 1}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs font-medium truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                                {track.title}
+                              </p>
+                              {track.sourcePlaylistTitle && (
+                                <p className="mt-0.5 text-[8px] text-indigo-300/70 truncate uppercase font-black tracking-wider">
+                                  {track.sourcePlaylistTitle}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all shrink-0"
+                              title="Quitar de la fila"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))
+                      ) : backgroundPlaylistGroups.length > 0 ? (
+                        backgroundPlaylistGroups.map(group => (
+                          <div key={group.id} className="border-b border-indigo-500/10">
+                            <div className="px-3 py-2 bg-indigo-950/20">
+                              <p className="text-[10px] text-indigo-200 font-black uppercase tracking-wider truncate">{group.title}</p>
+                              <p className="text-[8px] text-indigo-300/60 font-bold uppercase">{group.tracks.length} canciones agregadas</p>
+                            </div>
+                            {group.tracks.map(track => (
+                              <div
+                                key={track.id}
+                                className={`flex items-center gap-3 px-3 py-2 border-t border-gray-800/40 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''}`}
+                                onClick={() => onSelectAudio?.(track.index)}
+                              >
+                                <div className="w-4 flex justify-center shrink-0">
+                                  {backgroundAudioItem?.id === track.id && isAudioPlaying ? (
+                                    <Music size={12} className="text-pink-400 animate-pulse" />
+                                  ) : (
+                                    <span className="text-[10px] font-bold text-gray-600">{track.index + 1}</span>
+                                  )}
+                                </div>
+                                <p className={`flex-1 min-w-0 text-xs truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                                  {track.title}
+                                </p>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
+                                  className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all shrink-0"
+                                  title="Quitar de la fila"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-5 text-center text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                          Las canciones agregadas desde playlists apareceran aqui agrupadas.
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 )}
@@ -4089,6 +4228,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 value={importName}
                 onChange={(e) => setImportName(e.target.value)}
                 placeholder={pendingVideoImport.defaultName}
+                disabled={!!playlistImportProgress?.active}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     confirmVideoImport();
@@ -4104,10 +4244,42 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </span>
             </div>
 
+            {playlistImportProgress?.active && (
+              <div className="mb-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">
+                    <Loader2 size={14} className="animate-spin" />
+                    {playlistImportProgress.label}
+                  </span>
+                  <span className="text-[10px] font-black text-cyan-100">
+                    {playlistImportProgress.total > 0
+                      ? `${playlistImportProgress.current}/${playlistImportProgress.total}`
+                      : '...'}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-950/80">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-all duration-300"
+                    style={{
+                      width: `${playlistImportProgress.total > 0
+                        ? Math.max(6, Math.min(100, (playlistImportProgress.current / playlistImportProgress.total) * 100))
+                        : 18}%`
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-[9px] font-bold text-cyan-100/70">
+                  {playlistImportProgress.mode === 'background'
+                    ? 'Las canciones se estan agregando a la cola de musica de fondo.'
+                    : 'Cada video se agregara como una diapositiva separada.'}
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={cancelVideoImport}
+                disabled={!!playlistImportProgress?.active}
                 className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 bg-white/5 active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider"
               >
                 Cancelar
@@ -4115,7 +4287,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <button
                 type="button"
                 onClick={() => confirmVideoImport()}
-                className={`flex-1 py-2.5 rounded-xl text-white active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider ${
+                disabled={!!playlistImportProgress?.active}
+                className={`flex-1 py-2.5 rounded-xl text-white active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider disabled:opacity-60 disabled:cursor-wait ${
                   pendingVideoImport.action === 'project'
                     ? 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/30'
                     : 'bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-950/30'
@@ -4128,6 +4301,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <button
                 type="button"
                 onClick={() => confirmVideoImport('new')}
+                disabled={!!playlistImportProgress?.active}
                 className="mt-2 w-full py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:border-emerald-500/60 bg-slate-950/50 active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider"
               >
                 Pegar en proyecto nuevo

@@ -153,7 +153,7 @@ const App: React.FC = () => {
   const [liveItemId, setLiveItemId] = useState<string | null>(null);
   const [liveSlideIndex, setLiveSlideIndex] = useState<number>(-1);
   const [frozenLiveItem, setFrozenLiveItem] = useState<PresentationItem | null>(null);
-  const [bgAudioPlaylist, setBgAudioPlaylist] = useState<{ id: string; videoId?: string; playlistId?: string; title: string }[]>([]);
+  const [bgAudioPlaylist, setBgAudioPlaylist] = useState<{ id: string; videoId?: string; playlistId?: string; title: string; sourcePlaylistId?: string; sourcePlaylistTitle?: string }[]>([]);
   const [currentAudioIndex, setCurrentAudioIndex] = useState<number>(-1);
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [audioStartTime, setAudioStartTime] = useState<number>(0);
@@ -3013,12 +3013,19 @@ const App: React.FC = () => {
           onUpdateSlideSegments={handleUpdateSlideSegments}
           onPreviewSlideUpdate={setPreviewSlide}
 
-          onSetBackgroundAudio={(vid, title, playlistId) => {
+          onSetBackgroundAudio={(vid, title, playlistId, meta) => {
             if (!vid && !playlistId) {
               stopBackgroundAudio();
               return;
             }
-            const newItem = { id: `bga_${Date.now()}`, videoId: vid || undefined, playlistId, title: title || 'Fondo Desconocido' };
+            const newItem = {
+              id: `bga_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+              videoId: vid || undefined,
+              playlistId,
+              title: title || 'Fondo Desconocido',
+              sourcePlaylistId: meta?.sourcePlaylistId,
+              sourcePlaylistTitle: meta?.sourcePlaylistTitle
+            };
             setBgAudioPlaylist(prev => {
               const alreadyExists = prev.some(item =>
                 (playlistId && item.playlistId === playlistId) ||
