@@ -35,6 +35,9 @@ interface ControlPanelProps {
   bgAudioPlaylist?: { id: string; videoId?: string; playlistId?: string; title: string; sourcePlaylistId?: string; sourcePlaylistTitle?: string }[];
   onToggleAudioPlayback?: () => void;
   onSeekAudio?: (seconds: number) => void;
+  audioCurrentTime?: number;
+  audioDuration?: number;
+  onSeekAudioTo?: (seconds: number) => void;
   onNextAudio?: () => void;
   onPrevAudio?: () => void;
   onRemoveAudio?: (id: string) => void;
@@ -89,6 +92,13 @@ const FONTS = [
   { name: 'Permanent Marker', value: '"Permanent Marker", cursive' },
   { name: 'Courier New', value: 'Courier New, monospace' },
 ];
+
+const formatAudioTime = (seconds?: number) => {
+  const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
 
 const ANIMATIONS: { name: string; value: AnimationType }[] = [
   // Basicas
@@ -329,6 +339,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   backgroundAudioItem,
   onToggleAudioPlayback,
   onSeekAudio,
+  audioCurrentTime = 0,
+  audioDuration = 0,
+  onSeekAudioTo,
   onNextAudio,
   onPrevAudio,
   onRemoveAudio,
@@ -3384,6 +3397,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       >
                         <X size={16} />
                       </button>
+                    </div>
+
+                    <div className="mb-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2.5">
+                      <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-300">
+                        <span>{formatAudioTime(audioCurrentTime)}</span>
+                        <span className="text-pink-200">{audioDuration > 0 ? formatAudioTime(audioDuration) : '--:--'}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.max(1, Math.floor(audioDuration || 0))}
+                        value={Math.min(Math.floor(audioCurrentTime || 0), Math.max(1, Math.floor(audioDuration || 0)))}
+                        onChange={(e) => onSeekAudioTo?.(Number(e.target.value))}
+                        disabled={!audioDuration}
+                        className="w-full accent-pink-500 cursor-pointer disabled:opacity-40"
+                        title="Mover tiempo de la musica"
+                      />
                     </div>
 
                     <div className="grid grid-cols-5 items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">

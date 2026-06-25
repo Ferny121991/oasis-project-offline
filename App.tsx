@@ -159,6 +159,8 @@ const App: React.FC = () => {
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [audioStartTime, setAudioStartTime] = useState<number>(0);
   const [audioElapsedOffset, setAudioElapsedOffset] = useState<number>(0);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const audioIframeRef = useRef<HTMLIFrameElement>(null);
   const [isPreviewHidden, setIsPreviewHidden] = useState(false); // BLACKOUT
   const [isTextHidden, setIsTextHidden] = useState(false); // CLEAR TEXT (Background stays)
@@ -415,10 +417,25 @@ const App: React.FC = () => {
     setTimeout(() => { isSwitchingProject.current = false; }, 500);
   }, [currentProjectId, customThemes, playlist, projects, saveCurrentProjectInto]);
 
+  // YouTube IFrame Player API for background audio auto-advance and timeline sync
+  const bgPlayerRef = useRef<any>(null);
+
   const toggleAudioPlayback = useCallback(() => {
     if (!audioIframeRef.current) return;
-    const msg = isAudioPlaying ? '{"event":"command","func":"pauseVideo","args":""}' : '{"event":"command","func":"playVideo","args":""}';
-    audioIframeRef.current.contentWindow?.postMessage(msg, '*');
+    try {
+      if (bgPlayerRef.current && typeof bgPlayerRef.current.pauseVideo === 'function') {
+        if (isAudioPlaying) {
+          bgPlayerRef.current.pauseVideo();
+        } else {
+          bgPlayerRef.current.playVideo();
+        }
+      } else {
+        const msg = isAudioPlaying ? '{"event":"command","func":"pauseVideo","args":""}' : '{"event":"command","func":"playVideo","args":""}';
+        audioIframeRef.current.contentWindow?.postMessage(msg, '*');
+      }
+    } catch (error) {
+      console.warn('Audio playback command failed:', error);
+    }
 
     if (isAudioPlaying) {
       setAudioElapsedOffset(prev => prev + (Date.now() - audioStartTime));
@@ -431,17 +448,24 @@ const App: React.FC = () => {
   const navigateNextAudio = useCallback(() => {
     const playlist = bgAudioPlaylistRef.current;
     if (playlist.length === 0) return;
+    setAudioCurrentTime(0);
+    setAudioDuration(0);
+    setAudioElapsedOffset(0);
+    setAudioStartTime(Date.now());
+    setIsAudioPlaying(true);
     setCurrentAudioIndex(prev => (prev + 1) % playlist.length);
   }, []);
 
   const navigatePrevAudio = useCallback(() => {
     const playlist = bgAudioPlaylistRef.current;
     if (playlist.length === 0) return;
+    setAudioCurrentTime(0);
+    setAudioDuration(0);
+    setAudioElapsedOffset(0);
+    setAudioStartTime(Date.now());
+    setIsAudioPlaying(true);
     setCurrentAudioIndex(prev => (prev - 1 + playlist.length) % playlist.length);
   }, []);
-
-  // YouTube IFrame Player API for background audio auto-advance
-  const bgPlayerRef = useRef<any>(null);
 
   useEffect(() => {
     if (!backgroundAudioItem?.videoId && !backgroundAudioItem?.playlistId) {
@@ -449,15 +473,36 @@ const App: React.FC = () => {
         try { bgPlayerRef.current.destroy(); } catch (e) { /* ignore */ }
         bgPlayerRef.current = null;
       }
+      setAudioCurrentTime(0);
+      setAudioDuration(0);
       return;
     }
 
     let checkInterval: ReturnType<typeof setInterval>;
+    let progressInterval: ReturnType<typeof setInterval>;
+
+    const syncAudioProgress = () => {
+      const player = bgPlayerRef.current;
+      if (!player) return;
+      try {
+        if (typeof player.getCurrentTime === 'function') {
+          const current = Number(player.getCurrentTime()) || 0;
+          setAudioCurrentTime(current);
+        }
+        if (typeof player.getDuration === 'function') {
+          const duration = Number(player.getDuration()) || 0;
+          setAudioDuration(duration);
+        }
+      } catch (error) {
+        // YouTube can throw briefly while a new iframe is becoming ready.
+      }
+    };
 
     const initBgPlayer = () => {
       // Check if YT is ready and iframe exists
       if ((window as any).YT && (window as any).YT.Player && audioIframeRef.current) {
         if (checkInterval) clearInterval(checkInterval);
+        if (progressInterval) clearInterval(progressInterval);
 
         // Destroy previous player to avoid leaks
         if (bgPlayerRef.current && bgPlayerRef.current.destroy) {
@@ -466,9 +511,23 @@ const App: React.FC = () => {
 
         bgPlayerRef.current = new (window as any).YT.Player(audioIframeRef.current, {
           events: {
+            'onReady': () => {
+              setAudioStartTime(Date.now());
+              setAudioElapsedOffset(0);
+              setAudioCurrentTime(0);
+              syncAudioProgress();
+              progressInterval = setInterval(syncAudioProgress, 1000);
+            },
             'onStateChange': (event: any) => {
               if (event.data === 0) { // ENDED
                 navigateNextAudio();
+              } else if (event.data === 1) { // PLAYING
+                setIsAudioPlaying(true);
+                setAudioStartTime(Date.now());
+                syncAudioProgress();
+              } else if (event.data === 2) { // PAUSED
+                setIsAudioPlaying(false);
+                syncAudioProgress();
               }
             },
             'onError': (e: any) => {
@@ -497,6 +556,7 @@ const App: React.FC = () => {
 
     return () => {
       if (checkInterval) clearInterval(checkInterval);
+      if (progressInterval) clearInterval(progressInterval);
       if (bgPlayerRef.current && bgPlayerRef.current.destroy) {
         try { bgPlayerRef.current.destroy(); } catch (e) { /* ignore */ }
         bgPlayerRef.current = null;
@@ -876,6 +936,16 @@ const App: React.FC = () => {
           }));
           break;
         case 'toggle_audio': toggleAudioPlayback(); break;
+        case 'audio_next': navigateNextAudio(); break;
+        case 'audio_prev': navigatePrevAudio(); break;
+        case 'audio_seek_relative':
+          seekAudio(Number(commandData?.seconds) || 0);
+          break;
+        case 'audio_seek_to':
+          if (Number.isFinite(Number(commandData?.seconds))) {
+            seekAudioTo(Number(commandData.seconds));
+          }
+          break;
         case 'stop_live': stopLive(); break;
         case 'zoom_update':
           if (commandData) {
@@ -935,7 +1005,7 @@ const App: React.FC = () => {
     return () => {
       realtimeSyncService.unsubscribe();
     };
-  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, stopLive, isAudioPlaying, saveCurrentProjectInto, creationTheme]);
+  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, navigateNextAudio, navigatePrevAudio, seekAudio, seekAudioTo, stopLive, isAudioPlaying, saveCurrentProjectInto, creationTheme]);
 
   // Broadcast live state (debounced)
   const lastStateStr = useRef<string>('');
@@ -954,6 +1024,11 @@ const App: React.FC = () => {
       isKaraokeActive,
       karaokeIndex,
       backgroundAudioTitle: backgroundAudioItem?.title,
+      backgroundAudioSourceTitle: backgroundAudioItem?.sourcePlaylistTitle,
+      backgroundAudioCurrentTime: audioCurrentTime,
+      backgroundAudioDuration: audioDuration,
+      backgroundAudioIndex: currentAudioIndex,
+      backgroundAudioCount: bgAudioPlaylist.length,
       isAudioPlaying: isAudioPlaying,
       zoomState,
       imageContentScale: liveItem?.theme?.imageContentScale ?? 1,
@@ -979,7 +1054,7 @@ const App: React.FC = () => {
           type: s.type,
           content: s.content,
           operatorNotes: s.operatorNotes,
-          mediaUrl: s.mediaUrl && s.mediaUrl.length < 50000 ? s.mediaUrl : undefined,
+          mediaUrl: s.mediaUrl && s.mediaUrl.length < 300000 ? s.mediaUrl : undefined,
           videoId: s.videoId
         })),
         projects: projects.map(p => ({ id: p.id, name: p.name })),
@@ -989,7 +1064,7 @@ const App: React.FC = () => {
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, isRemoteControlMode, playlist, activeItem, liveItem, projects, currentProjectId, backgroundAudioItem, isAudioPlaying]);
+  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, isRemoteControlMode, playlist, activeItem, liveItem, projects, currentProjectId, backgroundAudioItem, audioCurrentTime, audioDuration, currentAudioIndex, bgAudioPlaylist.length, isAudioPlaying]);
 
   useEffect(() => {
     if (!isRemoteControlMode || !remoteControlIdFromUrl) return;
@@ -2023,28 +2098,34 @@ const App: React.FC = () => {
   }, []);
 
 
-  const seekAudio = useCallback((seconds: number) => {
+  const seekAudioTo = useCallback((seconds: number) => {
     if (!audioIframeRef.current) return;
 
-    // Estimate current time: offset from previous plays + time since current play started
-    let currentEstimateSeconds = audioElapsedOffset / 1000;
-    if (isAudioPlaying) {
-      currentEstimateSeconds += (Date.now() - audioStartTime) / 1000;
+    const nextTime = Math.max(0, Math.min(Number.isFinite(audioDuration) && audioDuration > 0 ? audioDuration : Number.MAX_SAFE_INTEGER, seconds));
+    try {
+      if (bgPlayerRef.current && typeof bgPlayerRef.current.seekTo === 'function') {
+        bgPlayerRef.current.seekTo(nextTime, true);
+      } else {
+        const msg = `{"event":"command","func":"seekTo","args":[${nextTime}, true]}`;
+        audioIframeRef.current.contentWindow?.postMessage(msg, '*');
+      }
+    } catch (error) {
+      console.warn('Audio seek command failed:', error);
     }
 
-    const newTime = Math.max(0, currentEstimateSeconds + seconds);
-    const msg = `{"event":"command","func":"seekTo","args":[${newTime}, true]}`;
-    audioIframeRef.current.contentWindow?.postMessage(msg, '*');
-
-    // Update our baseline
+    setAudioCurrentTime(nextTime);
     if (isAudioPlaying) {
-      // If playing, we shift the start time backward/forward to match the new position
-      setAudioStartTime(prev => prev - (seconds * 1000));
+      setAudioStartTime(Date.now());
+      setAudioElapsedOffset(nextTime * 1000);
     } else {
-      // If paused, we just update the offset
-      setAudioElapsedOffset(newTime * 1000);
+      setAudioElapsedOffset(nextTime * 1000);
     }
-  }, [audioStartTime, audioElapsedOffset, isAudioPlaying]);
+  }, [audioDuration, isAudioPlaying]);
+
+  const seekAudio = useCallback((seconds: number) => {
+    const baseline = audioCurrentTime || (audioElapsedOffset / 1000);
+    seekAudioTo(baseline + seconds);
+  }, [audioCurrentTime, audioElapsedOffset, seekAudioTo]);
 
   const handleDeleteItem = (id: string) => {
     const item = playlist.find(i => i.id === id);
@@ -3071,6 +3152,9 @@ const App: React.FC = () => {
           bgAudioPlaylist={bgAudioPlaylist}
           onToggleAudioPlayback={toggleAudioPlayback}
           onSeekAudio={seekAudio}
+          audioCurrentTime={audioCurrentTime}
+          audioDuration={audioDuration}
+          onSeekAudioTo={seekAudioTo}
           onNextAudio={navigateNextAudio}
           onPrevAudio={navigatePrevAudio}
           onRemoveAudio={(id) => setBgAudioPlaylist(prev => prev.filter(t => t.id !== id))}

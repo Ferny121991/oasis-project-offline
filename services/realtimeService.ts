@@ -16,6 +16,11 @@ export interface LiveState {
     playlist?: { id: string, title: string, type: string, slides?: any[] }[];
     activeItemSlides?: { id: string, label?: string, content: string, operatorNotes?: string, type?: string, mediaUrl?: string, videoId?: string }[];
     backgroundAudioTitle?: string;
+    backgroundAudioSourceTitle?: string;
+    backgroundAudioCurrentTime?: number;
+    backgroundAudioDuration?: number;
+    backgroundAudioIndex?: number;
+    backgroundAudioCount?: number;
     isAudioPlaying?: boolean;
     imageContentScale?: number;
     imageContentOffsetX?: number;

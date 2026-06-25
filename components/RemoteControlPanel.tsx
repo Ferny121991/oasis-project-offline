@@ -12,6 +12,7 @@ import {
     List,
     Monitor,
     Music,
+    PauseCircle,
     PlayCircle,
     Plus,
     Radio,
@@ -20,6 +21,8 @@ import {
     Smartphone,
     Sparkles,
     Square,
+    SkipBack,
+    SkipForward,
     Type,
     Upload,
     Video,
@@ -38,9 +41,15 @@ interface RemoteControlPanelProps {
     onClose?: () => void;
 }
 
-type RemoteTab = 'control' | 'playlist' | 'projects' | 'add';
+type RemoteTab = 'control' | 'audio' | 'playlist' | 'projects' | 'add';
 
 const stripHtml = (value?: string) => (value || '').replace(/<[^>]*>?/gm, '').trim();
+const formatAudioTime = (seconds?: number) => {
+    const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+    const minutes = Math.floor(safeSeconds / 60);
+    const remainingSeconds = safeSeconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
 
 const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, sendCommand, isConnected, onClose }) => {
     const [activeTab, setActiveTab] = useState<RemoteTab>('control');
@@ -63,6 +72,13 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const activeItem = liveState?.playlist?.find(p => p.id === liveState.liveItemId);
     const currentSlide = liveState?.activeItemSlides?.[liveState.liveSlideIndex];
     const hasLiveItem = !!liveState?.liveItemId;
+    const audioCurrentTime = Math.max(0, Number(liveState?.backgroundAudioCurrentTime) || 0);
+    const audioDuration = Math.max(0, Number(liveState?.backgroundAudioDuration) || 0);
+    const audioProgress = audioDuration > 0 ? Math.min(100, Math.max(0, (audioCurrentTime / audioDuration) * 100)) : 0;
+    const hasBackgroundAudio = !!liveState?.backgroundAudioTitle;
+    const audioPositionLabel = typeof liveState?.backgroundAudioIndex === 'number' && liveState.backgroundAudioIndex >= 0
+        ? `${liveState.backgroundAudioIndex + 1}/${liveState.backgroundAudioCount || '?'}`
+        : '';
 
     const filteredPlaylist = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -306,6 +322,28 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             </button>
                         </div>
 
+                        {hasBackgroundAudio && (
+                            <button
+                                onClick={() => setActiveTab('audio')}
+                                className="w-full rounded-[1.5rem] border border-pink-400/25 bg-pink-500/10 p-3 text-left active:scale-[0.99] shadow-lg shadow-black/20"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`h-12 w-12 rounded-2xl bg-pink-600 flex items-center justify-center text-white ${liveState.isAudioPlaying ? 'animate-pulse' : ''}`}>
+                                        {liveState.isAudioPlaying ? <PauseCircle size={24} /> : <PlayCircle size={24} />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-pink-200">
+                                            Musica de fondo {audioPositionLabel && <span className="rounded-full bg-black/30 px-2 py-0.5 text-slate-300">{audioPositionLabel}</span>}
+                                        </div>
+                                        <p className="truncate text-sm font-black text-white">{liveState.backgroundAudioTitle}</p>
+                                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/35">
+                                            <div className="h-full rounded-full bg-pink-400" style={{ width: `${audioProgress}%` }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+                        )}
+
                         {currentSlide?.type === 'image' && (
                             <div className="rounded-[1.75rem] border border-cyan-300/20 bg-cyan-400/[0.07] p-3 space-y-3 shadow-xl shadow-black/30">
                                 <div className="flex items-center justify-between gap-3">
@@ -450,6 +488,96 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                     </section>
                 )}
 
+                {activeTab === 'audio' && (
+                    <section className="p-4 max-w-md mx-auto space-y-4">
+                        <div className="rounded-[2rem] border border-pink-400/25 bg-[radial-gradient(circle_at_25%_0%,rgba(236,72,153,0.24),transparent_38%),linear-gradient(180deg,rgba(30,41,59,0.9),rgba(10,10,25,0.96))] p-4 shadow-2xl shadow-black/45">
+                            <div className="flex items-start gap-3">
+                                <div className="h-16 w-16 rounded-3xl bg-pink-600 flex items-center justify-center text-white shadow-lg shadow-pink-950/40">
+                                    <Music size={30} className={liveState.isAudioPlaying ? 'animate-pulse' : ''} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-wider text-pink-200">
+                                        Musica de fondo
+                                        {audioPositionLabel && <span className="rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-slate-300">{audioPositionLabel}</span>}
+                                    </div>
+                                    <h2 className="mt-1 text-lg font-black leading-tight text-white">
+                                        {liveState.backgroundAudioTitle || 'No hay musica activa'}
+                                    </h2>
+                                    {liveState.backgroundAudioSourceTitle && (
+                                        <p className="mt-1 truncate text-[11px] font-black uppercase tracking-wider text-indigo-200/80">
+                                            {liveState.backgroundAudioSourceTitle}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="mt-5 rounded-3xl border border-white/10 bg-black/25 p-4">
+                                <div className="mb-2 flex items-center justify-between text-xs font-black text-slate-300">
+                                    <span>{formatAudioTime(audioCurrentTime)}</span>
+                                    <span className="text-pink-200">{audioDuration > 0 ? formatAudioTime(audioDuration) : '--:--'}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={Math.max(1, Math.floor(audioDuration || 0))}
+                                    value={Math.min(Math.floor(audioCurrentTime), Math.max(1, Math.floor(audioDuration || 0)))}
+                                    onChange={(event) => sendCommand('audio_seek_to', { seconds: Number(event.target.value) })}
+                                    disabled={!hasBackgroundAudio || !audioDuration}
+                                    className="w-full accent-pink-500 disabled:opacity-40"
+                                />
+                                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-950/80">
+                                    <div className="h-full rounded-full bg-gradient-to-r from-pink-500 to-indigo-400" style={{ width: `${audioProgress}%` }} />
+                                </div>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-5 items-center gap-2">
+                                <button
+                                    onClick={() => sendCommand('audio_prev')}
+                                    disabled={!hasBackgroundAudio}
+                                    className="h-12 rounded-2xl border border-white/10 bg-white/[0.06] text-slate-300 flex items-center justify-center active:scale-95 disabled:opacity-35"
+                                >
+                                    <SkipBack size={22} />
+                                </button>
+                                <button
+                                    onClick={() => sendCommand('audio_seek_relative', { seconds: -15 })}
+                                    disabled={!hasBackgroundAudio}
+                                    className="h-12 rounded-2xl border border-white/10 bg-white/[0.06] text-slate-300 flex items-center justify-center active:scale-95 disabled:opacity-35"
+                                >
+                                    <RotateCcw size={20} />
+                                </button>
+                                <button
+                                    onClick={() => sendCommand('toggle_audio')}
+                                    disabled={!hasBackgroundAudio}
+                                    className={`h-16 rounded-3xl flex items-center justify-center active:scale-95 disabled:opacity-35 shadow-xl ${liveState.isAudioPlaying ? 'bg-pink-600 text-white shadow-pink-950/40' : 'bg-white text-pink-900 shadow-white/10'}`}
+                                >
+                                    {liveState.isAudioPlaying ? <PauseCircle size={36} /> : <PlayCircle size={36} />}
+                                </button>
+                                <button
+                                    onClick={() => sendCommand('audio_seek_relative', { seconds: 15 })}
+                                    disabled={!hasBackgroundAudio}
+                                    className="h-12 rounded-2xl border border-white/10 bg-white/[0.06] text-slate-300 flex items-center justify-center active:scale-95 disabled:opacity-35"
+                                >
+                                    <Clock size={20} />
+                                </button>
+                                <button
+                                    onClick={() => sendCommand('audio_next')}
+                                    disabled={!hasBackgroundAudio}
+                                    className="h-12 rounded-2xl border border-white/10 bg-white/[0.06] text-slate-300 flex items-center justify-center active:scale-95 disabled:opacity-35"
+                                >
+                                    <SkipForward size={22} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                            <h3 className="text-sm font-black text-white">Controles rapidos</h3>
+                            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                                Desde aqui puedes pausar, adelantar, atrasar, saltar canciones y mover la musica al segundo exacto sin tocar la computadora.
+                            </p>
+                        </div>
+                    </section>
+                )}
+
                 {activeTab === 'projects' && (
                     <section className="p-4 max-w-md mx-auto space-y-4">
                         <div className="rounded-2xl border border-indigo-400/20 bg-indigo-500/10 p-4 space-y-3">
@@ -585,9 +713,10 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
             </main>
 
             <nav className="absolute bottom-0 inset-x-0 border-t border-white/10 bg-[#07111f]/90 backdrop-blur-xl px-4 pt-2 pb-5 shadow-[0_-20px_45px_rgba(0,0,0,0.45)]">
-                <div className="grid grid-cols-4 gap-1.5 max-w-md mx-auto rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-1.5">
+                <div className="grid grid-cols-5 gap-1.5 max-w-md mx-auto rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-1.5">
                     {[
                         { id: 'control' as const, label: 'Control', icon: Monitor },
+                        { id: 'audio' as const, label: 'Musica', icon: Music },
                         { id: 'playlist' as const, label: 'Lista', icon: List },
                         { id: 'projects' as const, label: 'Sets', icon: Folder },
                         { id: 'add' as const, label: 'Agregar', icon: Search },
