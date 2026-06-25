@@ -339,12 +339,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [isYoutubeFullBrowserOpen, setIsYoutubeFullBrowserOpen] = useState(false);
   const [youtubeBrowserMode, setYoutubeBrowserMode] = useState<'cards' | 'iframe'>('cards');
   const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
+  const [youtubeResultFilter, setYoutubeResultFilter] = useState<'all' | 'videos' | 'playlists'>('all');
+  const [isYoutubeHelpOpen, setIsYoutubeHelpOpen] = useState(false);
   const [activePortalResult, setActivePortalResult] = useState<YouTubeSearchResult | null>(null);
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
   const activePortalVideoId = activePortalResult?.kind === 'playlist' ? null : activePortalResult?.id || null;
   const activePortalPlaylistId = activePortalResult?.kind === 'playlist'
     ? activePortalResult.playlistId || activePortalResult.id
     : null;
+  const filteredYoutubeResults = youtubeResults.filter((item) => {
+    const isPlaylist = item.kind === 'playlist' || !!item.playlistId;
+    if (youtubeResultFilter === 'videos') return !isPlaylist;
+    if (youtubeResultFilter === 'playlists') return isPlaylist;
+    return true;
+  });
+  const youtubeVideoResultCount = youtubeResults.filter(item => item.kind !== 'playlist' && !item.playlistId).length;
+  const youtubePlaylistResultCount = youtubeResults.filter(item => item.kind === 'playlist' || !!item.playlistId).length;
 
   // Rename-before-import system
   const [pendingVideoImport, setPendingVideoImport] = useState<{
@@ -2330,7 +2340,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
               ) : youtubeResults.length > 0 ? (
                 <div className="space-y-4 h-full flex flex-col min-h-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                  <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b border-white/10 pb-3">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.75)]" />
                       <span className="text-[10px] text-slate-200 font-black uppercase tracking-[0.22em]">
@@ -2340,10 +2350,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         {youtubeResults.length} resultados
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-500 italic">Selecciona una miniatura para previsualizar.</span>
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                      {[
+                        { id: 'all' as const, label: 'Todos', count: youtubeResults.length },
+                        { id: 'videos' as const, label: 'Videos', count: youtubeVideoResultCount },
+                        { id: 'playlists' as const, label: 'Playlists', count: youtubePlaylistResultCount }
+                      ].map(filter => (
+                        <button
+                          key={filter.id}
+                          type="button"
+                          onClick={() => setYoutubeResultFilter(filter.id)}
+                          className={`shrink-0 rounded-xl border px-3 py-2 text-[9px] font-black uppercase tracking-wider transition-all ${
+                            youtubeResultFilter === filter.id
+                              ? 'border-red-400/50 bg-red-600 text-white shadow-lg shadow-red-950/25'
+                              : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {filter.label} <span className="opacity-70">({filter.count})</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex-1 overflow-y-auto pr-1 no-scrollbar grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-3.5 pb-8">
-                    {youtubeResults.map((video) => {
+                    {filteredYoutubeResults.map((video) => {
                       const isPlaylist = video.kind === 'playlist' || !!video.playlistId;
                       const source: { videoId?: string; playlistId?: string; sourceType: 'video' | 'playlist' } = isPlaylist
                         ? { playlistId: video.playlistId || video.id, sourceType: 'playlist' }
@@ -2355,14 +2384,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       return (
                       <div
                         key={video.id}
-                        className={`group relative overflow-hidden rounded-2xl border text-left min-h-40 transition-all duration-300 ${
+                        className={`group relative overflow-hidden rounded-2xl border text-left min-h-44 transition-all duration-300 ${
                           isActive
                             ? 'bg-red-950/25 border-red-400/60 shadow-[0_18px_36px_rgba(239,68,68,0.16)]'
-                            : 'bg-slate-950/70 border-white/8 hover:border-red-400/45 hover:bg-slate-950 shadow-xl shadow-black/20'
+                            : 'bg-slate-950/80 border-white/8 hover:border-red-400/45 hover:bg-slate-950 shadow-xl shadow-black/20'
                         }`}
                       >
                         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                        <div className="grid grid-cols-[122px_1fr] sm:grid-cols-[148px_1fr] min-h-40 h-full">
+                        <div className="grid grid-cols-[128px_1fr] sm:grid-cols-[158px_1fr] min-h-44 h-full">
                           <button
                             onClick={() => setActivePortalResult(video)}
                             className="relative overflow-hidden bg-slate-900 text-left focus:outline-none focus:ring-2 focus:ring-red-400/70"
@@ -2387,7 +2416,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 {isPlaylist ? (video.videoCount ? `${video.videoCount} videos` : 'Playlist') : video.duration}
                               </span>
                             )}
-                            <span className="absolute top-2 left-2 bg-red-600/90 text-[8px] text-white px-2 py-1 rounded-lg font-black uppercase tracking-wider">
+                            <span className={`absolute top-2 left-2 text-[8px] text-white px-2 py-1 rounded-lg font-black uppercase tracking-wider ${isPlaylist ? 'bg-indigo-600/95' : 'bg-red-600/90'}`}>
                               {isPlaylist ? 'Playlist' : 'Video'}
                             </span>
                           </button>
@@ -2397,12 +2426,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               <h4 className="text-[13px] font-black text-white line-clamp-2 leading-snug group-hover:text-red-200 transition-colors" title={video.title}>
                                 {video.title}
                               </h4>
-                              <p className="text-[10px] text-slate-400 mt-1.5 font-black uppercase tracking-wider truncate">
-                                {video.author}
-                              </p>
+                              <div className="mt-2 flex items-center gap-2 min-w-0">
+                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider truncate">
+                                  {video.author}
+                                </p>
+                              </div>
                             </button>
 
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
                               <button
                                 onClick={() => setActivePortalResult(video)}
                                 className="h-8 rounded-xl bg-white/7 hover:bg-white/12 active:scale-95 border border-white/10 text-slate-100 transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase"
@@ -2422,6 +2454,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               >
                                 <Copy size={12} /> Copiar
                               </button>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
                               <button
                                 onClick={() => {
                                   setPendingVideoImport({
@@ -2435,10 +2469,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   });
                                   setImportName('');
                                 }}
-                                className="h-8 min-w-0 bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white text-[9px] font-black uppercase rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-red-950/30 border border-red-400/25"
+                                className="h-9 min-w-0 bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white text-[9px] font-black uppercase rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-red-950/30 border border-red-400/25"
                                 type="button"
                               >
-                                <Plus size={12} /> Proyectar
+                                <Plus size={12} /> {isPlaylist ? 'Importar' : 'Proyectar'}
                               </button>
                               <button
                                 onClick={() => {
@@ -2452,17 +2486,31 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   });
                                   setImportName('');
                                 }}
-                                className="h-8 min-w-0 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-[9px] font-black uppercase rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-950/30 border border-indigo-400/25"
+                                className="h-9 min-w-0 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-[9px] font-black uppercase rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-950/30 border border-indigo-400/25"
                                 type="button"
                               >
                                 <Music size={12} /> Audio
                               </button>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
                       );
                     })}
+                    {filteredYoutubeResults.length === 0 && (
+                      <div className="col-span-full flex min-h-56 flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/50 text-center">
+                        <Search size={28} className="text-slate-600 mb-3" />
+                        <p className="text-xs font-black uppercase tracking-wider text-slate-300">No hay resultados en este filtro</p>
+                        <button
+                          type="button"
+                          onClick={() => setYoutubeResultFilter('all')}
+                          className="mt-3 rounded-xl bg-red-600 px-4 py-2 text-[10px] font-black uppercase text-white hover:bg-red-500"
+                        >
+                          Ver todos
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -2486,18 +2534,49 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <Sliders size={14} className="text-red-500" /> PANEL DE CONTROL DE IMPORTACION
               </span>
 
+              {activePortalResult && (
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/60">
+                  <button
+                    type="button"
+                    onClick={() => setActivePortalResult(activePortalResult)}
+                    className="relative block aspect-video w-full bg-black text-left"
+                  >
+                    {activePortalResult.thumbnail ? (
+                      <img src={activePortalResult.thumbnail} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-slate-500">
+                        <PlayCircle size={34} />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    <span className="absolute bottom-2 left-2 rounded-lg bg-black/75 px-2 py-1 text-[8px] font-black uppercase tracking-wider text-white">
+                      Seleccionado
+                    </span>
+                  </button>
+                  <div className="p-3">
+                    <p className="text-xs font-black leading-snug text-white line-clamp-2">{activePortalResult.title}</p>
+                    <p className="mt-1 text-[9px] font-black uppercase tracking-wider text-slate-500 truncate">{activePortalResult.author}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Instructions */}
-              <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-3">
-                <h4 className="text-xs font-black text-white uppercase tracking-wider">Como importar videos?</h4>
-                <ol className="text-[10px] text-slate-300 space-y-2 list-decimal list-inside font-medium leading-relaxed">
-                  <li>Busca y reproduce el video que deseas en la pantalla de la izquierda.</li>
-                  <li>
-                    Haz clic en el icono de <span className="text-white font-bold">compartir</span> o en el logo de <span className="text-white font-bold">YouTube</span> dentro del video para copiar su enlace (o copialo desde tu navegador).
-                  </li>
-                  <li>
-                    Presiona uno de los botones de importacion rapida de abajo para capturarlo automaticamente.
-                  </li>
-                </ol>
+              <div className="bg-white/5 rounded-2xl border border-white/5 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsYoutubeHelpOpen(prev => !prev)}
+                  className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-white/5 transition-colors"
+                >
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider">Ayuda rapida</h4>
+                  <span className="text-[9px] font-black uppercase text-slate-400">{isYoutubeHelpOpen ? 'Ocultar' : 'Ver'}</span>
+                </button>
+                {isYoutubeHelpOpen && (
+                  <ol className="px-4 pb-4 text-[10px] text-slate-300 space-y-2 list-decimal list-inside font-medium leading-relaxed">
+                    <li>Busca y selecciona un video o playlist en la pantalla izquierda.</li>
+                    <li>Usa <span className="text-white font-bold">Proyectar</span> para slides o <span className="text-white font-bold">Audio</span> para fondo.</li>
+                    <li>Tambien puedes pegar un enlace directo abajo.</li>
+                  </ol>
+                )}
               </div>
 
               {/* Input for Manual URL Paste */}
@@ -2555,7 +2634,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-[10px] font-black uppercase py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/20 border border-emerald-500/20"
                   type="button"
                 >
-                  <Plus size={14} /> PEGAR Y PROYECTAR
+                  <Plus size={14} /> {activePortalPlaylistId ? 'IMPORTAR PLAYLIST AL PROYECTO' : 'PEGAR Y PROYECTAR'}
                 </button>
 
                 <button
@@ -2584,7 +2663,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[10px] font-black uppercase py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/20 border border-indigo-500/20"
                   type="button"
                 >
-                  <Music size={14} /> ESTABLECER AUDIO DE FONDO
+                  <Music size={14} /> {activePortalPlaylistId ? 'AGREGAR PLAYLIST A FONDO' : 'ESTABLECER AUDIO DE FONDO'}
                 </button>
               </div>
             </div>
