@@ -146,6 +146,7 @@ const App: React.FC = () => {
   // Collapsible panels state
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
+  const [isYoutubeOverlayOpen, setIsYoutubeOverlayOpen] = useState(false);
 
   const [activeView, setActiveView] = useState<'main' | 'lyrics-search'>('main');
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -3014,6 +3015,7 @@ const App: React.FC = () => {
           onUpdateSlideContent={handleUpdateSlideContent}
           onUpdateSlideSegments={handleUpdateSlideSegments}
           onPreviewSlideUpdate={setPreviewSlide}
+          onYoutubeOverlayChange={setIsYoutubeOverlayOpen}
 
           onSetBackgroundAudio={(vid, title, playlistId, meta) => {
             if (!vid && !playlistId) {
@@ -3077,22 +3079,26 @@ const App: React.FC = () => {
       {/* MIDDLE: Playlist & Management (45%) */}
       <div id="playlist-panel" className={`${mobileTab === 'playlist' ? 'flex flex-1 min-h-0 pb-[96px] lg:pb-0' : 'hidden'} lg:flex w-full lg:flex-1 flex-col border-r border-white/10 min-w-0 lg:min-w-[300px] overflow-hidden bg-[linear-gradient(180deg,#0a101b_0%,#080d17_52%,#050812_100%)] relative`}>
         {/* Left Collapse Handle */}
-        <button
-          onClick={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
-          className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 z-50 h-16 w-[18px] items-center justify-center rounded-r-2xl border-y border-r border-white/10 bg-[#0c1220]/95 text-slate-400 hover:text-cyan-300 hover:bg-[#0f172a] hover:shadow-[0_0_15px_rgba(34,211,238,0.25)] hover:border-cyan-500/30 transition-all duration-300 cursor-pointer shadow-lg"
-          title={isLeftSidebarCollapsed ? "Mostrar editor y logo" : "Ocultar editor y logo"}
-        >
-          {isLeftSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
+        {!isYoutubeOverlayOpen && (
+          <button
+            onClick={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
+            className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 z-50 h-16 w-[18px] items-center justify-center rounded-r-2xl border-y border-r border-white/10 bg-[#0c1220]/95 text-slate-400 hover:text-cyan-300 hover:bg-[#0f172a] hover:shadow-[0_0_15px_rgba(34,211,238,0.25)] hover:border-cyan-500/30 transition-all duration-300 cursor-pointer shadow-lg"
+            title={isLeftSidebarCollapsed ? "Mostrar editor y logo" : "Ocultar editor y logo"}
+          >
+            {isLeftSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        )}
 
         {/* Right Collapse Handle */}
-        <button
-          onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
-          className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-50 h-16 w-[18px] items-center justify-center rounded-l-2xl border-y border-l border-white/10 bg-[#0c1220]/95 text-slate-400 hover:text-cyan-300 hover:bg-[#0f172a] hover:shadow-[0_0_15px_rgba(34,211,238,0.25)] hover:border-cyan-500/30 transition-all duration-300 cursor-pointer shadow-lg"
-          title={isRightSidebarCollapsed ? "Mostrar proyección y controles" : "Ocultar proyección y controles"}
-        >
-          {isRightSidebarCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-        </button>
+        {!isYoutubeOverlayOpen && (
+          <button
+            onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+            className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-50 h-16 w-[18px] items-center justify-center rounded-l-2xl border-y border-l border-white/10 bg-[#0c1220]/95 text-slate-400 hover:text-cyan-300 hover:bg-[#0f172a] hover:shadow-[0_0_15px_rgba(34,211,238,0.25)] hover:border-cyan-500/30 transition-all duration-300 cursor-pointer shadow-lg"
+            title={isRightSidebarCollapsed ? "Mostrar proyección y controles" : "Ocultar proyección y controles"}
+          >
+            {isRightSidebarCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+          </button>
+        )}
         {/* Mobile Header - Compact with Live Status */}
         <div className="lg:hidden bg-slate-900/80 backdrop-blur-md px-4 py-3 border-b border-white/10 flex justify-between items-center shrink-0 relative z-20">
           <div className="flex items-center gap-2.5">

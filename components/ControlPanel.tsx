@@ -47,6 +47,7 @@ interface ControlPanelProps {
   customThemes?: Theme[];
   onUpdateCustomThemes?: (themes: Theme[]) => void;
   onUploadImages?: (files: FileList | null, itemId?: string) => Promise<void>;
+  onYoutubeOverlayChange?: (open: boolean) => void;
 }
 
 // Updated Bible Versions as requested
@@ -340,6 +341,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   customThemes: propCustomThemes,
   onUpdateCustomThemes,
   onUploadImages,
+  onYoutubeOverlayChange,
 }) => {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -385,6 +387,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   });
   const youtubeVideoResultCount = youtubeResults.filter(item => item.kind !== 'playlist' && !item.playlistId).length;
   const youtubePlaylistResultCount = youtubeResults.filter(item => item.kind === 'playlist' || !!item.playlistId).length;
+
+  useEffect(() => {
+    onYoutubeOverlayChange?.(isYoutubeFullBrowserOpen);
+    return () => onYoutubeOverlayChange?.(false);
+  }, [isYoutubeFullBrowserOpen, onYoutubeOverlayChange]);
 
   // Rename-before-import system
   const [pendingVideoImport, setPendingVideoImport] = useState<{
