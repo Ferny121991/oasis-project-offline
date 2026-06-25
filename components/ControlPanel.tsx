@@ -3,7 +3,7 @@ import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, Den
 import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry, BackgroundAnimationConfig, BackgroundAnimationType } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
-import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Undo, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star, AlertCircle, ArrowLeft, Copy } from 'lucide-react';
+import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Undo, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star, AlertCircle, ArrowLeft, Copy, ListMusic } from 'lucide-react';
 import RichTextEditor, { textToSegments, segmentsToText } from './RichTextEditor';
 import HistoryPanel from './HistoryPanel';
 
@@ -2656,6 +2656,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         }))
         .filter(group => group.tracks.length > 0)
     : backgroundPlaylistGroups;
+  const activeAudioVideoId = backgroundAudioItem?.videoId || backgroundAudioItem?.id || '';
+  const activeAudioThumb = activeAudioVideoId && activeAudioVideoId.length === 11
+    ? `https://img.youtube.com/vi/${activeAudioVideoId}/mqdefault.jpg`
+    : '';
+  const scrollToActiveAudio = () => {
+    if (activeAudioIndex < 0) return;
+    setAudioPanelTab('queue');
+    window.setTimeout(() => {
+      document.getElementById(`audio-track-${backgroundAudioItem?.id}`)?.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth'
+      });
+    }, 80);
+  };
+  const removePlaylistGroup = (tracks: Array<(typeof bgAudioPlaylist)[number] & { index: number }>) => {
+    tracks.forEach(track => onRemoveAudio?.(track.id));
+  };
 
   return (
     <div className="h-full flex flex-col bg-[#080d17] border-r border-white/10 font-sans">
@@ -3099,8 +3116,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 {backgroundAudioItem && (
                   <div className="p-4 bg-[radial-gradient(circle_at_20%_20%,rgba(236,72,153,0.18),transparent_32%),linear-gradient(135deg,#111827,#1f2937)] border-b border-pink-500/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)] z-10 relative">
                     <div className="flex items-start gap-3 mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-pink-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-pink-600/25">
-                        <Music size={22} className={isAudioPlaying ? 'animate-pulse' : ''} />
+                      <div className="w-16 h-12 rounded-2xl bg-pink-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-pink-600/25 overflow-hidden border border-white/10">
+                        {activeAudioThumb ? (
+                          <img src={activeAudioThumb} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Music size={22} className={isAudioPlaying ? 'animate-pulse' : ''} />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -3127,6 +3148,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         title="Copiar enlace del audio"
                       >
                         <Copy size={14} />
+                      </button>
+                      <button
+                        onClick={scrollToActiveAudio}
+                        disabled={activeAudioIndex < 0}
+                        className="w-9 h-9 rounded-xl bg-indigo-500/10 hover:bg-indigo-500 hover:text-white text-indigo-300 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Ir a la cancion actual"
+                      >
+                        <ListMusic size={14} />
                       </button>
                       <button
                         onClick={() => onSetBackgroundAudio?.('', '')}
@@ -3202,6 +3231,32 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         </button>
                       </div>
                     </div>
+                    <div className="grid grid-cols-3 gap-2 px-3 py-2 border-b border-white/10 bg-black/10">
+                      <button
+                        type="button"
+                        onClick={scrollToActiveAudio}
+                        className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-[8px] font-black uppercase tracking-wider text-slate-300 hover:bg-white/10 hover:text-white transition-all"
+                      >
+                        Actual
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => (document.querySelector('.oasis-audio-list-scroll') as HTMLElement | null)?.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-[8px] font-black uppercase tracking-wider text-slate-300 hover:bg-white/10 hover:text-white transition-all"
+                      >
+                        Inicio
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.querySelector('.oasis-audio-list-scroll') as HTMLElement | null;
+                          el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+                        }}
+                        className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-[8px] font-black uppercase tracking-wider text-slate-300 hover:bg-white/10 hover:text-white transition-all"
+                      >
+                        Final
+                      </button>
+                    </div>
                     <div className="px-3 py-2 border-b border-white/10 bg-black/20">
                       <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2">
                         <Search size={13} className="text-slate-500 shrink-0" />
@@ -3224,14 +3279,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         )}
                       </div>
                     </div>
-                    <div className="overflow-y-auto pb-3">
+                    <div className="oasis-audio-list-scroll overflow-y-auto pb-3">
                       {audioPanelTab === 'queue' ? (
                         filteredAudioQueue.length > 0 ? filteredAudioQueue.map((track) => (
                           <div
+                            id={`audio-track-${track.id}`}
                             key={track.id}
-                            className={`flex items-center gap-3 px-3 py-2 border-b border-gray-800/50 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''} oasis-audio-track-row`}
+                            className={`relative flex items-center gap-3 px-3 py-2.5 border-b border-gray-800/50 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/15 ring-1 ring-pink-400/20' : ''} oasis-audio-track-row`}
                             onClick={() => onSelectAudio?.(track.index)}
                           >
+                            {backgroundAudioItem?.id === track.id && (
+                              <span className="absolute left-0 top-1 bottom-1 w-1 rounded-r-full bg-pink-400" />
+                            )}
                             <div className="w-4 flex justify-center shrink-0">
                               {backgroundAudioItem?.id === track.id && isAudioPlaying ? (
                                 <div className="flex items-end gap-[2px] h-3">
@@ -3243,8 +3302,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 <span className="text-[10px] font-bold text-gray-600">{track.index + 1}</span>
                               )}
                             </div>
+                            <div className="h-9 w-12 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-slate-900">
+                              {(track.videoId || track.id)?.length === 11 ? (
+                                <img src={`https://img.youtube.com/vi/${track.videoId || track.id}/mqdefault.jpg`} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-slate-500">
+                                  <Music size={13} />
+                                </div>
+                              )}
+                            </div>
                             <div className="flex-1 min-w-0">
-                              <p className={`text-xs font-medium truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                              <p className={`text-xs font-bold truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-200' : 'text-slate-300 group-hover:text-white'}`}>
                                 {track.title}
                               </p>
                               {track.sourcePlaylistTitle && (
@@ -3255,7 +3323,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             </div>
                             <button
                               onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
-                              className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all shrink-0"
+                              className="opacity-60 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-300 hover:bg-red-400/10 rounded-md transition-all shrink-0"
                               title="Quitar de la fila"
                             >
                               <Trash2 size={14} />
@@ -3273,11 +3341,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           const isActiveGroup = group.tracks.some(track => backgroundAudioItem?.id === track.id);
                           return (
                             <div key={group.id} className={`m-2 overflow-hidden rounded-2xl border transition-all ${isActiveGroup ? 'border-pink-400/40 bg-pink-500/10 shadow-lg shadow-pink-950/20' : 'border-indigo-400/15 bg-indigo-950/20'}`}>
-                              <button
-                                type="button"
-                                onClick={() => setExpandedAudioPlaylists(prev => ({ ...prev, [group.id]: !isExpanded }))}
-                                className="w-full px-3 py-3 bg-indigo-950/25 hover:bg-indigo-900/25 text-left flex items-center gap-3 transition-all"
-                              >
+                              <div className="w-full px-3 py-3 bg-indigo-950/25 flex items-center gap-3 transition-all">
                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isActiveGroup ? 'bg-pink-500 text-white' : 'bg-indigo-500/20 text-indigo-200'}`}>
                                   <Music size={16} />
                                 </div>
@@ -3285,16 +3349,42 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   <p className="text-[10px] text-indigo-100 font-black uppercase tracking-wider truncate">{group.title}</p>
                                   <p className="text-[8px] text-indigo-300/70 font-bold uppercase">{group.tracks.length} canciones agregadas</p>
                                 </div>
-                                <span className="rounded-full border border-white/10 bg-black/25 px-2 py-1 text-[8px] font-black uppercase text-slate-300">
-                                  {isExpanded ? 'Ocultar' : 'Ver'}
-                                </span>
-                              </button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => onSelectAudio?.(group.tracks[0]?.index || 0)}
+                                    className="rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-2 py-1.5 text-[8px] font-black uppercase text-emerald-200 hover:bg-emerald-500 hover:text-white transition-all"
+                                    title="Reproducir esta playlist"
+                                  >
+                                    Play
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedAudioPlaylists(prev => ({ ...prev, [group.id]: !isExpanded }))}
+                                    className="rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-[8px] font-black uppercase text-slate-300 hover:bg-white/10 hover:text-white transition-all"
+                                  >
+                                    {isExpanded ? 'Ocultar' : 'Ver'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removePlaylistGroup(group.tracks)}
+                                    className="rounded-lg border border-red-400/20 bg-red-500/10 px-2 py-1.5 text-[8px] font-black uppercase text-red-200 hover:bg-red-500 hover:text-white transition-all"
+                                    title="Quitar playlist completa"
+                                  >
+                                    Quitar
+                                  </button>
+                                </div>
+                              </div>
                               {visibleTracks.map(track => (
                                 <div
+                                  id={`audio-track-${track.id}`}
                                   key={track.id}
-                                  className={`flex items-center gap-3 px-3 py-2 border-t border-gray-800/40 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''}`}
+                                  className={`relative flex items-center gap-3 px-3 py-2.5 border-t border-gray-800/40 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/15 ring-1 ring-pink-400/20' : ''}`}
                                   onClick={() => onSelectAudio?.(track.index)}
                                 >
+                                  {backgroundAudioItem?.id === track.id && (
+                                    <span className="absolute left-0 top-1 bottom-1 w-1 rounded-r-full bg-pink-400" />
+                                  )}
                                   <div className="w-4 flex justify-center shrink-0">
                                     {backgroundAudioItem?.id === track.id && isAudioPlaying ? (
                                       <Music size={12} className="text-pink-400 animate-pulse" />
@@ -3302,12 +3392,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                       <span className="text-[10px] font-bold text-gray-600">{track.index + 1}</span>
                                     )}
                                   </div>
-                                  <p className={`flex-1 min-w-0 text-xs truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                                  <div className="h-8 w-11 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-slate-900">
+                                    {(track.videoId || track.id)?.length === 11 ? (
+                                      <img src={`https://img.youtube.com/vi/${track.videoId || track.id}/mqdefault.jpg`} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                      <div className="h-full w-full flex items-center justify-center text-slate-500">
+                                        <Music size={12} />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <p className={`flex-1 min-w-0 text-xs font-bold truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-200' : 'text-slate-300 group-hover:text-white'}`}>
                                     {track.title}
                                   </p>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
-                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all shrink-0"
+                                    className="opacity-60 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-300 hover:bg-red-400/10 rounded-md transition-all shrink-0"
                                     title="Quitar de la fila"
                                   >
                                     <Trash2 size={14} />
