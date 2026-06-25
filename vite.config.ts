@@ -27,25 +27,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     build: {
-      chunkSizeWarningLimit: 1200,
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules/pdfjs-dist') || id.includes('node_modules/pptx-preview') || id.includes('node_modules/jszip')) {
-              return 'document-tools';
-            }
-            if (id.includes('node_modules/@google/genai')) {
-              return 'ai-tools';
-            }
-            if (id.includes('node_modules/@supabase')) {
-              return 'supabase';
-            }
-            if (id.includes('node_modules')) {
-              return 'vendor';
-            }
-          }
-        }
-      }
+      chunkSizeWarningLimit: 1200
     }
   };
 });
