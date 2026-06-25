@@ -1,0 +1,133 @@
+<?php
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: public, max-age=300');
+
+$playlistId = isset($_GET['playlistId']) ? preg_replace('/[^A-Za-z0-9_-]/', '', $_GET['playlistId']) : '';
+$maxVideos = isset($_GET['max']) ? max(1, min(300, intval($_GET['max']))) : 300;
+
+if ($playlistId === '') {
+  http_response_code(400);
+  echo json_encode(['videos' => [], 'error' => 'playlistId required']);
+  exit;
+}
+
+function fetch_url($url) {
+  if (function_exists('curl_init')) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_FOLLOWLOCATION => true,
+      CURLOPT_CONNECTTIMEOUT => 8,
+      CURLOPT_TIMEOUT => 18,
+      CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+      CURLOPT_HTTPHEADER => ['Accept-Language: es,en;q=0.8']
+    ]);
+    $body = curl_exec($ch);
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return ($status >= 200 && $status < 300 && is_string($body)) ? $body : '';
+  }
+
+  $context = stream_context_create([
+    'http' => [
+      'method' => 'GET',
+      'timeout' => 18,
+      'header' => "User-Agent: Mozilla/5.0\r\nAccept-Language: es,en;q=0.8\r\n"
+    ]
+  ]);
+  $body = @file_get_contents($url, false, $context);
+  return is_string($body) ? $body : '';
+}
+
+function decode_text($value) {
+  return trim(html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_XML1, 'UTF-8'));
+}
+
+function collect_playlist_videos($node, &$videos, &$seen, $maxVideos) {
+  if (count($videos) >= $maxVideos || !is_array($node)) return;
+
+  if (isset($node['playlistVideoRenderer']) && is_array($node['playlistVideoRenderer'])) {
+    $renderer = $node['playlistVideoRenderer'];
+    $videoId = isset($renderer['videoId']) ? $renderer['videoId'] : '';
+    if (preg_match('/^[A-Za-z0-9_-]{11}$/', $videoId) && !isset($seen[$videoId])) {
+      $seen[$videoId] = true;
+      $title = 'Video de YouTube';
+      if (isset($renderer['title']['runs'][0]['text'])) {
+        $title = $renderer['title']['runs'][0]['text'];
+      } elseif (isset($renderer['title']['simpleText'])) {
+        $title = $renderer['title']['simpleText'];
+      }
+      $author = isset($renderer['shortBylineText']['runs'][0]['text']) ? $renderer['shortBylineText']['runs'][0]['text'] : 'YouTube';
+      $duration = isset($renderer['lengthText']['simpleText']) ? $renderer['lengthText']['simpleText'] : null;
+      $thumb = "https://img.youtube.com/vi/$videoId/mqdefault.jpg";
+      if (isset($renderer['thumbnail']['thumbnails']) && is_array($renderer['thumbnail']['thumbnails'])) {
+        $lastThumb = end($renderer['thumbnail']['thumbnails']);
+        if (isset($lastThumb['url'])) $thumb = $lastThumb['url'];
+      }
+      $videos[] = [
+        'id' => $videoId,
+        'title' => $title,
+        'author' => $author,
+        'thumbnail' => $thumb,
+        'duration' => $duration,
+        'index' => count($videos) + 1
+      ];
+    }
+  }
+
+  foreach ($node as $child) {
+    if (is_array($child)) collect_playlist_videos($child, $videos, $seen, $maxVideos);
+    if (count($videos) >= $maxVideos) return;
+  }
+}
+
+function parse_playlist_html($html, $maxVideos) {
+  if (!preg_match('/ytInitialData\s*=\s*({[\s\S]+?});\s*<\/script>/', $html, $match)
+      && !preg_match('/ytInitialData\s*=\s*({[\s\S]+?})\s*;<\/script>/', $html, $match)) {
+    return [];
+  }
+
+  $data = json_decode($match[1], true);
+  if (!is_array($data)) return [];
+  $videos = [];
+  $seen = [];
+  collect_playlist_videos($data, $videos, $seen, $maxVideos);
+  return $videos;
+}
+
+function parse_playlist_feed($xml, $maxVideos) {
+  $videos = [];
+  if ($xml === '') return $videos;
+  if (!preg_match_all('/<entry>([\s\S]*?)<\/entry>/', $xml, $entries)) return $videos;
+
+  foreach ($entries[1] as $entry) {
+    if (count($videos) >= $maxVideos) break;
+    if (!preg_match('/<yt:videoId>([\s\S]*?)<\/yt:videoId>/', $entry, $idMatch)) continue;
+    $videoId = decode_text($idMatch[1]);
+    if (!preg_match('/^[A-Za-z0-9_-]{11}$/', $videoId)) continue;
+    preg_match('/<title>([\s\S]*?)<\/title>/', $entry, $titleMatch);
+    preg_match('/<name>([\s\S]*?)<\/name>/', $entry, $authorMatch);
+    $videos[] = [
+      'id' => $videoId,
+      'title' => isset($titleMatch[1]) ? decode_text($titleMatch[1]) : 'Video de YouTube',
+      'author' => isset($authorMatch[1]) ? decode_text($authorMatch[1]) : 'YouTube',
+      'thumbnail' => "https://img.youtube.com/vi/$videoId/mqdefault.jpg",
+      'index' => count($videos) + 1
+    ];
+  }
+  return $videos;
+}
+
+$html = fetch_url('https://www.youtube.com/playlist?list=' . rawurlencode($playlistId));
+$videos = parse_playlist_html($html, $maxVideos);
+
+if (count($videos) === 0) {
+  $xml = fetch_url('https://www.youtube.com/feeds/videos.xml?playlist_id=' . rawurlencode($playlistId));
+  $videos = parse_playlist_feed($xml, $maxVideos);
+}
+
+echo json_encode([
+  'playlistId' => $playlistId,
+  'count' => count($videos),
+  'videos' => $videos
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

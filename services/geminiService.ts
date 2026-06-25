@@ -971,6 +971,18 @@ const fetchTextWithCorsProxy = async (url: string, timeoutMs = 5000): Promise<st
   throw new Error(`Failed to fetch text for ${url}.`);
 };
 
+const decodeXmlText = (value: string): string => {
+  if (!value) return '';
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+};
+
 // Robust helper to extract 11-character YouTube video ID
 const extractVideoId = (str: string): string => {
   if (!str) return '';
@@ -1362,6 +1374,60 @@ const fetchYouTubePlaylistOfficial = async (playlistId: string, maxVideos = 300)
   return videos.slice(0, maxVideos);
 };
 
+const fetchYouTubePlaylistLocalEndpoint = async (playlistId: string, maxVideos = 300): Promise<YouTubePlaylistVideo[]> => {
+  const params = new URLSearchParams({
+    playlistId,
+    max: String(maxVideos)
+  });
+  const res = await fetchWithTimeout(`/youtube-playlist.php?${params.toString()}`, 22000);
+  if (!res.ok) throw new Error(`Local playlist endpoint failed with status ${res.status}`);
+  const data = await res.json();
+  const videos = Array.isArray(data?.videos) ? data.videos : [];
+  return videos
+    .map((item: any, index: number) => {
+      const videoId = extractVideoId(item.id || item.videoId || '');
+      if (!videoId || videoId.length !== 11) return null;
+      return {
+        id: videoId,
+        title: item.title || 'Video de YouTube',
+        author: item.author || 'YouTube',
+        thumbnail: item.thumbnail || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+        duration: item.duration,
+        index: typeof item.index === 'number' ? item.index : index + 1
+      } as YouTubePlaylistVideo;
+    })
+    .filter(Boolean) as YouTubePlaylistVideo[];
+};
+
+const parseYouTubePlaylistFeed = (xml: string): YouTubePlaylistVideo[] => {
+  const entries = Array.from(xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g));
+  const seen = new Set<string>();
+  return entries
+    .map((match, index) => {
+      const entry = match[1] || '';
+      const videoId = decodeXmlText(entry.match(/<yt:videoId>([\s\S]*?)<\/yt:videoId>/)?.[1] || '');
+      if (!videoId || videoId.length !== 11 || seen.has(videoId)) return null;
+      seen.add(videoId);
+      const title = decodeXmlText(entry.match(/<title>([\s\S]*?)<\/title>/)?.[1] || 'Video de YouTube');
+      const author = decodeXmlText(entry.match(/<name>([\s\S]*?)<\/name>/)?.[1] || 'YouTube');
+      return {
+        id: videoId,
+        title,
+        author,
+        thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+        index: index + 1
+      } as YouTubePlaylistVideo;
+    })
+    .filter(Boolean) as YouTubePlaylistVideo[];
+};
+
+const fetchYouTubePlaylistFeed = async (playlistId: string, maxVideos = 300): Promise<YouTubePlaylistVideo[]> => {
+  const xml = await fetchTextWithCorsProxy(`https://www.youtube.com/feeds/videos.xml?playlist_id=${encodeURIComponent(playlistId)}`, 7000);
+  const videos = parseYouTubePlaylistFeed(xml);
+  if (videos.length === 0) throw new Error("No videos found in YouTube playlist feed.");
+  return videos.slice(0, maxVideos);
+};
+
 const mapPipedPlaylistStreams = (streams: any[]): YouTubePlaylistVideo[] => {
   return (Array.isArray(streams) ? streams : [])
     .map((item: any, index: number) => {
@@ -1419,10 +1485,24 @@ export const fetchYouTubePlaylistVideos = async (playlistId: string, maxVideos =
   if (!id) return [];
 
   try {
+    const localVideos = await fetchYouTubePlaylistLocalEndpoint(id, maxVideos);
+    if (localVideos.length > 0) return localVideos;
+  } catch (error) {
+    console.warn("Local playlist endpoint failed, trying YouTube Data API...", error);
+  }
+
+  try {
     const officialVideos = await fetchYouTubePlaylistOfficial(id, maxVideos);
     if (officialVideos.length > 0) return officialVideos;
   } catch (error) {
     console.warn("Official YouTube playlistItems failed, trying public fallbacks...", error);
+  }
+
+  try {
+    const feedVideos = await fetchYouTubePlaylistFeed(id, maxVideos);
+    if (feedVideos.length > 0) return feedVideos;
+  } catch (error) {
+    console.warn("YouTube playlist feed failed, trying direct extraction...", error);
   }
 
   try {

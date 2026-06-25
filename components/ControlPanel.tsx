@@ -364,26 +364,78 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     total: number;
     mode: 'project' | 'background';
   } | null>(null);
+  const [resolvedPlaylistVideos, setResolvedPlaylistVideos] = useState<YouTubePlaylistVideo[]>([]);
+  const [playlistResolveError, setPlaylistResolveError] = useState<string | null>(null);
+  const [isResolvingPlaylist, setIsResolvingPlaylist] = useState(false);
   const [audioPanelTab, setAudioPanelTab] = useState<'queue' | 'playlists'>('queue');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!pendingVideoImport?.playlistId) {
+      setResolvedPlaylistVideos([]);
+      setPlaylistResolveError(null);
+      setIsResolvingPlaylist(false);
+      return;
+    }
+
+    let cancelled = false;
+    const fallbackVideos = pendingVideoImport.playlistVideos || [];
+    setResolvedPlaylistVideos(fallbackVideos);
+    setPlaylistResolveError(null);
+    setIsResolvingPlaylist(true);
+    setPlaylistImportProgress({
+      active: true,
+      label: 'Buscando canciones de la playlist...',
+      current: fallbackVideos.length,
+      total: fallbackVideos.length,
+      mode: pendingVideoImport.action
+    });
+
+    fetchPlaylistVideosWithTimeout(pendingVideoImport.playlistId, 22000)
+      .then((videos) => {
+        if (cancelled) return;
+        const foundVideos = videos.length > 0 ? videos : fallbackVideos;
+        setResolvedPlaylistVideos(foundVideos);
+        setPlaylistImportProgress({
+          active: false,
+          label: foundVideos.length > 0 ? 'Canciones listas para guardar.' : 'No se pudo leer la playlist.',
+          current: foundVideos.length,
+          total: foundVideos.length,
+          mode: pendingVideoImport.action
+        });
+        if (foundVideos.length === 0) {
+          setPlaylistResolveError('No pude leer canciones de esta playlist con las fuentes publicas. Prueba otra playlist publica o configura una clave de YouTube API.');
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const foundVideos = fallbackVideos;
+        setResolvedPlaylistVideos(foundVideos);
+        setPlaylistResolveError(foundVideos.length > 0 ? null : 'No pude leer canciones de esta playlist con las fuentes publicas.');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsResolvingPlaylist(false);
+        setPlaylistImportProgress((current) => current?.active ? null : current);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingVideoImport?.playlistId, pendingVideoImport?.action]);
+
   const confirmVideoImport = async (destinationOverride?: 'current' | 'new') => {
     if (!pendingVideoImport) return;
-    const { videoId, playlistId, playlistVideos: fallbackPlaylistVideos, action } = pendingVideoImport;
+    const { videoId, playlistId, action } = pendingVideoImport;
     if (!videoId && !playlistId) return;
+    if (playlistId && resolvedPlaylistVideos.length === 0) {
+      alert("Todavia no hay canciones listas para agregar. Espera a que termine la busqueda de la playlist.");
+      return;
+    }
     const finalName = importName.trim() || pendingVideoImport.defaultName;
     const sourceLink = getYouTubeSourceLink({ videoId, playlistId });
 
     setLoading(true);
-    if (playlistId) {
-      setPlaylistImportProgress({
-        active: true,
-        label: 'Buscando videos de la playlist...',
-        current: 0,
-        total: pendingVideoImport.playlistVideos?.length || 0,
-        mode: action
-      });
-    }
     try {
       if (action === 'project') {
         const destination = destinationOverride ?? pendingVideoImport.destination;
@@ -391,8 +443,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         let slides: Slide[] = [];
 
         if (playlistId) {
-          const playlistVideos = await fetchPlaylistVideosWithTimeout(playlistId);
-          const videosToImport = playlistVideos.length > 0 ? playlistVideos : (fallbackPlaylistVideos || []);
+          const videosToImport = resolvedPlaylistVideos;
           setPlaylistImportProgress({
             active: true,
             label: videosToImport.length > 0 ? 'Agregando videos al proyecto...' : 'No se pudo leer la lista completa.',
@@ -464,8 +515,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         }
       } else {
         if (playlistId) {
-          const playlistVideos = await fetchPlaylistVideosWithTimeout(playlistId);
-          const videosToImport = playlistVideos.length > 0 ? playlistVideos : (fallbackPlaylistVideos || []);
+          const videosToImport = resolvedPlaylistVideos;
           setPlaylistImportProgress({
             active: true,
             label: videosToImport.length > 0 ? 'Agregando canciones a fondo...' : 'No se pudo leer la lista completa.',
@@ -499,6 +549,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       setInputText('');
       setPendingVideoImport(null);
       setImportName('');
+      setResolvedPlaylistVideos([]);
+      setPlaylistResolveError(null);
     } catch (error) {
       console.error("Playlist import failed", error);
       alert("No se pudo leer la playlist completa. Intenta de nuevo o usa otra playlist publica.");
@@ -512,6 +564,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     setPendingVideoImport(null);
     setImportName('');
     setPlaylistImportProgress(null);
+    setResolvedPlaylistVideos([]);
+    setPlaylistResolveError(null);
+    setIsResolvingPlaylist(false);
   };
 
   const [editorSubTab, setEditorSubTab] = useState<'text' | 'image' | 'youtube'>(
@@ -4244,6 +4299,60 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </span>
             </div>
 
+            {pendingVideoImport.playlistId && (
+              <div className="mb-5 rounded-2xl border border-slate-700/70 bg-slate-950/45 overflow-hidden">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-cyan-200">
+                      Canciones encontradas
+                    </p>
+                    <p className="mt-0.5 text-[9px] font-bold text-slate-500">
+                      Se guardaran una por una, no como una sola slide.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-black text-cyan-100">
+                    {isResolvingPlaylist ? 'Buscando...' : `${resolvedPlaylistVideos.length}`}
+                  </span>
+                </div>
+
+                {resolvedPlaylistVideos.length > 0 ? (
+                  <div className="max-h-44 overflow-y-auto p-2 space-y-1">
+                    {resolvedPlaylistVideos.slice(0, 80).map((video, index) => (
+                      <div key={`${video.id}-${index}`} className="flex items-center gap-3 rounded-xl border border-slate-800/80 bg-slate-900/60 px-3 py-2">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-400/10 text-[9px] font-black text-emerald-200">
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[10px] font-black text-slate-100">
+                            {video.title}
+                          </p>
+                          <p className="truncate text-[8px] font-bold uppercase tracking-wider text-slate-500">
+                            {video.author || 'YouTube'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {resolvedPlaylistVideos.length > 80 && (
+                      <p className="px-3 py-2 text-center text-[9px] font-bold text-slate-500">
+                        Y {resolvedPlaylistVideos.length - 80} canciones mas listas para guardar.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center">
+                    <p className="text-[10px] font-bold text-slate-400">
+                      {isResolvingPlaylist ? 'Buscando canciones dentro de la playlist...' : 'No hay canciones listas todavia.'}
+                    </p>
+                    {playlistResolveError && (
+                      <p className="mt-2 text-[9px] font-bold leading-relaxed text-rose-300">
+                        {playlistResolveError}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {playlistImportProgress?.active && (
               <div className="mb-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4">
                 <div className="mb-2 flex items-center justify-between gap-3">
@@ -4287,21 +4396,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <button
                 type="button"
                 onClick={() => confirmVideoImport()}
-                disabled={!!playlistImportProgress?.active}
+                disabled={!!playlistImportProgress?.active || (pendingVideoImport.sourceType === 'playlist' && (isResolvingPlaylist || resolvedPlaylistVideos.length === 0))}
                 className={`flex-1 py-2.5 rounded-xl text-white active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider disabled:opacity-60 disabled:cursor-wait ${
                   pendingVideoImport.action === 'project'
                     ? 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-950/30'
                     : 'bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-950/30'
                 }`}
               >
-                Guardar y Aplicar
+                {pendingVideoImport.sourceType === 'playlist' && resolvedPlaylistVideos.length > 0
+                  ? `Guardar ${resolvedPlaylistVideos.length} y Aplicar`
+                  : 'Guardar y Aplicar'}
               </button>
             </div>
             {pendingVideoImport.action === 'project' && hasActiveItem && pendingVideoImport.destination !== 'new' && (
               <button
                 type="button"
                 onClick={() => confirmVideoImport('new')}
-                disabled={!!playlistImportProgress?.active}
+                disabled={!!playlistImportProgress?.active || (pendingVideoImport.sourceType === 'playlist' && (isResolvingPlaylist || resolvedPlaylistVideos.length === 0))}
                 className="mt-2 w-full py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:border-emerald-500/60 bg-slate-950/50 active:scale-95 transition-all font-black text-[9px] uppercase tracking-wider"
               >
                 Pegar en proyecto nuevo
