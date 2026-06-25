@@ -226,6 +226,7 @@ export interface Slide {
   segments?: TextSegment[]; // Para texto enriquecido con estilos por palabra
   mediaUrl?: string; // URL/Base64 for image and local video slides
   videoId?: string; // YouTube Video ID
+  playlistId?: string; // YouTube Playlist ID
   label?: string; // e.g., "Coro", "Verso 1"
   operatorNotes?: string; // Internal notes visible only to the operator, not on projector
 }

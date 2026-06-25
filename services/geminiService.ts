@@ -875,10 +875,13 @@ export const processManualText = async (text: string, density: DensityMode = 'cl
 };
 export interface YouTubeSearchResult {
   id: string;
+  kind?: 'video' | 'playlist';
+  playlistId?: string;
   title: string;
   author: string;
   thumbnail: string;
   duration?: string;
+  videoCount?: number;
 }
 
 // Backward-compatible helper to perform fetch with custom abort timeout
@@ -954,6 +957,20 @@ const extractVideoId = (str: string): string => {
   return '';
 };
 
+const extractPlaylistId = (str: string): string => {
+  if (!str) return '';
+  const trimmed = str.trim();
+  if (/^(PL|UU|LL|RD|OLAK5uy_)[\w-]{10,}$/.test(trimmed)) return trimmed;
+
+  try {
+    const url = new URL(trimmed.startsWith('http') ? trimmed : `https://www.youtube.com/${trimmed.replace(/^\//, '')}`);
+    const list = url.searchParams.get('list');
+    if (list) return list;
+  } catch (_) {}
+
+  return trimmed.match(/[?&]list=([\w-]+)/)?.[1] || '';
+};
+
 // Custom lightweight equivalent of Promise.any for wide browser compatibility
 const anySuccessfulPromise = async <T>(promises: Promise<T>[]): Promise<T> => {
   return new Promise((resolve, reject) => {
@@ -1025,6 +1042,7 @@ const fetchYouTubeDirect = async (query: string, proxyUrl: string, isAllOrigins 
         const duration = vr.lengthText?.simpleText || undefined;
         results.push({
           id: videoId,
+          kind: 'video',
           title,
           author,
           thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
@@ -1044,14 +1062,13 @@ const fetchYouTubeOfficial = async (query: string): Promise<YouTubeSearchResult[
   const params = new URLSearchParams({
     key: youtubeApiKey,
     part: 'snippet',
-    type: 'video',
+    type: 'video,playlist',
     q: query,
     maxResults: '12',
     order: 'relevance',
     safeSearch: 'moderate',
     relevanceLanguage: 'es',
-    regionCode: 'US',
-    videoEmbeddable: 'true'
+    regionCode: 'US'
   });
 
   const res = await fetchWithTimeout(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`, 4500);
@@ -1068,15 +1085,32 @@ const fetchYouTubeOfficial = async (query: string): Promise<YouTubeSearchResult[
   const items = Array.isArray(data.items) ? data.items : [];
   const results = items
     .map((item: any) => {
-      const videoId = item?.id?.videoId;
-      if (!videoId || videoId.length !== 11) return null;
       const snippet = item.snippet || {};
-      return {
-        id: videoId,
-        title: snippet.title || 'Sin titulo',
-        author: snippet.channelTitle || 'Desconocido',
-        thumbnail: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
-      } as YouTubeSearchResult;
+      const videoId = item?.id?.videoId;
+      const playlistId = item?.id?.playlistId;
+
+      if (videoId && videoId.length === 11) {
+        return {
+          id: videoId,
+          kind: 'video',
+          title: snippet.title || 'Sin titulo',
+          author: snippet.channelTitle || 'Desconocido',
+          thumbnail: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+        } as YouTubeSearchResult;
+      }
+
+      if (playlistId) {
+        return {
+          id: playlistId,
+          kind: 'playlist',
+          playlistId,
+          title: snippet.title || 'Lista de YouTube',
+          author: snippet.channelTitle || 'Desconocido',
+          thumbnail: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url || ''
+        } as YouTubeSearchResult;
+      }
+
+      return null;
     })
     .filter(Boolean) as YouTubeSearchResult[];
 
@@ -1086,20 +1120,36 @@ const fetchYouTubeOfficial = async (query: string): Promise<YouTubeSearchResult[
 
 const mapInvidiousResults = (data: any[]): YouTubeSearchResult[] => {
   return data.slice(0, 10).map((item: any) => {
+    if (item.type === 'playlist' || item.playlistId) {
+      const playlistId = extractPlaylistId(item.playlistId || item.url || '');
+      if (!playlistId) return null;
+      return {
+        id: playlistId,
+        kind: 'playlist',
+        playlistId,
+        title: item.title || 'Lista de YouTube',
+        author: item.author || item.authorId || 'Desconocido',
+        thumbnail: item.playlistThumbnail || item.authorThumbnails?.[0]?.url || '',
+        videoCount: item.videoCount || item.videos
+      } as YouTubeSearchResult;
+    }
+
     const videoId = extractVideoId(item.videoId || item.url || '');
     return {
       id: videoId,
+      kind: 'video',
       title: item.title || 'Sin titulo',
       author: item.author || item.authorId || 'Desconocido',
       thumbnail: item.videoThumbnails?.find?.((thumb: any) => thumb.quality === 'medium')?.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
       duration: item.lengthSeconds ? formatDuration(Number(item.lengthSeconds)) : undefined
     };
-  }).filter((item: YouTubeSearchResult) => item.id && item.id.length === 11);
+  }).filter((item: YouTubeSearchResult | null) => item?.id && (item.kind === 'playlist' || item.id.length === 11)) as YouTubeSearchResult[];
 };
 
-const fetchInvidiousFromInstance = async (query: string, instance: string, timeoutMs = 6000): Promise<YouTubeSearchResult[]> => {
+const fetchInvidiousFromInstance = async (query: string, instance: string, timeoutMs = 6000, type: 'video' | 'playlist' = 'video'): Promise<YouTubeSearchResult[]> => {
   const baseUrl = instance.replace(/\/$/, '');
-  const data = await fetchWithCorsProxy(`${baseUrl}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, timeoutMs);
+  const searchQuery = type === 'playlist' ? `type:playlist ${query}` : query;
+  const data = await fetchWithCorsProxy(`${baseUrl}/api/v1/search?q=${encodeURIComponent(searchQuery)}&type=${type}`, timeoutMs);
   if (data && Array.isArray(data) && data.length > 0) {
     const mapped = mapInvidiousResults(data);
     if (mapped.length > 0) return mapped;
@@ -1107,7 +1157,7 @@ const fetchInvidiousFromInstance = async (query: string, instance: string, timeo
   throw new Error(`Empty or invalid Invidious results from ${baseUrl}.`);
 };
 
-const fetchInvidiousDiscovered = async (query: string): Promise<YouTubeSearchResult[]> => {
+const fetchInvidiousDiscovered = async (query: string, type: 'video' | 'playlist' = 'video'): Promise<YouTubeSearchResult[]> => {
   const instances = await fetchWithCorsProxy('https://api.invidious.io/instances.json', 5000);
   if (!Array.isArray(instances)) {
     throw new Error("Invalid Invidious instance directory response.");
@@ -1125,7 +1175,7 @@ const fetchInvidiousDiscovered = async (query: string): Promise<YouTubeSearchRes
     .map((meta: any) => String(meta.uri).replace(/\/$/, ''));
 
   const providerPromises = Array.from(new Set(candidates)).map((instance) =>
-    fetchInvidiousFromInstance(query, instance, 6000).catch((err) => {
+    fetchInvidiousFromInstance(query, instance, 6000, type).catch((err) => {
       console.warn(`Discovered Invidious provider failed: ${instance}`, err);
       throw err;
     })
@@ -1174,6 +1224,13 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
       })
     );
 
+    fetchPromises.push(
+      fetchInvidiousDiscovered(query, 'playlist').catch(err => {
+        console.warn("Dynamic Invidious playlist discovery failed, trying other providers...", err);
+        throw err;
+      })
+    );
+
     // 1. YouTube Direct HTML Scraping via CORS Proxies (Concurrently launched - HIGH PRIORITY)
     fetchPromises.push(
       fetchYouTubeDirect(query, 'https://corsproxy.io/?').catch(err => {
@@ -1199,6 +1256,7 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
               const videoId = extractVideoId(item.url || '');
               return {
                 id: videoId,
+                kind: 'video',
                 title: item.title || 'Sin tÃ­tulo',
                 author: item.uploaderName || item.uploader || 'Desconocido',
                 thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
@@ -1209,6 +1267,30 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
             if (mapped.length > 0) return mapped;
           }
           throw new Error("Empty or invalid Piped results.");
+        })()
+      );
+
+      fetchPromises.push(
+        (async () => {
+          const data = await fetchWithCorsProxy(`${instance}/search?q=${encodeURIComponent(query)}&filter=playlists`, 5000);
+          if (data && data.items && data.items.length > 0) {
+            const mapped = data.items.slice(0, 6).map((item: any) => {
+              const playlistId = extractPlaylistId(item.url || item.playlistId || '');
+              if (!playlistId) return null;
+              return {
+                id: playlistId,
+                kind: 'playlist',
+                playlistId,
+                title: item.name || item.title || 'Lista de YouTube',
+                author: item.uploaderName || item.uploader || 'Desconocido',
+                thumbnail: item.thumbnail || '',
+                videoCount: item.videos || item.videoCount
+              } as YouTubeSearchResult;
+            }).filter(Boolean) as YouTubeSearchResult[];
+            
+            if (mapped.length > 0) return mapped;
+          }
+          throw new Error("Empty or invalid Piped playlist results.");
         })()
       );
     }
@@ -1223,6 +1305,7 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
               const videoId = extractVideoId(item.videoId || '');
               return {
                 id: videoId,
+                kind: 'video',
                 title: item.title || 'Sin tÃ­tulo',
                 author: item.author || 'Desconocido',
                 thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
@@ -1237,15 +1320,20 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
       );
     }
 
-    try {
-      // Race all active scraping endpoints concurrently
-      const results = await anySuccessfulPromise(fetchPromises);
-      if (results && results.length > 0) {
-        return results;
-      }
-    } catch (e) {
-      console.warn("All parallel public scrapers failed, falling back to Gemini AI...", e);
+    const settled = await Promise.allSettled(fetchPromises);
+    const combined = settled
+      .filter((result): result is PromiseFulfilledResult<YouTubeSearchResult[]> => result.status === 'fulfilled')
+      .flatMap(result => result.value);
+    const uniqueResults = Array.from(
+      new Map(combined.map(item => [`${item.kind || 'video'}:${item.id}`, item])).values()
+    );
+    if (uniqueResults.length > 0) {
+      return uniqueResults
+        .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'playlist' ? 1 : -1))
+        .slice(0, 18);
     }
+
+    console.warn("All parallel public scrapers failed, falling back to Gemini AI...");
 
     // Strategy 4: Fallback to Gemini AI (with Google Search Grounding & Timeout)
     if (apiKey) {

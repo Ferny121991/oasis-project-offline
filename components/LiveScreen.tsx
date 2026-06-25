@@ -45,6 +45,11 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const onVideoEndRef = useRef(onVideoEnd);
+  const youtubeEmbedSrc = slide?.playlistId
+    ? `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(slide.playlistId)}&autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&rel=0&playsinline=1`
+    : slide?.videoId
+      ? `https://www.youtube.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&rel=0&playsinline=1`
+      : '';
   const imageGestureRef = useRef({
     lastX: 0,
     lastY: 0,
@@ -60,7 +65,7 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
 
   // YouTube postMessage listener for auto-advance (does NOT touch the DOM)
   useEffect(() => {
-    if (slide?.type !== 'youtube' || !slide.videoId) return;
+    if (slide?.type !== 'youtube' || (!slide.videoId && !slide.playlistId)) return;
 
     const handleMessage = (event: MessageEvent) => {
       // YouTube sends postMessage events when enablejsapi=1
@@ -401,12 +406,12 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
               {slide && !isLogoMode ? (
                 <div key={slide.id} className={`w-full h-full flex flex-col justify-center items-center ${getAnimationClass()}`}>
                   {/* YOUTUBE SLIDE */}
-                  {slide.type === 'youtube' && slide.videoId && (
+                  {slide.type === 'youtube' && youtubeEmbedSrc && (
                     <div className="w-full h-full flex items-center justify-center bg-black overflow-hidden relative z-10">
                       <iframe
                         ref={iframeRef}
                         className="w-full h-full"
-                        src={`https://www.youtube.com/embed/${slide.videoId}?autoplay=${autoPlay ? '1' : '0'}&mute=${mute ? '1' : '0'}&controls=1&enablejsapi=1&rel=0&playsinline=1`}
+                        src={youtubeEmbedSrc}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
                         title="YouTube video"

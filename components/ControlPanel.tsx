@@ -20,7 +20,7 @@ interface ControlPanelProps {
   onUpdateSlideContent?: (slideId: string, newContent: string) => void;
   onUpdateSlideSegments?: (slideId: string, segments: TextSegment[]) => void;
   onPreviewSlideUpdate?: (slide: Slide | null) => void;
-  onSetBackgroundAudio?: (videoId: string | null, title?: string) => void;
+  onSetBackgroundAudio?: (videoId: string | null, title?: string, playlistId?: string) => void;
   onStopLive?: () => void;
   isLiveActive?: boolean;
   onUndo: () => void;
@@ -31,8 +31,8 @@ interface ControlPanelProps {
   onDeselect?: () => void;
   // Audio Control Props
   isAudioPlaying?: boolean;
-  backgroundAudioItem?: { id?: string; videoId: string; title: string } | null;
-  bgAudioPlaylist?: { id: string; videoId: string; title: string }[];
+  backgroundAudioItem?: { id?: string; videoId?: string; playlistId?: string; title: string } | null;
+  bgAudioPlaylist?: { id: string; videoId?: string; playlistId?: string; title: string }[];
   onToggleAudioPlayback?: () => void;
   onSeekAudio?: (seconds: number) => void;
   onNextAudio?: () => void;
@@ -238,6 +238,33 @@ const getYouTubeVideoId = (value: string): string => {
     || (text.length === 11 && /^[\w-]+$/.test(text) ? text : '');
 };
 
+const getYouTubePlaylistId = (value: string): string => {
+  const text = value.trim();
+  if (!text) return '';
+  try {
+    const url = new URL(text.startsWith('http') ? text : `https://www.youtube.com/${text.replace(/^\//, '')}`);
+    const listId = url.searchParams.get('list');
+    if (listId) return listId;
+  } catch (_error) {
+    // Fall back to regex/id parsing below.
+  }
+  const queryMatch = text.match(/[?&]list=([\w-]+)/)?.[1];
+  if (queryMatch) return queryMatch;
+  return /^(PL|UU|LL|RD|OLAK5uy_)[\w-]{10,}$/.test(text) ? text : '';
+};
+
+const getYouTubeSourceLink = (source: { videoId?: string; playlistId?: string }) => {
+  if (source.playlistId) return `https://www.youtube.com/playlist?list=${source.playlistId}`;
+  if (source.videoId) return `https://www.youtube.com/watch?v=${source.videoId}`;
+  return '';
+};
+
+const getYouTubeEmbedSrc = (source: { videoId?: string; playlistId?: string }) => {
+  if (source.playlistId) return `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(source.playlistId)}&autoplay=1&mute=0&controls=1&rel=0&playsinline=1`;
+  if (source.videoId) return `https://www.youtube.com/embed/${source.videoId}?autoplay=1&mute=0&controls=1&rel=0&playsinline=1`;
+  return '';
+};
+
 const ControlPanel: React.FC<ControlPanelProps> = ({
   onAddItem,
   onUpdateTheme,
@@ -305,12 +332,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [isYoutubeFullBrowserOpen, setIsYoutubeFullBrowserOpen] = useState(false);
   const [youtubeBrowserMode, setYoutubeBrowserMode] = useState<'cards' | 'iframe'>('cards');
   const [youtubeSearchQuery, setYoutubeSearchQuery] = useState<string>('');
-  const [activePortalVideoId, setActivePortalVideoId] = useState<string | null>(null);
+  const [activePortalResult, setActivePortalResult] = useState<YouTubeSearchResult | null>(null);
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
+  const activePortalVideoId = activePortalResult?.kind === 'playlist' ? null : activePortalResult?.id || null;
+  const activePortalPlaylistId = activePortalResult?.kind === 'playlist'
+    ? activePortalResult.playlistId || activePortalResult.id
+    : null;
 
   // Rename-before-import system
   const [pendingVideoImport, setPendingVideoImport] = useState<{
-    videoId: string;
+    videoId?: string;
+    playlistId?: string;
+    sourceType?: 'video' | 'playlist';
     action: 'project' | 'background';
     defaultName: string;
     destination?: 'current' | 'new';
@@ -320,8 +353,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   const confirmVideoImport = (destinationOverride?: 'current' | 'new') => {
     if (!pendingVideoImport) return;
-    const { videoId, action } = pendingVideoImport;
+    const { videoId, playlistId, action } = pendingVideoImport;
+    if (!videoId && !playlistId) return;
     const finalName = importName.trim() || pendingVideoImport.defaultName;
+    const sourceLink = getYouTubeSourceLink({ videoId, playlistId });
 
     if (action === 'project') {
       const destination = destinationOverride ?? pendingVideoImport.destination;
@@ -329,8 +364,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       const newSlide: Slide = {
         id: Math.random().toString(36).substr(2, 9),
         type: 'youtube',
-        content: `https://www.youtube.com/watch?v=${videoId}`,
-        videoId: videoId,
+        content: sourceLink,
+        videoId,
+        playlistId,
         label: finalName
       };
 
@@ -348,7 +384,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         alert("Video agregado exitosamente!");
       }
     } else {
-      onSetBackgroundAudio?.(videoId, finalName);
+      onSetBackgroundAudio?.(videoId || null, finalName, playlistId);
       alert("Agregado exitosamente a la musica de fondo!");
     }
 
@@ -444,22 +480,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     }
   };
 
+  const getSelectedYouTubeSource = async (): Promise<{ videoId?: string; playlistId?: string; sourceType: 'video' | 'playlist' }> => {
+    if (activePortalPlaylistId) return { playlistId: activePortalPlaylistId, sourceType: 'playlist' };
+    if (activePortalVideoId) return { videoId: activePortalVideoId, sourceType: 'video' };
+    if (previewVideoId) return { videoId: previewVideoId, sourceType: 'video' };
+
+    for (const candidate of [inputText, youtubeSearchQuery, await readClipboardText()]) {
+      const playlistId = getYouTubePlaylistId(candidate);
+      if (playlistId) return { playlistId, sourceType: 'playlist' };
+      const videoId = getYouTubeVideoId(candidate);
+      if (videoId) return { videoId, sourceType: 'video' };
+    }
+
+    return { sourceType: 'video' };
+  };
+
   const getSelectedYouTubeVideoId = async (): Promise<string> => {
-    if (activePortalVideoId) return activePortalVideoId;
-    if (previewVideoId) return previewVideoId;
-
-    const typedId = getYouTubeVideoId(inputText);
-    if (typedId) return typedId;
-
-    const searchBoxId = getYouTubeVideoId(youtubeSearchQuery);
-    if (searchBoxId) return searchBoxId;
-
-    return getYouTubeVideoId(await readClipboardText());
+    const source = await getSelectedYouTubeSource();
+    return source.videoId || '';
   };
 
   const getSelectedYouTubeLink = async (): Promise<string> => {
-    const videoId = await getSelectedYouTubeVideoId();
-    return videoId ? `https://www.youtube.com/watch?v=${videoId}` : '';
+    return getYouTubeSourceLink(await getSelectedYouTubeSource());
   };
 
   // Bible book autocomplete suggestions
@@ -735,10 +777,32 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     setIsYoutubeFullBrowserOpen(true);
     setInputText(query);
     setYoutubeSearchQuery(query);
+    const directPlaylistId = getYouTubePlaylistId(query);
+    if (directPlaylistId) {
+      setYoutubeBrowserMode('iframe');
+      setActivePortalResult({
+        id: directPlaylistId,
+        kind: 'playlist',
+        playlistId: directPlaylistId,
+        title: 'Playlist de YouTube',
+        author: 'YouTube',
+        thumbnail: ''
+      });
+      setYoutubeResults([]);
+      setYoutubeSearchError(null);
+      setHasSearchedYoutube(false);
+      return;
+    }
     const directVideoId = getYouTubeVideoId(query);
     if (directVideoId) {
       setYoutubeBrowserMode('iframe');
-      setActivePortalVideoId(directVideoId);
+      setActivePortalResult({
+        id: directVideoId,
+        kind: 'video',
+        title: 'Video de YouTube',
+        author: 'YouTube',
+        thumbnail: `https://img.youtube.com/vi/${directVideoId}/mqdefault.jpg`
+      });
       setYoutubeResults([]);
       setYoutubeSearchError(null);
       setHasSearchedYoutube(false);
@@ -753,11 +817,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleSearch = async () => {
     if (!inputText.trim()) return;
     if (inputType === 'youtube') {
+      const playlistId = getYouTubePlaylistId(inputText);
       const videoId = inputText.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=|\/sanday\?v=))([\w-]{11})/)?.[1];
-      if (videoId) {
+      if (playlistId) {
+        setPendingVideoImport({
+          playlistId,
+          sourceType: 'playlist',
+          action: 'project',
+          defaultName: 'Playlist de YouTube',
+          destination: hasActiveItem ? 'current' : 'new'
+        });
+        setImportName('');
+      } else if (videoId) {
         // Direct link - Open Rename Modal
         setPendingVideoImport({
           videoId: videoId,
+          sourceType: 'video',
           action: 'project',
           defaultName: 'Video de YouTube',
           destination: hasActiveItem ? 'current' : 'new'
@@ -1877,7 +1952,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   const renderYoutubeFullBrowser = () => {
     if (!isYoutubeFullBrowserOpen) return null;
-    const directVideoId = getYouTubeVideoId(inputText) || activePortalVideoId || getYouTubeVideoId(youtubeSearchQuery);
+    const directPlaylistId = getYouTubePlaylistId(inputText) || activePortalPlaylistId || getYouTubePlaylistId(youtubeSearchQuery);
+    const directVideoId = directPlaylistId ? '' : (getYouTubeVideoId(inputText) || activePortalVideoId || getYouTubeVideoId(youtubeSearchQuery));
+    const directEmbedSrc = getYouTubeEmbedSrc({ videoId: directVideoId || undefined, playlistId: directPlaylistId || undefined });
 
     return (
       <div className="fixed inset-0 z-50 bg-[#050913]/97 backdrop-blur-xl flex flex-col p-6 overflow-hidden animate-fade-in text-white font-sans">
@@ -1984,14 +2061,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <div className="flex-1 flex flex-col lg:flex-row gap-6 mt-6 min-h-0 overflow-hidden">
           {/* Left Area: Premium Custom YouTube search result grid + player */}
           <div className="flex-1 bg-[#090e18] rounded-3xl border border-white/10 overflow-hidden relative shadow-2xl min-h-[300px] flex flex-col">
-            {activePortalVideoId && youtubeBrowserMode !== 'iframe' && (
+            {(activePortalVideoId || activePortalPlaylistId) && youtubeBrowserMode !== 'iframe' && (
               <div className="w-full bg-black border-b border-white/10 relative flex flex-col animate-slide-down shrink-0">
                 <div className="flex items-center justify-between p-3 bg-slate-950/90 border-b border-white/5">
                   <span className="text-[10px] text-red-400 font-black uppercase tracking-widest flex items-center gap-1.5">
                     <PlayCircle size={14} className="text-red-500 animate-pulse" /> REPRODUCTOR EN VIVO DE VISTA PREVIA
                   </span>
                   <button
-                    onClick={() => setActivePortalVideoId(null)}
+                    onClick={() => setActivePortalResult(null)}
                     className="text-slate-400 hover:text-white transition-colors bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 hover:bg-red-600 hover:border-red-500/40 text-[9px] font-black uppercase"
                   >
                     Cerrar Reproductor
@@ -2000,7 +2077,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <div className="relative aspect-video max-h-[320px] w-full bg-black">
                   <iframe
                     className="absolute inset-0 w-full h-full border-0"
-                    src={`https://www.youtube.com/embed/${activePortalVideoId}?autoplay=1&mute=0&controls=1&rel=0&playsinline=1`}
+                    src={getYouTubeEmbedSrc({ videoId: activePortalVideoId || undefined, playlistId: activePortalPlaylistId || undefined })}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                     title="Oasis YouTube Player"
@@ -2022,11 +2099,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       Pega un enlace o ID de YouTube arriba para verlo aqui sin salir de la aplicacion.
                     </span>
                   </div>
-                  {directVideoId ? (
+                  {directEmbedSrc ? (
                     <div className="flex-1 w-full rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl relative">
                       <iframe
                         className="absolute inset-0 w-full h-full border-0"
-                        src={`https://www.youtube.com/embed/${directVideoId}?autoplay=1&mute=0&controls=1&rel=0&playsinline=1`}
+                        src={directEmbedSrc}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
                         title="Reproductor Directo YouTube"
@@ -2087,17 +2164,26 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         Resultados encontrados
                       </span>
                       <span className="text-[10px] text-slate-500 font-black uppercase">
-                        {youtubeResults.length} videos
+                        {youtubeResults.length} resultados
                       </span>
                     </div>
                     <span className="text-[10px] text-slate-500 italic">Selecciona una miniatura para previsualizar.</span>
                   </div>
                   <div className="flex-1 overflow-y-auto pr-1 no-scrollbar grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-3.5 pb-8">
-                    {youtubeResults.map((video) => (
+                    {youtubeResults.map((video) => {
+                      const isPlaylist = video.kind === 'playlist' || !!video.playlistId;
+                      const source: { videoId?: string; playlistId?: string; sourceType: 'video' | 'playlist' } = isPlaylist
+                        ? { playlistId: video.playlistId || video.id, sourceType: 'playlist' }
+                        : { videoId: video.id, sourceType: 'video' };
+                      const sourceLink = getYouTubeSourceLink(source);
+                      const isActive = isPlaylist
+                        ? activePortalPlaylistId === source.playlistId
+                        : activePortalVideoId === source.videoId;
+                      return (
                       <div
                         key={video.id}
                         className={`group relative overflow-hidden rounded-2xl border text-left min-h-40 transition-all duration-300 ${
-                          activePortalVideoId === video.id
+                          isActive
                             ? 'bg-red-950/25 border-red-400/60 shadow-[0_18px_36px_rgba(239,68,68,0.16)]'
                             : 'bg-slate-950/70 border-white/8 hover:border-red-400/45 hover:bg-slate-950 shadow-xl shadow-black/20'
                         }`}
@@ -2105,27 +2191,36 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                         <div className="grid grid-cols-[122px_1fr] sm:grid-cols-[148px_1fr] min-h-40 h-full">
                           <button
-                            onClick={() => setActivePortalVideoId(video.id)}
+                            onClick={() => setActivePortalResult(video)}
                             className="relative overflow-hidden bg-slate-900 text-left focus:outline-none focus:ring-2 focus:ring-red-400/70"
                             type="button"
                             title="Ver vista previa"
                           >
-                            <img src={video.thumbnail} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            {video.thumbnail ? (
+                              <img src={video.thumbnail} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            ) : (
+                              <div className="h-full w-full bg-gradient-to-br from-indigo-950 via-slate-900 to-red-950 flex items-center justify-center text-white/70">
+                                <Layers size={36} />
+                              </div>
+                            )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                               <span className="w-11 h-11 rounded-full bg-white/95 text-red-600 flex items-center justify-center shadow-2xl shadow-black/40">
                                 <PlayCircle size={25} />
                               </span>
                             </div>
-                            {video.duration && (
+                            {(video.duration || isPlaylist) && (
                               <span className="absolute bottom-2 right-2 bg-black/85 text-[9px] text-white px-2 py-0.5 rounded-md font-black tracking-wider">
-                                {video.duration}
+                                {isPlaylist ? (video.videoCount ? `${video.videoCount} videos` : 'Playlist') : video.duration}
                               </span>
                             )}
+                            <span className="absolute top-2 left-2 bg-red-600/90 text-[8px] text-white px-2 py-1 rounded-lg font-black uppercase tracking-wider">
+                              {isPlaylist ? 'Playlist' : 'Video'}
+                            </span>
                           </button>
 
                           <div className="p-3.5 flex min-w-0 flex-col justify-between gap-3">
-                            <button className="text-left min-w-0" onClick={() => setActivePortalVideoId(video.id)} type="button">
+                            <button className="text-left min-w-0" onClick={() => setActivePortalResult(video)} type="button">
                               <h4 className="text-[13px] font-black text-white line-clamp-2 leading-snug group-hover:text-red-200 transition-colors" title={video.title}>
                                 {video.title}
                               </h4>
@@ -2136,7 +2231,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                             <div className="grid grid-cols-2 gap-2">
                               <button
-                                onClick={() => setActivePortalVideoId(video.id)}
+                                onClick={() => setActivePortalResult(video)}
                                 className="h-8 rounded-xl bg-white/7 hover:bg-white/12 active:scale-95 border border-white/10 text-slate-100 transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase"
                                 type="button"
                                 title="Vista previa"
@@ -2145,7 +2240,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               </button>
                               <button
                                 onClick={async () => {
-                                  const copied = await copyTextToClipboard(`https://www.youtube.com/watch?v=${video.id}`);
+                                  const copied = await copyTextToClipboard(sourceLink);
                                   alert(copied ? "Enlace copiado al portapapeles." : "No se pudo copiar el enlace. Permite acceso al portapapeles e intenta de nuevo.");
                                 }}
                                 className="h-8 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 active:scale-95 text-white transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase shadow-lg shadow-emerald-950/20 border border-emerald-400/25"
@@ -2157,7 +2252,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               <button
                                 onClick={() => {
                                   setPendingVideoImport({
-                                    videoId: video.id,
+                                    videoId: source.videoId,
+                                    playlistId: source.playlistId,
+                                    sourceType: source.sourceType,
                                     action: 'project',
                                     defaultName: video.title,
                                     destination: hasActiveItem ? 'current' : 'new'
@@ -2172,7 +2269,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               <button
                                 onClick={() => {
                                   setPendingVideoImport({
-                                    videoId: video.id,
+                                    videoId: source.videoId,
+                                    playlistId: source.playlistId,
+                                    sourceType: source.sourceType,
                                     action: 'background',
                                     defaultName: video.title
                                   });
@@ -2187,7 +2286,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
@@ -2256,17 +2356,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <button
                   onClick={async () => {
                     try {
-                      const vId = await getSelectedYouTubeVideoId();
+                      const source = await getSelectedYouTubeSource();
                        
-                      if (!vId) {
-                        alert("Selecciona un video de la lista o pega un enlace valido de YouTube.");
+                      if (!source.videoId && !source.playlistId) {
+                        alert("Selecciona un video o playlist de la lista, o pega un enlace valido de YouTube.");
                         return;
                       }
 
                       setPendingVideoImport({
-                        videoId: vId,
+                        videoId: source.videoId,
+                        playlistId: source.playlistId,
+                        sourceType: source.sourceType,
                         action: 'project',
-                        defaultName: 'Video de YouTube',
+                        defaultName: source.sourceType === 'playlist' ? 'Playlist de YouTube' : 'Video de YouTube',
                         destination: hasActiveItem ? 'current' : 'new'
                       });
                       setImportName('');
@@ -2283,17 +2385,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <button
                   onClick={async () => {
                     try {
-                      const vId = await getSelectedYouTubeVideoId();
+                      const source = await getSelectedYouTubeSource();
                        
-                      if (!vId) {
-                        alert("Selecciona un video de la lista o pega un enlace valido de YouTube.");
+                      if (!source.videoId && !source.playlistId) {
+                        alert("Selecciona un video o playlist de la lista, o pega un enlace valido de YouTube.");
                         return;
                       }
 
                       setPendingVideoImport({
-                        videoId: vId,
+                        videoId: source.videoId,
+                        playlistId: source.playlistId,
+                        sourceType: source.sourceType,
                         action: 'background',
-                        defaultName: 'Audio de YouTube'
+                        defaultName: source.sourceType === 'playlist' ? 'Playlist de fondo' : 'Audio de YouTube'
                       });
                       setImportName('');
                     } catch (err) {
@@ -2313,7 +2417,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 onClick={async () => {
                   const link = await getSelectedYouTubeLink();
                   if (!link) {
-                    alert("Selecciona un video de la lista o pega un enlace valido de YouTube.");
+                    alert("Selecciona un video o playlist de la lista, o pega un enlace valido de YouTube.");
                     return;
                   }
                   const copied = await copyTextToClipboard(link);
@@ -2547,7 +2651,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       <div className="relative pl-6">
                         <div className="absolute left-0 top-0.5 w-4 h-4 rounded-full bg-red-500/10 border border-red-500/40 flex items-center justify-center text-[9px] font-black text-red-400">2</div>
                         <p className="text-[10px] text-gray-300 font-medium leading-relaxed">
-                          Busca y abre cualquier video en YouTube, luego <span className="text-white font-black">Copia su enlace</span> desde la barra de direcciones o compartiendo el video.
+                          Busca y abre cualquier video o playlist en YouTube, luego <span className="text-white font-black">copia su enlace</span> desde la barra de direcciones o compartiendo el contenido.
                         </p>
                       </div>
 
@@ -2560,17 +2664,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <button
                             onClick={async () => {
                               try {
-                                const vId = await getSelectedYouTubeVideoId();
+                                const source = await getSelectedYouTubeSource();
                                 
-                                if (!vId) {
-                                  alert("Selecciona un video de la lista o pega un enlace valido de YouTube.");
+                                if (!source.videoId && !source.playlistId) {
+                                  alert("Selecciona un video o playlist de la lista, o pega un enlace valido de YouTube.");
                                   return;
                                 }
 
                                 setPendingVideoImport({
-                                  videoId: vId,
+                                  videoId: source.videoId,
+                                  playlistId: source.playlistId,
+                                  sourceType: source.sourceType,
                                   action: 'project',
-                                  defaultName: 'Video de YouTube',
+                                  defaultName: source.sourceType === 'playlist' ? 'Playlist de YouTube' : 'Video de YouTube',
                                   destination: hasActiveItem ? 'current' : 'new'
                                 });
                                 setImportName('');
@@ -2588,17 +2694,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <button
                             onClick={async () => {
                               try {
-                                const vId = await getSelectedYouTubeVideoId();
+                                const source = await getSelectedYouTubeSource();
                                 
-                                if (!vId) {
-                                  alert("Selecciona un video de la lista o pega un enlace valido de YouTube.");
+                                if (!source.videoId && !source.playlistId) {
+                                  alert("Selecciona un video o playlist de la lista, o pega un enlace valido de YouTube.");
                                   return;
                                 }
 
                                 setPendingVideoImport({
-                                  videoId: vId,
+                                  videoId: source.videoId,
+                                  playlistId: source.playlistId,
+                                  sourceType: source.sourceType,
                                   action: 'background',
-                                  defaultName: 'Audio de YouTube'
+                                  defaultName: source.sourceType === 'playlist' ? 'Playlist de fondo' : 'Audio de YouTube'
                                 });
                                 setImportName('');
                               } catch (err) {
@@ -2783,7 +2891,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       </div>
                       <button
                         onClick={async () => {
-                          const copied = await copyTextToClipboard(`https://www.youtube.com/watch?v=${backgroundAudioItem.videoId}`);
+                          const copied = await copyTextToClipboard(getYouTubeSourceLink(backgroundAudioItem));
                           alert(copied ? "Enlace del audio de fondo copiado al portapapeles!" : "No se pudo copiar el enlace. Permite acceso al portapapeles e intenta de nuevo.");
                         }}
                         className="w-8 h-8 rounded-full bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 flex items-center justify-center transition-all"
@@ -3888,7 +3996,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
               <div>
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white">
-                  {pendingVideoImport.action === 'project' ? 'Personalizar Nombre de Video' : 'Personalizar Nombre de Audio'}
+                  {pendingVideoImport.action === 'project'
+                    ? `Personalizar Nombre de ${pendingVideoImport.sourceType === 'playlist' ? 'Playlist' : 'Video'}`
+                    : `Personalizar Nombre de ${pendingVideoImport.sourceType === 'playlist' ? 'Playlist de Fondo' : 'Audio'}`}
                 </h3>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                   Establece un titulo descriptivo para la lista
@@ -3931,7 +4041,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 autoFocus
               />
               <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider block">
-                ID del Video: <span className="text-slate-400 font-mono">{pendingVideoImport.videoId}</span>
+                {pendingVideoImport.playlistId ? 'ID de Playlist' : 'ID del Video'}: <span className="text-slate-400 font-mono">{pendingVideoImport.playlistId || pendingVideoImport.videoId}</span>
               </span>
             </div>
 

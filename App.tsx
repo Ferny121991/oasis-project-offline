@@ -153,7 +153,7 @@ const App: React.FC = () => {
   const [liveItemId, setLiveItemId] = useState<string | null>(null);
   const [liveSlideIndex, setLiveSlideIndex] = useState<number>(-1);
   const [frozenLiveItem, setFrozenLiveItem] = useState<PresentationItem | null>(null);
-  const [bgAudioPlaylist, setBgAudioPlaylist] = useState<{ id: string; videoId: string; title: string }[]>([]);
+  const [bgAudioPlaylist, setBgAudioPlaylist] = useState<{ id: string; videoId?: string; playlistId?: string; title: string }[]>([]);
   const [currentAudioIndex, setCurrentAudioIndex] = useState<number>(-1);
   const [isAudioPlaying, setIsAudioPlaying] = useState(true);
   const [audioStartTime, setAudioStartTime] = useState<number>(0);
@@ -443,7 +443,7 @@ const App: React.FC = () => {
   const bgPlayerRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!backgroundAudioItem?.videoId) {
+    if (!backgroundAudioItem?.videoId && !backgroundAudioItem?.playlistId) {
       if (bgPlayerRef.current) {
         try { bgPlayerRef.current.destroy(); } catch (e) { /* ignore */ }
         bgPlayerRef.current = null;
@@ -501,7 +501,7 @@ const App: React.FC = () => {
         bgPlayerRef.current = null;
       }
     };
-  }, [backgroundAudioItem?.videoId, navigateNextAudio]);
+  }, [backgroundAudioItem?.videoId, backgroundAudioItem?.playlistId, navigateNextAudio]);
 
   const navigateLivePrev = useCallback(() => {
     if (!liveItemId) return;
@@ -1160,7 +1160,7 @@ const App: React.FC = () => {
       setAudioElapsedOffset(0);
       setIsAudioPlaying(true);
     }
-  }, [backgroundAudioItem?.videoId]);
+  }, [backgroundAudioItem?.videoId, backgroundAudioItem?.playlistId]);
 
   const handleSyncCloud = async () => {
     if (!session) {
@@ -3013,13 +3013,19 @@ const App: React.FC = () => {
           onUpdateSlideSegments={handleUpdateSlideSegments}
           onPreviewSlideUpdate={setPreviewSlide}
 
-          onSetBackgroundAudio={(vid, title) => {
-            if (!vid) {
+          onSetBackgroundAudio={(vid, title, playlistId) => {
+            if (!vid && !playlistId) {
               stopBackgroundAudio();
               return;
             }
-            const newItem = { id: `bga_${Date.now()}`, videoId: vid, title: title || 'Fondo Desconocido' };
-            setBgAudioPlaylist(prev => [...prev, newItem]);
+            const newItem = { id: `bga_${Date.now()}`, videoId: vid || undefined, playlistId, title: title || 'Fondo Desconocido' };
+            setBgAudioPlaylist(prev => {
+              const alreadyExists = prev.some(item =>
+                (playlistId && item.playlistId === playlistId) ||
+                (vid && item.videoId === vid)
+              );
+              return alreadyExists ? prev : [...prev, newItem];
+            });
             if (currentAudioIndex === -1) setCurrentAudioIndex(0);
           }}
           onStopLive={stopLive}
@@ -3751,13 +3757,15 @@ const App: React.FC = () => {
       </div>
 
       {
-        backgroundAudioItem && (
+        backgroundAudioItem && (backgroundAudioItem.videoId || backgroundAudioItem.playlistId) && (
           <div className="fixed bottom-[-100px] left-[-100px] w-1 h-1 opacity-0 pointer-events-none overflow-hidden">
             <iframe
               key={backgroundAudioItem.id}
               ref={audioIframeRef}
               id="bg-audio-iframe"
-              src={`https://www.youtube.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&rel=0&origin=${window.location.origin}`}
+              src={backgroundAudioItem.playlistId
+                ? `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(backgroundAudioItem.playlistId)}&enablejsapi=1&autoplay=1&mute=0&rel=0&origin=${window.location.origin}`
+                : `https://www.youtube.com/embed/${backgroundAudioItem.videoId}?enablejsapi=1&autoplay=1&mute=0&rel=0&origin=${window.location.origin}`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               title="Background audio"
             ></iframe>
