@@ -387,6 +387,54 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   });
   const youtubeVideoResultCount = youtubeResults.filter(item => item.kind !== 'playlist' && !item.playlistId).length;
   const youtubePlaylistResultCount = youtubeResults.filter(item => item.kind === 'playlist' || !!item.playlistId).length;
+  const densityOptions: {
+    id: DensityMode;
+    label: string;
+    icon: React.ReactNode;
+    short: string;
+    detail: string;
+    bibleHint: string;
+    manualHint: string;
+  }[] = [
+    {
+      id: 'impact',
+      label: 'Impacto',
+      icon: <AlignLeft size={16} />,
+      short: 'Un verso por slide',
+      detail: 'Ideal para leer fuerte y claro en pantalla grande.',
+      bibleHint: 'Mejor para capitulos completos de la Biblia.',
+      manualHint: 'Divide el texto en frases cortas.'
+    },
+    {
+      id: 'classic',
+      label: 'Clasico',
+      icon: <AlignCenter size={16} />,
+      short: 'Balanceado',
+      detail: 'Agrupa un poco mas sin llenar demasiado la pantalla.',
+      bibleHint: 'Bueno para pasajes medianos o lectura rapida.',
+      manualHint: 'Bueno para canciones y textos normales.'
+    },
+    {
+      id: 'strophe',
+      label: 'Estrofa',
+      icon: <LayoutGrid size={16} />,
+      short: 'Por bloques',
+      detail: 'Mantiene ideas completas juntas cuando el texto lo permite.',
+      bibleHint: 'Usalo si quieres menos slides y mas texto por pantalla.',
+      manualHint: 'Mejor para canciones divididas por estrofas.'
+    },
+    {
+      id: 'reading',
+      label: 'Lectura',
+      icon: <FileText size={16} />,
+      short: 'Texto continuo',
+      detail: 'Para leer corrido, con menos cambios de diapositiva.',
+      bibleHint: 'Util para lectura larga, no para impacto visual.',
+      manualHint: 'Util para notas, predicas o lectura extensa.'
+    }
+  ];
+  const selectedDensityOption = densityOptions.find(option => option.id === density) || densityOptions[1];
+  const recommendedDensity = inputType === 'scripture' ? 'impact' : 'classic';
 
   useEffect(() => {
     onYoutubeOverlayChange?.(isYoutubeFullBrowserOpen);
@@ -2897,13 +2945,66 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {/* DENSITY SELECTOR - Compact */}
             {inputType !== 'youtube' && (
-              <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/30">
-                <label className="text-[10px] uppercase text-gray-500 font-bold tracking-widest mb-3 block">Densidad de Texto</label>
-                <div className="grid grid-cols-4 gap-2">
-                  <button onClick={() => setDensity('impact')} className={`p-2 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${density === 'impact' ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}><AlignLeft size={14} /> Impacto</button>
-                  <button onClick={() => setDensity('classic')} className={`p-2 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${density === 'classic' ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}><AlignCenter size={14} /> Clasico</button>
-                  <button onClick={() => setDensity('strophe')} className={`p-2 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${density === 'strophe' ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}><LayoutGrid size={14} /> Estrofa</button>
-                  <button onClick={() => setDensity('reading')} className={`p-2 rounded-lg border text-[10px] font-bold transition-all flex flex-col items-center gap-1 ${density === 'reading' ? 'bg-indigo-600 border-indigo-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}><FileText size={14} /> Lectura</button>
+              <div className="bg-slate-950/55 rounded-2xl p-4 border border-white/10 shadow-inner shadow-black/20">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <label className="text-[10px] uppercase text-cyan-300/80 font-black tracking-[0.22em] block">Densidad de Texto</label>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                      Decide como se divide el texto en diapositivas.
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-300">
+                    {inputType === 'scripture' ? 'Biblia' : 'Manual'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {densityOptions.map((option) => {
+                    const isSelected = density === option.id;
+                    const isRecommended = option.id === recommendedDensity;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setDensity(option.id)}
+                        className={`group relative min-h-[86px] rounded-xl border p-3 text-left transition-all ${
+                          isSelected
+                            ? 'border-cyan-300/70 bg-gradient-to-br from-cyan-500/25 via-indigo-500/20 to-slate-900 shadow-lg shadow-cyan-950/25'
+                            : 'border-white/10 bg-slate-900/70 hover:border-cyan-300/40 hover:bg-slate-800/80'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                            isSelected ? 'bg-cyan-400 text-slate-950' : 'bg-slate-800 text-slate-300 group-hover:bg-slate-700'
+                          }`}>
+                            {option.icon}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[11px] font-black text-white">{option.label}</span>
+                            <span className="block truncate text-[10px] font-bold text-slate-400">{option.short}</span>
+                          </span>
+                        </div>
+                        <p className="mt-2 text-[10px] leading-snug text-slate-400">
+                          {inputType === 'scripture' ? option.bibleHint : option.manualHint}
+                        </p>
+                        {isRecommended && (
+                          <span className="absolute right-2 top-2 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-emerald-300">
+                            recomendado
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-400/5 p-3">
+                  <div className="flex items-center gap-2 text-[11px] font-black text-cyan-200">
+                    <Check size={14} />
+                    Modo activo: {selectedDensityOption.label}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
+                    {selectedDensityOption.detail}
+                  </p>
                 </div>
               </div>
             )}
