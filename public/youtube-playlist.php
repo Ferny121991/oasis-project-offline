@@ -46,6 +46,35 @@ function decode_text($value) {
 function collect_playlist_videos($node, &$videos, &$seen, $maxVideos) {
   if (count($videos) >= $maxVideos || !is_array($node)) return;
 
+  if (isset($node['lockupViewModel']) && is_array($node['lockupViewModel'])) {
+    $lockup = $node['lockupViewModel'];
+    $videoId = isset($lockup['contentId']) ? $lockup['contentId'] : '';
+    $contentType = isset($lockup['contentType']) ? $lockup['contentType'] : '';
+    if ($contentType === 'LOCKUP_CONTENT_TYPE_VIDEO' && preg_match('/^[A-Za-z0-9_-]{11}$/', $videoId) && !isset($seen[$videoId])) {
+      $seen[$videoId] = true;
+      $title = isset($lockup['metadata']['lockupMetadataViewModel']['title']['content'])
+        ? $lockup['metadata']['lockupMetadataViewModel']['title']['content']
+        : 'Video de YouTube';
+      $author = 'YouTube';
+      if (isset($lockup['metadata']['lockupMetadataViewModel']['metadata']['contentMetadataViewModel']['metadataRows'][0]['metadataParts'][0]['text']['content'])) {
+        $author = $lockup['metadata']['lockupMetadataViewModel']['metadata']['contentMetadataViewModel']['metadataRows'][0]['metadataParts'][0]['text']['content'];
+      }
+      $thumb = "https://img.youtube.com/vi/$videoId/mqdefault.jpg";
+      if (isset($lockup['contentImage']['thumbnailViewModel']['image']['sources'])) {
+        $sources = $lockup['contentImage']['thumbnailViewModel']['image']['sources'];
+        $lastThumb = end($sources);
+        if (isset($lastThumb['url'])) $thumb = $lastThumb['url'];
+      }
+      $videos[] = [
+        'id' => $videoId,
+        'title' => $title,
+        'author' => $author,
+        'thumbnail' => $thumb,
+        'index' => count($videos) + 1
+      ];
+    }
+  }
+
   if (isset($node['playlistVideoRenderer']) && is_array($node['playlistVideoRenderer'])) {
     $renderer = $node['playlistVideoRenderer'];
     $videoId = isset($renderer['videoId']) ? $renderer['videoId'] : '';

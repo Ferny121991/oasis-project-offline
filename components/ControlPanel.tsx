@@ -368,6 +368,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [playlistResolveError, setPlaylistResolveError] = useState<string | null>(null);
   const [isResolvingPlaylist, setIsResolvingPlaylist] = useState(false);
   const [audioPanelTab, setAudioPanelTab] = useState<'queue' | 'playlists'>('queue');
+  const [expandedAudioPlaylists, setExpandedAudioPlaylists] = useState<Record<string, boolean>>({});
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -3143,29 +3144,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 {/* BOTTOM: Playlist */}
                 {bgAudioPlaylist.length > 0 && (
-                  <div className="bg-gray-950/80 oasis-audio-playlist-container flex flex-col max-h-48 relative z-0">
-                    <div className="px-3 py-2 bg-pink-900/10 border-b border-pink-500/10 flex items-center justify-between gap-2 sticky top-0 z-10 backdrop-blur-md">
-                      <span className="text-[10px] text-pink-300 font-bold uppercase tracking-widest flex items-center gap-2">
+                  <div className="bg-[linear-gradient(180deg,rgba(6,10,22,0.96),rgba(15,8,26,0.94))] oasis-audio-playlist-container flex flex-col max-h-[28rem] relative z-0">
+                    <div className="px-3 py-3 bg-pink-900/10 border-b border-pink-500/10 flex items-center justify-between gap-2 sticky top-0 z-10 backdrop-blur-md">
+                      <span className="text-[10px] text-pink-200 font-black uppercase tracking-widest flex items-center gap-2">
                         <Layers size={12} /> Siguiente en la fila ({bgAudioPlaylist.length})
                       </span>
-                      <div className="flex rounded-lg border border-pink-400/15 bg-black/25 p-0.5">
+                      <div className="flex rounded-xl border border-pink-400/20 bg-black/35 p-1 shadow-inner shadow-black/30">
                         <button
                           type="button"
                           onClick={() => setAudioPanelTab('queue')}
-                          className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-wider transition ${audioPanelTab === 'queue' ? 'bg-pink-600 text-white' : 'text-pink-200/70 hover:text-white'}`}
+                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition ${audioPanelTab === 'queue' ? 'bg-pink-600 text-white shadow shadow-pink-950/40' : 'text-pink-200/70 hover:text-white'}`}
                         >
                           Cola
                         </button>
                         <button
                           type="button"
                           onClick={() => setAudioPanelTab('playlists')}
-                          className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-wider transition ${audioPanelTab === 'playlists' ? 'bg-indigo-600 text-white' : 'text-pink-200/70 hover:text-white'}`}
+                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition ${audioPanelTab === 'playlists' ? 'bg-indigo-600 text-white shadow shadow-indigo-950/40' : 'text-pink-200/70 hover:text-white'}`}
                         >
                           Playlists {backgroundPlaylistGroups.length > 0 ? `(${backgroundPlaylistGroups.length})` : ''}
                         </button>
                       </div>
                     </div>
-                    <div className="overflow-y-auto no-scrollbar pb-2">
+                    <div className="overflow-y-auto pb-3">
                       {audioPanelTab === 'queue' ? (
                         bgAudioPlaylist.map((track, idx) => (
                           <div
@@ -3204,39 +3205,65 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           </div>
                         ))
                       ) : backgroundPlaylistGroups.length > 0 ? (
-                        backgroundPlaylistGroups.map(group => (
-                          <div key={group.id} className="border-b border-indigo-500/10">
-                            <div className="px-3 py-2 bg-indigo-950/20">
-                              <p className="text-[10px] text-indigo-200 font-black uppercase tracking-wider truncate">{group.title}</p>
-                              <p className="text-[8px] text-indigo-300/60 font-bold uppercase">{group.tracks.length} canciones agregadas</p>
-                            </div>
-                            {group.tracks.map(track => (
-                              <div
-                                key={track.id}
-                                className={`flex items-center gap-3 px-3 py-2 border-t border-gray-800/40 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''}`}
-                                onClick={() => onSelectAudio?.(track.index)}
+                        backgroundPlaylistGroups.map(group => {
+                          const isExpanded = expandedAudioPlaylists[group.id] ?? backgroundPlaylistGroups.length === 1;
+                          const visibleTracks = isExpanded ? group.tracks : group.tracks.slice(0, 4);
+                          const isActiveGroup = group.tracks.some(track => backgroundAudioItem?.id === track.id);
+                          return (
+                            <div key={group.id} className={`m-2 overflow-hidden rounded-2xl border transition-all ${isActiveGroup ? 'border-pink-400/40 bg-pink-500/10 shadow-lg shadow-pink-950/20' : 'border-indigo-400/15 bg-indigo-950/20'}`}>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedAudioPlaylists(prev => ({ ...prev, [group.id]: !isExpanded }))}
+                                className="w-full px-3 py-3 bg-indigo-950/25 hover:bg-indigo-900/25 text-left flex items-center gap-3 transition-all"
                               >
-                                <div className="w-4 flex justify-center shrink-0">
-                                  {backgroundAudioItem?.id === track.id && isAudioPlaying ? (
-                                    <Music size={12} className="text-pink-400 animate-pulse" />
-                                  ) : (
-                                    <span className="text-[10px] font-bold text-gray-600">{track.index + 1}</span>
-                                  )}
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isActiveGroup ? 'bg-pink-500 text-white' : 'bg-indigo-500/20 text-indigo-200'}`}>
+                                  <Music size={16} />
                                 </div>
-                                <p className={`flex-1 min-w-0 text-xs truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-400 group-hover:text-gray-300'}`}>
-                                  {track.title}
-                                </p>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
-                                  className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all shrink-0"
-                                  title="Quitar de la fila"
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[10px] text-indigo-100 font-black uppercase tracking-wider truncate">{group.title}</p>
+                                  <p className="text-[8px] text-indigo-300/70 font-bold uppercase">{group.tracks.length} canciones agregadas</p>
+                                </div>
+                                <span className="rounded-full border border-white/10 bg-black/25 px-2 py-1 text-[8px] font-black uppercase text-slate-300">
+                                  {isExpanded ? 'Ocultar' : 'Ver'}
+                                </span>
+                              </button>
+                              {visibleTracks.map(track => (
+                                <div
+                                  key={track.id}
+                                  className={`flex items-center gap-3 px-3 py-2 border-t border-gray-800/40 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''}`}
+                                  onClick={() => onSelectAudio?.(track.index)}
                                 >
-                                  <Trash2 size={14} />
+                                  <div className="w-4 flex justify-center shrink-0">
+                                    {backgroundAudioItem?.id === track.id && isAudioPlaying ? (
+                                      <Music size={12} className="text-pink-400 animate-pulse" />
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-gray-600">{track.index + 1}</span>
+                                    )}
+                                  </div>
+                                  <p className={`flex-1 min-w-0 text-xs truncate ${backgroundAudioItem?.id === track.id ? 'text-pink-400' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                                    {track.title}
+                                  </p>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onRemoveAudio?.(track.id); }}
+                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all shrink-0"
+                                    title="Quitar de la fila"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                              {!isExpanded && group.tracks.length > visibleTracks.length && (
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedAudioPlaylists(prev => ({ ...prev, [group.id]: true }))}
+                                  className="w-full border-t border-indigo-400/10 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-indigo-200 hover:bg-indigo-500/10 transition-all"
+                                >
+                                  Ver {group.tracks.length - visibleTracks.length} canciones mas
                                 </button>
-                              </div>
-                            ))}
-                          </div>
-                        ))
+                              )}
+                            </div>
+                          );
+                        })
                       ) : (
                         <div className="px-3 py-5 text-center text-[10px] text-gray-500 font-bold uppercase tracking-wider">
                           Las canciones agregadas desde playlists apareceran aqui agrupadas.
