@@ -214,6 +214,39 @@ function expand_playlist_continuations($initialData, $html, &$videos, &$seen, $m
   }
 }
 
+function fetch_playlist_browse($playlistId, $html, $maxVideos) {
+  preg_match('/"INNERTUBE_API_KEY":"([^"]+)"/', $html, $apiMatch);
+  preg_match('/"clientVersion":"([^"]+)"/', $html, $versionMatch);
+
+  $apiKey = isset($apiMatch[1]) ? $apiMatch[1] : '';
+  $clientVersion = isset($versionMatch[1]) ? $versionMatch[1] : '2.20240601.00.00';
+  if ($apiKey === '') return [];
+
+  $payload = [
+    'context' => [
+      'client' => [
+        'clientName' => 'WEB',
+        'clientVersion' => $clientVersion,
+        'hl' => 'es',
+        'gl' => 'US'
+      ]
+    ],
+    'browseId' => 'VL' . $playlistId
+  ];
+
+  $json = post_json('https://www.youtube.com/youtubei/v1/browse?key=' . rawurlencode($apiKey), $payload);
+  if ($json === '') return [];
+
+  $data = json_decode($json, true);
+  if (!is_array($data)) return [];
+
+  $videos = [];
+  $seen = [];
+  collect_playlist_videos($data, $videos, $seen, $maxVideos);
+  expand_playlist_continuations($data, $html, $videos, $seen, $maxVideos);
+  return $videos;
+}
+
 function parse_playlist_html($html, $maxVideos) {
   if (!preg_match('/ytInitialData\s*=\s*({[\s\S]+?});\s*<\/script>/', $html, $match)
       && !preg_match('/ytInitialData\s*=\s*({[\s\S]+?})\s*;<\/script>/', $html, $match)) {
@@ -253,7 +286,11 @@ function parse_playlist_feed($xml, $maxVideos) {
 }
 
 $html = fetch_url('https://www.youtube.com/playlist?list=' . rawurlencode($playlistId));
-$videos = parse_playlist_html($html, $maxVideos);
+$videos = fetch_playlist_browse($playlistId, $html, $maxVideos);
+
+if (count($videos) === 0) {
+  $videos = parse_playlist_html($html, $maxVideos);
+}
 
 if (count($videos) === 0) {
   $xml = fetch_url('https://www.youtube.com/feeds/videos.xml?playlist_id=' . rawurlencode($playlistId));

@@ -369,6 +369,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [isResolvingPlaylist, setIsResolvingPlaylist] = useState(false);
   const [audioPanelTab, setAudioPanelTab] = useState<'queue' | 'playlists'>('queue');
   const [expandedAudioPlaylists, setExpandedAudioPlaylists] = useState<Record<string, boolean>>({});
+  const [audioQueueFilter, setAudioQueueFilter] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -2632,6 +2633,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     }
     return groups;
   }, [] as Array<{ id: string; title: string; tracks: Array<(typeof bgAudioPlaylist)[number] & { index: number }> }>);
+  const normalizedAudioFilter = audioQueueFilter.trim().toLowerCase();
+  const activeAudioIndex = backgroundAudioItem?.id
+    ? bgAudioPlaylist.findIndex(track => track.id === backgroundAudioItem.id)
+    : -1;
+  const filteredAudioQueue = normalizedAudioFilter
+    ? bgAudioPlaylist
+        .map((track, index) => ({ ...track, index }))
+        .filter(track =>
+          track.title.toLowerCase().includes(normalizedAudioFilter)
+          || (track.sourcePlaylistTitle || '').toLowerCase().includes(normalizedAudioFilter)
+        )
+    : bgAudioPlaylist.map((track, index) => ({ ...track, index }));
+  const filteredBackgroundPlaylistGroups = normalizedAudioFilter
+    ? backgroundPlaylistGroups
+        .map(group => ({
+          ...group,
+          tracks: group.tracks.filter(track =>
+            track.title.toLowerCase().includes(normalizedAudioFilter)
+            || group.title.toLowerCase().includes(normalizedAudioFilter)
+          )
+        }))
+        .filter(group => group.tracks.length > 0)
+    : backgroundPlaylistGroups;
 
   return (
     <div className="h-full flex flex-col bg-[#080d17] border-r border-white/10 font-sans">
@@ -3073,45 +3097,57 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <div className="bg-gray-900 border border-pink-500/30 rounded-xl overflow-hidden shadow-lg animate-fade-in mb-6 flex flex-col">
                 {/* TOP: Reproductor / Controles */}
                 {backgroundAudioItem && (
-                  <div className="p-4 bg-gradient-to-br from-gray-900 to-gray-800 border-b border-pink-500/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)] z-10 relative">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-pink-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-pink-600/20">
-                        <Music size={20} className={isAudioPlaying ? 'animate-pulse' : ''} />
+                  <div className="p-4 bg-[radial-gradient(circle_at_20%_20%,rgba(236,72,153,0.18),transparent_32%),linear-gradient(135deg,#111827,#1f2937)] border-b border-pink-500/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)] z-10 relative">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-pink-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-pink-600/25">
+                        <Music size={22} className={isAudioPlaying ? 'animate-pulse' : ''} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span className="text-[9px] text-pink-400 font-bold uppercase tracking-widest block mb-1">Musica de fondo en vivo</span>
-                        <p className="text-sm text-white font-bold truncate">{backgroundAudioItem.title}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[9px] text-pink-300 font-black uppercase tracking-widest">Musica de fondo en vivo</span>
+                          {activeAudioIndex >= 0 && (
+                            <span className="rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-[8px] font-black text-slate-300">
+                              {activeAudioIndex + 1}/{bgAudioPlaylist.length}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-white font-black leading-tight break-words">{backgroundAudioItem.title}</p>
+                        {backgroundAudioItem.sourcePlaylistTitle && (
+                          <p className="mt-1 text-[9px] text-indigo-200/80 font-black uppercase tracking-wider truncate">
+                            {backgroundAudioItem.sourcePlaylistTitle}
+                          </p>
+                        )}
                       </div>
                       <button
                         onClick={async () => {
                           const copied = await copyTextToClipboard(getYouTubeSourceLink(backgroundAudioItem));
                           alert(copied ? "Enlace del audio de fondo copiado al portapapeles!" : "No se pudo copiar el enlace. Permite acceso al portapapeles e intenta de nuevo.");
                         }}
-                        className="w-8 h-8 rounded-full bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 flex items-center justify-center transition-all"
+                        className="w-9 h-9 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 flex items-center justify-center transition-all"
                         title="Copiar enlace del audio"
                       >
                         <Copy size={14} />
                       </button>
                       <button
                         onClick={() => onSetBackgroundAudio?.('', '')}
-                        className="w-8 h-8 rounded-full bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 flex items-center justify-center transition-all"
+                        className="w-9 h-9 rounded-xl bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 flex items-center justify-center transition-all"
                         title="Detener y limpiar todo"
                       >
                         <X size={16} />
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="grid grid-cols-5 items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
                       <button
                         onClick={() => onPrevAudio?.()}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-all active:scale-90"
+                        className="h-10 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all active:scale-90 flex items-center justify-center"
                         title="Pista Anterior"
                       >
                         <SkipBack size={20} />
                       </button>
                       <button
                         onClick={() => onSeekAudio?.(-15)}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-all active:scale-90"
+                        className="h-10 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all active:scale-90 flex items-center justify-center"
                         title="Retroceder 15s"
                       >
                         <RotateCcw size={18} />
@@ -3119,21 +3155,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                       <button
                         onClick={() => onToggleAudioPlayback?.()}
-                        className={`w-14 h-14 flex items-center justify-center rounded-full transition-all active:scale-95 shadow-xl mx-2 ${isAudioPlaying ? 'bg-pink-600 text-white shadow-pink-600/30' : 'bg-white text-pink-900 shadow-white/10'}`}
+                        className={`h-12 flex items-center justify-center rounded-2xl transition-all active:scale-95 shadow-xl ${isAudioPlaying ? 'bg-pink-600 text-white shadow-pink-600/30' : 'bg-white text-pink-900 shadow-white/10'}`}
                       >
                         {isAudioPlaying ? <PauseCircle size={32} /> : <PlayCircle size={32} />}
                       </button>
 
                       <button
                         onClick={() => onSeekAudio?.(15)}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-all active:scale-90"
+                        className="h-10 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all active:scale-90 flex items-center justify-center"
                         title="Adelantar 15s"
                       >
                         <Clock size={18} />
                       </button>
                       <button
                         onClick={() => onNextAudio?.()}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-all active:scale-90"
+                        className="h-10 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all active:scale-90 flex items-center justify-center"
                         title="Siguiente Pista"
                       >
                         <SkipForward size={20} />
@@ -3166,13 +3202,35 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         </button>
                       </div>
                     </div>
+                    <div className="px-3 py-2 border-b border-white/10 bg-black/20">
+                      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2">
+                        <Search size={13} className="text-slate-500 shrink-0" />
+                        <input
+                          type="text"
+                          value={audioQueueFilter}
+                          onChange={(e) => setAudioQueueFilter(e.target.value)}
+                          placeholder="Buscar en la cola o playlists..."
+                          className="min-w-0 flex-1 bg-transparent text-[10px] font-bold text-white placeholder:text-slate-500 outline-none"
+                        />
+                        {audioQueueFilter && (
+                          <button
+                            type="button"
+                            onClick={() => setAudioQueueFilter('')}
+                            className="text-slate-500 hover:text-white transition-colors"
+                            title="Limpiar busqueda"
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <div className="overflow-y-auto pb-3">
                       {audioPanelTab === 'queue' ? (
-                        bgAudioPlaylist.map((track, idx) => (
+                        filteredAudioQueue.length > 0 ? filteredAudioQueue.map((track) => (
                           <div
                             key={track.id}
                             className={`flex items-center gap-3 px-3 py-2 border-b border-gray-800/50 group hover:bg-white/5 transition-all cursor-pointer ${backgroundAudioItem?.id === track.id ? 'bg-pink-600/10' : ''} oasis-audio-track-row`}
-                            onClick={() => onSelectAudio?.(idx)}
+                            onClick={() => onSelectAudio?.(track.index)}
                           >
                             <div className="w-4 flex justify-center shrink-0">
                               {backgroundAudioItem?.id === track.id && isAudioPlaying ? (
@@ -3182,7 +3240,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   <div className="w-[3px] bg-pink-500 animate-[bounce_1s_infinite_400ms] h-full rounded-t-sm"></div>
                                 </div>
                               ) : (
-                                <span className="text-[10px] font-bold text-gray-600">{idx + 1}</span>
+                                <span className="text-[10px] font-bold text-gray-600">{track.index + 1}</span>
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -3203,9 +3261,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                               <Trash2 size={14} />
                             </button>
                           </div>
-                        ))
-                      ) : backgroundPlaylistGroups.length > 0 ? (
-                        backgroundPlaylistGroups.map(group => {
+                        )) : (
+                          <div className="px-3 py-6 text-center text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                            No hay canciones con ese filtro.
+                          </div>
+                        )
+                      ) : filteredBackgroundPlaylistGroups.length > 0 ? (
+                        filteredBackgroundPlaylistGroups.map(group => {
                           const isExpanded = expandedAudioPlaylists[group.id] ?? backgroundPlaylistGroups.length === 1;
                           const visibleTracks = isExpanded ? group.tracks : group.tracks.slice(0, 4);
                           const isActiveGroup = group.tracks.some(track => backgroundAudioItem?.id === track.id);
