@@ -882,6 +882,16 @@ export interface YouTubeSearchResult {
   thumbnail: string;
   duration?: string;
   videoCount?: number;
+  playlistVideos?: YouTubePlaylistVideo[];
+}
+
+export interface YouTubePlaylistVideo {
+  id: string;
+  title: string;
+  author: string;
+  thumbnail: string;
+  duration?: string;
+  index?: number;
 }
 
 // Backward-compatible helper to perform fetch with custom abort timeout
@@ -928,6 +938,37 @@ const fetchWithCorsProxy = async (url: string, timeoutMs = 3000): Promise<any> =
   }
   
   throw new Error(`Failed to fetch ${url} directly or via CORS proxy.`);
+};
+
+const fetchTextWithCorsProxy = async (url: string, timeoutMs = 5000): Promise<string> => {
+  try {
+    const res = await fetchWithTimeout(url, timeoutMs);
+    if (res.ok) return await res.text();
+  } catch (error) {
+    console.warn(`Direct text fetch failed for ${url}, attempting CORS proxy fallback...`);
+  }
+
+  const proxyUrls = [
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`
+  ];
+
+  for (const proxyUrl of proxyUrls) {
+    try {
+      const res = await fetchWithTimeout(proxyUrl, timeoutMs + 2000);
+      if (!res.ok) continue;
+      if (proxyUrl.includes('allorigins')) {
+        const data = await res.json();
+        if (data?.contents) return data.contents;
+      } else {
+        return await res.text();
+      }
+    } catch (_error) {
+      // Try next proxy.
+    }
+  }
+
+  throw new Error(`Failed to fetch text for ${url}.`);
 };
 
 // Robust helper to extract 11-character YouTube video ID
@@ -996,6 +1037,33 @@ const anySuccessfulPromise = async <T>(promises: Promise<T>[]): Promise<T> => {
       });
     });
   });
+};
+
+const collectSettledResults = async <T>(promises: Promise<T[]>[], timeoutMs = 8500): Promise<T[]> => {
+  const collected: T[] = [];
+  let settledCount = 0;
+
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs);
+    promises.forEach((promise) => {
+      promise
+        .then(items => {
+          if (Array.isArray(items)) collected.push(...items);
+        })
+        .catch(() => {
+          // Individual public providers are expected to fail sometimes.
+        })
+        .finally(() => {
+          settledCount++;
+          if (settledCount === promises.length) {
+            clearTimeout(timer);
+            resolve();
+          }
+        });
+    });
+  });
+
+  return collected;
 };
 
 // Direct scrape of YouTube search page HTML via multiple CORS proxies to bypass public instances and API key limits
@@ -1130,7 +1198,8 @@ const mapInvidiousResults = (data: any[]): YouTubeSearchResult[] => {
         title: item.title || 'Lista de YouTube',
         author: item.author || item.authorId || 'Desconocido',
         thumbnail: item.playlistThumbnail || item.authorThumbnails?.[0]?.url || '',
-        videoCount: item.videoCount || item.videos
+        videoCount: item.videoCount || (Array.isArray(item.videos) ? item.videos.length : item.videos),
+        playlistVideos: Array.isArray(item.videos) ? mapInvidiousPlaylistVideos(item.videos) : undefined
       } as YouTubeSearchResult;
     }
 
@@ -1182,6 +1251,244 @@ const fetchInvidiousDiscovered = async (query: string, type: 'video' | 'playlist
   );
 
   return anySuccessfulPromise(providerPromises);
+};
+
+const mapInvidiousPlaylistVideos = (videos: any[]): YouTubePlaylistVideo[] => {
+  return videos
+    .map((item: any) => {
+      const videoId = extractVideoId(item.videoId || item.url || '');
+      if (!videoId || videoId.length !== 11) return null;
+      const thumb = item.videoThumbnails?.find?.((entry: any) => entry.quality === 'medium')?.url
+        || item.videoThumbnails?.[0]?.url
+        || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+      return {
+        id: videoId,
+        title: item.title || 'Video de YouTube',
+        author: item.author || 'YouTube',
+        thumbnail: thumb,
+        duration: item.lengthSeconds ? formatDuration(Number(item.lengthSeconds)) : undefined,
+        index: typeof item.index === 'number' ? item.index : undefined
+      } as YouTubePlaylistVideo;
+    })
+    .filter(Boolean) as YouTubePlaylistVideo[];
+};
+
+const fetchInvidiousPlaylistPage = async (playlistId: string, instance: string, page = 1): Promise<YouTubePlaylistVideo[]> => {
+  const baseUrl = instance.replace(/\/$/, '');
+  const data = await fetchWithCorsProxy(`${baseUrl}/api/v1/playlists/${encodeURIComponent(playlistId)}?page=${page}`, 6500);
+  const videos = Array.isArray(data?.videos) ? data.videos : [];
+  const mapped = mapInvidiousPlaylistVideos(videos);
+  if (mapped.length === 0) throw new Error(`Empty playlist page from ${baseUrl}.`);
+  return mapped;
+};
+
+const collectPlaylistVideosFromObject = (root: any): YouTubePlaylistVideo[] => {
+  const videos: YouTubePlaylistVideo[] = [];
+  const seen = new Set<string>();
+  const visit = (node: any) => {
+    if (!node || typeof node !== 'object') return;
+    const renderer = node.playlistVideoRenderer;
+    if (renderer?.videoId && !seen.has(renderer.videoId)) {
+      seen.add(renderer.videoId);
+      const title = renderer.title?.runs?.[0]?.text
+        || renderer.title?.simpleText
+        || renderer.title?.accessibility?.accessibilityData?.label
+        || 'Video de YouTube';
+      const thumb = renderer.thumbnail?.thumbnails?.slice?.(-1)?.[0]?.url
+        || `https://img.youtube.com/vi/${renderer.videoId}/mqdefault.jpg`;
+      videos.push({
+        id: renderer.videoId,
+        title,
+        author: renderer.shortBylineText?.runs?.[0]?.text || 'YouTube',
+        thumbnail: thumb,
+        duration: renderer.lengthText?.simpleText,
+        index: Number(renderer.index?.simpleText || videos.length + 1)
+      });
+    }
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+    } else {
+      Object.values(node).forEach(visit);
+    }
+  };
+  visit(root);
+  return videos;
+};
+
+const fetchYouTubePlaylistDirect = async (playlistId: string): Promise<YouTubePlaylistVideo[]> => {
+  const html = await fetchTextWithCorsProxy(`https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`, 5500);
+  const match = html.match(/ytInitialData\s*=\s*({[\s\S]+?});/) || html.match(/ytInitialData\s*=\s*({[\s\S]+?})\s*</);
+  if (!match) throw new Error("Could not find playlist ytInitialData.");
+  const data = JSON.parse(match[1].trim().replace(/;$/, ''));
+  const videos = collectPlaylistVideosFromObject(data);
+  if (videos.length === 0) throw new Error("No playlist videos found in YouTube HTML.");
+  return videos;
+};
+
+const fetchYouTubePlaylistOfficial = async (playlistId: string, maxVideos = 300): Promise<YouTubePlaylistVideo[]> => {
+  if (!youtubeApiKey) throw new Error("YouTube API key is not configured.");
+
+  const videos: YouTubePlaylistVideo[] = [];
+  let pageToken = '';
+  for (let page = 0; page < 8 && videos.length < maxVideos; page++) {
+    const params = new URLSearchParams({
+      key: youtubeApiKey,
+      part: 'snippet,contentDetails',
+      playlistId,
+      maxResults: '50'
+    });
+    if (pageToken) params.set('pageToken', pageToken);
+
+    const res = await fetchWithTimeout(`https://www.googleapis.com/youtube/v3/playlistItems?${params.toString()}`, 6000);
+    if (!res.ok) throw new Error(`YouTube playlistItems failed with status ${res.status}`);
+    const data = await res.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    items.forEach((item: any, index: number) => {
+      const videoId = item.contentDetails?.videoId || item.snippet?.resourceId?.videoId;
+      if (!videoId || videoId.length !== 11) return;
+      const snippet = item.snippet || {};
+      videos.push({
+        id: videoId,
+        title: snippet.title || 'Video de YouTube',
+        author: snippet.channelTitle || 'YouTube',
+        thumbnail: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+        index: typeof snippet.position === 'number' ? snippet.position + 1 : videos.length + index + 1
+      });
+    });
+    pageToken = data.nextPageToken || '';
+    if (!pageToken || items.length === 0) break;
+  }
+
+  return videos.slice(0, maxVideos);
+};
+
+const mapPipedPlaylistStreams = (streams: any[]): YouTubePlaylistVideo[] => {
+  return (Array.isArray(streams) ? streams : [])
+    .map((item: any, index: number) => {
+      const videoId = extractVideoId(item.url || item.videoId || '');
+      if (!videoId || videoId.length !== 11) return null;
+      return {
+        id: videoId,
+        title: item.title || 'Video de YouTube',
+        author: item.uploaderName || item.uploader || 'YouTube',
+        thumbnail: item.thumbnail || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+        duration: item.duration ? formatDuration(Number(item.duration)) : undefined,
+        index: index + 1
+      } as YouTubePlaylistVideo;
+    })
+    .filter(Boolean) as YouTubePlaylistVideo[];
+};
+
+const fetchPipedPlaylistFromInstance = async (playlistId: string, instance: string, maxVideos = 300): Promise<YouTubePlaylistVideo[]> => {
+  const baseUrl = instance.replace(/\/$/, '');
+  const seen = new Set<string>();
+  const all: YouTubePlaylistVideo[] = [];
+  let data = await fetchWithCorsProxy(`${baseUrl}/playlists/${encodeURIComponent(playlistId)}`, 6500);
+
+  for (let page = 0; page < 8 && data && all.length < maxVideos; page++) {
+    const streams = mapPipedPlaylistStreams(data.relatedStreams || []);
+    streams.forEach(video => {
+      if (!seen.has(video.id)) {
+        seen.add(video.id);
+        all.push(video);
+      }
+    });
+
+    if (!data.nextpage || all.length >= maxVideos) break;
+    const nextPage = encodeURIComponent(typeof data.nextpage === 'string' ? data.nextpage : JSON.stringify(data.nextpage));
+    data = await fetchWithCorsProxy(`${baseUrl}/nextpage/playlists/${encodeURIComponent(playlistId)}?nextpage=${nextPage}`, 6500);
+  }
+
+  if (all.length === 0) throw new Error(`Empty Piped playlist from ${baseUrl}.`);
+  return all.slice(0, maxVideos);
+};
+
+const fetchPipedPlaylistVideos = async (playlistId: string, maxVideos = 300): Promise<YouTubePlaylistVideo[]> => {
+  const pipedInstances = [
+    'https://pipedapi.adminforge.de',
+    'https://pipedapi.syncpundit.io',
+    'https://pipedapi.darkness.services',
+    'https://pipedapi.tokhmi.xyz',
+    'https://pipedapi.kavin.rocks',
+  ];
+  return anySuccessfulPromise(pipedInstances.map(instance => fetchPipedPlaylistFromInstance(playlistId, instance, maxVideos)));
+};
+
+export const fetchYouTubePlaylistVideos = async (playlistId: string, maxVideos = 300): Promise<YouTubePlaylistVideo[]> => {
+  const id = extractPlaylistId(playlistId) || playlistId.trim();
+  if (!id) return [];
+
+  try {
+    const officialVideos = await fetchYouTubePlaylistOfficial(id, maxVideos);
+    if (officialVideos.length > 0) return officialVideos;
+  } catch (error) {
+    console.warn("Official YouTube playlistItems failed, trying public fallbacks...", error);
+  }
+
+  try {
+    const directVideos = await fetchYouTubePlaylistDirect(id);
+    if (directVideos.length > 0) return directVideos.slice(0, maxVideos);
+  } catch (error) {
+    console.warn("Direct YouTube playlist extraction failed, trying public APIs...", error);
+  }
+
+  try {
+    const pipedVideos = await fetchPipedPlaylistVideos(id, maxVideos);
+    if (pipedVideos.length > 0) return pipedVideos;
+  } catch (error) {
+    console.warn("Piped playlist providers failed, trying Invidious...", error);
+  }
+
+  const invidiousInstances = [
+    'https://inv.thepixora.com',
+    'https://inv.nadeko.net',
+    'https://invidious.nerdvpn.de',
+    'https://invidious.fdn.fr',
+    'https://yewtu.be',
+    'https://inv.tux.pizza',
+  ];
+
+  const fetchFromInstance = async (instance: string): Promise<YouTubePlaylistVideo[]> => {
+    const all: YouTubePlaylistVideo[] = [];
+    const seen = new Set<string>();
+    for (let page = 1; page <= 8 && all.length < maxVideos; page++) {
+      const pageVideos = await fetchInvidiousPlaylistPage(id, instance, page);
+      let added = 0;
+      for (const video of pageVideos) {
+        if (!seen.has(video.id)) {
+          seen.add(video.id);
+          all.push(video);
+          added++;
+        }
+      }
+      if (pageVideos.length < 100 || added === 0) break;
+    }
+    return all.slice(0, maxVideos);
+  };
+
+  const candidates = invidiousInstances.map(instance => fetchFromInstance(instance));
+  try {
+    const results = await anySuccessfulPromise(candidates);
+    return results;
+  } catch (error) {
+    console.warn("Static Invidious playlist providers failed, trying discovered instances...", error);
+  }
+
+  try {
+    const instances = await fetchWithCorsProxy('https://api.invidious.io/instances.json', 5000);
+    if (Array.isArray(instances)) {
+      const discovered = instances
+        .map((entry: any[]) => entry?.[1])
+        .filter((meta: any) => meta?.type === 'https' && meta?.uri && !meta?.down)
+        .slice(0, 10)
+        .map((meta: any) => fetchFromInstance(meta.uri));
+      return await anySuccessfulPromise(discovered);
+    }
+  } catch (error) {
+    console.warn("Discovered Invidious playlist providers failed.", error);
+  }
+
+  return [];
 };
 
 export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
@@ -1284,7 +1591,8 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
                 title: item.name || item.title || 'Lista de YouTube',
                 author: item.uploaderName || item.uploader || 'Desconocido',
                 thumbnail: item.thumbnail || '',
-                videoCount: item.videos || item.videoCount
+                videoCount: Array.isArray(item.videos) ? item.videos.length : (item.videos || item.videoCount),
+                playlistVideos: Array.isArray(item.videos) ? mapInvidiousPlaylistVideos(item.videos) : undefined
               } as YouTubeSearchResult;
             }).filter(Boolean) as YouTubeSearchResult[];
             
@@ -1320,10 +1628,7 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
       );
     }
 
-    const settled = await Promise.allSettled(fetchPromises);
-    const combined = settled
-      .filter((result): result is PromiseFulfilledResult<YouTubeSearchResult[]> => result.status === 'fulfilled')
-      .flatMap(result => result.value);
+    const combined = await collectSettledResults(fetchPromises, 8500);
     const uniqueResults = Array.from(
       new Map(combined.map(item => [`${item.kind || 'video'}:${item.id}`, item])).values()
     );

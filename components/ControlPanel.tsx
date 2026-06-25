@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, DensityMode, SongSearchResult, searchYouTube, YouTubeSearchResult } from '../services/geminiService';
+import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, DensityMode, SongSearchResult, searchYouTube, YouTubeSearchResult, YouTubePlaylistVideo, fetchYouTubePlaylistVideos } from '../services/geminiService';
 import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry, BackgroundAnimationConfig, BackgroundAnimationType } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
@@ -265,6 +265,13 @@ const getYouTubeEmbedSrc = (source: { videoId?: string; playlistId?: string }) =
   return '';
 };
 
+const fetchPlaylistVideosWithTimeout = async (playlistId: string, timeoutMs = 16000): Promise<YouTubePlaylistVideo[]> => {
+  return Promise.race([
+    fetchYouTubePlaylistVideos(playlistId),
+    new Promise<YouTubePlaylistVideo[]>((resolve) => setTimeout(() => resolve([]), timeoutMs))
+  ]);
+};
+
 const ControlPanel: React.FC<ControlPanelProps> = ({
   onAddItem,
   onUpdateTheme,
@@ -343,6 +350,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [pendingVideoImport, setPendingVideoImport] = useState<{
     videoId?: string;
     playlistId?: string;
+    playlistVideos?: YouTubePlaylistVideo[];
     sourceType?: 'video' | 'playlist';
     action: 'project' | 'background';
     defaultName: string;
@@ -351,46 +359,91 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [importName, setImportName] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  const confirmVideoImport = (destinationOverride?: 'current' | 'new') => {
+  const confirmVideoImport = async (destinationOverride?: 'current' | 'new') => {
     if (!pendingVideoImport) return;
-    const { videoId, playlistId, action } = pendingVideoImport;
+    const { videoId, playlistId, playlistVideos: fallbackPlaylistVideos, action } = pendingVideoImport;
     if (!videoId && !playlistId) return;
     const finalName = importName.trim() || pendingVideoImport.defaultName;
     const sourceLink = getYouTubeSourceLink({ videoId, playlistId });
 
-    if (action === 'project') {
-      const destination = destinationOverride ?? pendingVideoImport.destination;
-      const shouldAddToCurrent = destination !== 'new' && hasActiveItem;
-      const newSlide: Slide = {
-        id: Math.random().toString(36).substr(2, 9),
-        type: 'youtube',
-        content: sourceLink,
-        videoId,
-        playlistId,
-        label: finalName
-      };
+    setLoading(true);
+    try {
+      if (action === 'project') {
+        const destination = destinationOverride ?? pendingVideoImport.destination;
+        const shouldAddToCurrent = destination !== 'new' && hasActiveItem;
+        let slides: Slide[] = [];
 
-      if (shouldAddToCurrent) {
-        onAddSlide(newSlide);
-        alert("Video agregado exitosamente a la diapositiva actual!");
+        if (playlistId) {
+          const playlistVideos = await fetchPlaylistVideosWithTimeout(playlistId);
+          const videosToImport = playlistVideos.length > 0 ? playlistVideos : (fallbackPlaylistVideos || []);
+          slides = videosToImport.map((video, index) => ({
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'youtube',
+            content: `https://www.youtube.com/watch?v=${video.id}`,
+            videoId: video.id,
+            label: video.title || `${finalName} ${index + 1}`
+          }));
+        }
+
+        if (playlistId && slides.length === 0) {
+          alert("No se pudo leer la playlist completa. No se agrego como una sola slide para evitar confusion.");
+          return;
+        }
+
+        if (slides.length === 0) {
+          slides = [{
+            id: Math.random().toString(36).substr(2, 9),
+            type: 'youtube',
+            content: sourceLink,
+            videoId,
+            playlistId,
+            label: finalName
+          }];
+        }
+
+        if (shouldAddToCurrent) {
+          slides.forEach(slide => onAddSlide(slide));
+          alert(playlistId && slides.length > 1
+            ? `Playlist agregada completa: ${slides.length} videos.`
+            : "Video agregado exitosamente a la diapositiva actual!");
+        } else {
+          onAddItem({
+            id: Math.random().toString(36).substr(2, 9),
+            title: finalName,
+            type: 'custom',
+            slides,
+            theme: currentTheme
+          });
+          alert(playlistId && slides.length > 1
+            ? `Playlist agregada completa: ${slides.length} videos.`
+            : "Video agregado exitosamente!");
+        }
       } else {
-        onAddItem({
-          id: Math.random().toString(36).substr(2, 9),
-          title: finalName,
-          type: 'custom',
-          slides: [newSlide],
-          theme: currentTheme
-        });
-        alert("Video agregado exitosamente!");
+        if (playlistId) {
+          const playlistVideos = await fetchPlaylistVideosWithTimeout(playlistId);
+          const videosToImport = playlistVideos.length > 0 ? playlistVideos : (fallbackPlaylistVideos || []);
+          if (videosToImport.length > 0) {
+            videosToImport.forEach((video, index) => {
+              onSetBackgroundAudio?.(video.id, video.title || `${finalName} ${index + 1}`);
+            });
+            alert(`Playlist agregada al fondo: ${videosToImport.length} videos.`);
+          } else {
+            alert("No se pudo leer la playlist completa. No se agrego como una sola pista para evitar confusion.");
+          }
+        } else {
+          onSetBackgroundAudio?.(videoId || null, finalName);
+          alert("Agregado exitosamente a la musica de fondo!");
+        }
       }
-    } else {
-      onSetBackgroundAudio?.(videoId || null, finalName, playlistId);
-      alert("Agregado exitosamente a la musica de fondo!");
+      setInputText('');
+      setPendingVideoImport(null);
+      setImportName('');
+    } catch (error) {
+      console.error("Playlist import failed", error);
+      alert("No se pudo leer la playlist completa. Intenta de nuevo o usa otra playlist publica.");
+    } finally {
+      setLoading(false);
     }
-
-    setInputText('');
-    setPendingVideoImport(null);
-    setImportName('');
   };
 
   const cancelVideoImport = () => {
@@ -2254,6 +2307,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   setPendingVideoImport({
                                     videoId: source.videoId,
                                     playlistId: source.playlistId,
+                                    playlistVideos: video.playlistVideos,
                                     sourceType: source.sourceType,
                                     action: 'project',
                                     defaultName: video.title,
@@ -2271,6 +2325,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   setPendingVideoImport({
                                     videoId: source.videoId,
                                     playlistId: source.playlistId,
+                                    playlistVideos: video.playlistVideos,
                                     sourceType: source.sourceType,
                                     action: 'background',
                                     defaultName: video.title
@@ -2366,6 +2421,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       setPendingVideoImport({
                         videoId: source.videoId,
                         playlistId: source.playlistId,
+                        playlistVideos: activePortalResult?.playlistVideos,
                         sourceType: source.sourceType,
                         action: 'project',
                         defaultName: source.sourceType === 'playlist' ? 'Playlist de YouTube' : 'Video de YouTube',
@@ -2395,6 +2451,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       setPendingVideoImport({
                         videoId: source.videoId,
                         playlistId: source.playlistId,
+                        playlistVideos: activePortalResult?.playlistVideos,
                         sourceType: source.sourceType,
                         action: 'background',
                         defaultName: source.sourceType === 'playlist' ? 'Playlist de fondo' : 'Audio de YouTube'
@@ -2674,6 +2731,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 setPendingVideoImport({
                                   videoId: source.videoId,
                                   playlistId: source.playlistId,
+                                  playlistVideos: activePortalResult?.playlistVideos,
                                   sourceType: source.sourceType,
                                   action: 'project',
                                   defaultName: source.sourceType === 'playlist' ? 'Playlist de YouTube' : 'Video de YouTube',
@@ -2704,6 +2762,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 setPendingVideoImport({
                                   videoId: source.videoId,
                                   playlistId: source.playlistId,
+                                  playlistVideos: activePortalResult?.playlistVideos,
                                   sourceType: source.sourceType,
                                   action: 'background',
                                   defaultName: source.sourceType === 'playlist' ? 'Playlist de fondo' : 'Audio de YouTube'
