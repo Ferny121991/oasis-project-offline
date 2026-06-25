@@ -564,6 +564,35 @@ const App: React.FC = () => {
     };
   }, [backgroundAudioItem?.videoId, backgroundAudioItem?.playlistId, navigateNextAudio]);
 
+  const seekAudioTo = useCallback((seconds: number) => {
+    if (!audioIframeRef.current) return;
+
+    const nextTime = Math.max(0, Math.min(Number.isFinite(audioDuration) && audioDuration > 0 ? audioDuration : Number.MAX_SAFE_INTEGER, seconds));
+    try {
+      if (bgPlayerRef.current && typeof bgPlayerRef.current.seekTo === 'function') {
+        bgPlayerRef.current.seekTo(nextTime, true);
+      } else {
+        const msg = `{"event":"command","func":"seekTo","args":[${nextTime}, true]}`;
+        audioIframeRef.current.contentWindow?.postMessage(msg, '*');
+      }
+    } catch (error) {
+      console.warn('Audio seek command failed:', error);
+    }
+
+    setAudioCurrentTime(nextTime);
+    if (isAudioPlaying) {
+      setAudioStartTime(Date.now());
+      setAudioElapsedOffset(nextTime * 1000);
+    } else {
+      setAudioElapsedOffset(nextTime * 1000);
+    }
+  }, [audioDuration, isAudioPlaying]);
+
+  const seekAudio = useCallback((seconds: number) => {
+    const baseline = audioCurrentTime || (audioElapsedOffset / 1000);
+    seekAudioTo(baseline + seconds);
+  }, [audioCurrentTime, audioElapsedOffset, seekAudioTo]);
+
   const navigateLivePrev = useCallback(() => {
     if (!liveItemId) return;
     if (liveSlideIndex > 0) {
@@ -2096,36 +2125,6 @@ const App: React.FC = () => {
     setBgAudioPlaylist([]);
     setCurrentAudioIndex(-1);
   }, []);
-
-
-  const seekAudioTo = useCallback((seconds: number) => {
-    if (!audioIframeRef.current) return;
-
-    const nextTime = Math.max(0, Math.min(Number.isFinite(audioDuration) && audioDuration > 0 ? audioDuration : Number.MAX_SAFE_INTEGER, seconds));
-    try {
-      if (bgPlayerRef.current && typeof bgPlayerRef.current.seekTo === 'function') {
-        bgPlayerRef.current.seekTo(nextTime, true);
-      } else {
-        const msg = `{"event":"command","func":"seekTo","args":[${nextTime}, true]}`;
-        audioIframeRef.current.contentWindow?.postMessage(msg, '*');
-      }
-    } catch (error) {
-      console.warn('Audio seek command failed:', error);
-    }
-
-    setAudioCurrentTime(nextTime);
-    if (isAudioPlaying) {
-      setAudioStartTime(Date.now());
-      setAudioElapsedOffset(nextTime * 1000);
-    } else {
-      setAudioElapsedOffset(nextTime * 1000);
-    }
-  }, [audioDuration, isAudioPlaying]);
-
-  const seekAudio = useCallback((seconds: number) => {
-    const baseline = audioCurrentTime || (audioElapsedOffset / 1000);
-    seekAudioTo(baseline + seconds);
-  }, [audioCurrentTime, audioElapsedOffset, seekAudioTo]);
 
   const handleDeleteItem = (id: string) => {
     const item = playlist.find(i => i.id === id);

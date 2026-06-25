@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
     AlertCircle,
     BookOpen,
+    Clock,
     ChevronLeft,
     ChevronRight,
     Eye,
