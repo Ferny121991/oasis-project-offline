@@ -174,21 +174,32 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 
     if (!liveState) {
         return (
-            <div className="min-h-[100dvh] bg-[linear-gradient(180deg,#06111f_0%,#0b1020_52%,#020409_100%)] text-white flex items-center justify-center p-6">
-                <div className="w-full max-w-sm text-center rounded-[2rem] border border-cyan-300/20 bg-white/[0.055] p-8 shadow-2xl shadow-black/50 backdrop-blur">
-                    <div className="w-16 h-16 rounded-2xl bg-cyan-400/10 border border-cyan-300/20 mx-auto mb-5 flex items-center justify-center text-cyan-200 shadow-lg shadow-cyan-950/30">
-                        <Smartphone size={32} />
+            <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,#12324a_0%,#07111f_36%,#020409_100%)] text-white flex items-center justify-center p-6">
+                <div className="w-full max-w-sm text-center rounded-[2rem] border border-cyan-300/20 bg-slate-950/70 p-8 shadow-2xl shadow-black/60 backdrop-blur-xl">
+                    <div className="relative w-20 h-20 mx-auto mb-5">
+                        <div className="absolute inset-0 rounded-3xl border border-cyan-300/20 bg-cyan-400/10 animate-pulse" />
+                        <div className="absolute inset-3 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-center text-cyan-200 shadow-lg shadow-cyan-950/30">
+                            <Smartphone size={32} />
+                        </div>
                     </div>
                     <h1 className="text-xl font-black">Conectando control</h1>
-                    <p className="text-sm text-slate-400 mt-2">Mantén abierta la pantalla principal del presentador para recibir comandos.</p>
-                    <div className="mt-6 h-2 rounded-full bg-slate-900 overflow-hidden">
-                        <div className="h-full w-1/2 bg-cyan-400 animate-pulse rounded-full" />
+                    <p className="text-sm text-slate-400 mt-2 leading-relaxed">
+                        Abre la pantalla principal y verifica que ambos dispositivos esten en la misma sesion.
+                    </p>
+                    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-cyan-200">
+                            <span className="h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />
+                            Esperando sincronizacion
+                        </div>
+                        <div className="mt-3 h-2 rounded-full bg-slate-900 overflow-hidden">
+                            <div className="h-full w-1/2 bg-gradient-to-r from-cyan-400 to-emerald-300 animate-pulse rounded-full" />
+                        </div>
                     </div>
                     <button
                         onClick={() => window.location.reload()}
-                        className="mt-6 h-12 w-full rounded-2xl bg-cyan-400 text-slate-950 text-sm font-black active:scale-[0.99]"
+                        className="mt-6 h-12 w-full rounded-2xl bg-cyan-400 text-slate-950 text-sm font-black shadow-lg shadow-cyan-950/40 active:scale-[0.99]"
                     >
-                        Reintentar conexiÃ³n
+                        Reintentar conexion
                     </button>
                 </div>
             </div>
@@ -573,8 +584,8 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                 )}
             </main>
 
-            <nav className="absolute bottom-0 inset-x-0 border-t border-white/10 bg-[#0b1020]/95 backdrop-blur-xl px-4 pt-2 pb-5">
-                <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+            <nav className="absolute bottom-0 inset-x-0 border-t border-white/10 bg-[#07111f]/90 backdrop-blur-xl px-4 pt-2 pb-5 shadow-[0_-20px_45px_rgba(0,0,0,0.45)]">
+                <div className="grid grid-cols-4 gap-1.5 max-w-md mx-auto rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-1.5">
                     {[
                         { id: 'control' as const, label: 'Control', icon: Monitor },
                         { id: 'playlist' as const, label: 'Lista', icon: List },
@@ -587,7 +598,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             <button
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id)}
-                                className={`h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all ${selected ? 'bg-indigo-500/15 text-indigo-200' : 'text-slate-500'}`}
+                                className={`h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95 ${selected ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/30' : 'text-slate-500 hover:bg-white/[0.06] hover:text-white'}`}
                             >
                                 <Icon size={20} />
                                 <span className="text-[10px] font-black">{item.label}</span>

@@ -18,9 +18,9 @@ const PPTX_SLIDE_HEIGHT_EMU = 5143500;
 const PPTX_CANVAS_WIDTH = 1920;
 const PPTX_CANVAS_HEIGHT = 1080;
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // PPTX PARSING
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 /**
  * Parse a PowerPoint file and extract slides with text and images.
@@ -552,9 +552,9 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // PDF PARSING
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 /**
  * Parse a PDF file and render each page as a high-quality image slide.
@@ -623,7 +623,7 @@ export async function parsePdfFile(file: File): Promise<Slide[]> {
       type: 'image',
       content: textContent ? textContent.substring(0, 200) : '',
       mediaUrl: dataUrl,
-      label: `PÁG ${pageNum}/${totalPages}`
+      label: `PAG ${pageNum}/${totalPages}`
     });
     
     // Clean up
@@ -634,9 +634,9 @@ export async function parsePdfFile(file: File): Promise<Slide[]> {
   return slides;
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // UTILITIES
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {

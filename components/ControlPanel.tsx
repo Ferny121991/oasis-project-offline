@@ -662,9 +662,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const alert = (message: string) => {
     let toastType: 'success' | 'error' | 'info' = 'info';
     const lower = message.toLowerCase();
-    if (lower.includes('error') || lower.includes('por favor') || lower.includes('fallo') || lower.includes('falló') || lower.includes('permiso')) {
+    if (lower.includes('error') || lower.includes('por favor') || lower.includes('fallo') || lower.includes('fallo') || lower.includes('permiso')) {
       toastType = 'error';
-    } else if (lower.includes('exito') || lower.includes('éxito') || lower.includes('exitosamente') || lower.includes('agregado') || lower.includes('copiado')) {
+    } else if (lower.includes('exito') || lower.includes('exito') || lower.includes('exitosamente') || lower.includes('agregado') || lower.includes('copiado')) {
       toastType = 'success';
     }
     triggerToast(message, toastType);
@@ -1375,70 +1375,70 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const renderLogoDesigner = () => {
     const LOGO_ANIMATION_OPTIONS = [
       { name: 'Ninguna', value: 'none' },
-      { name: 'Respiración suave', value: 'breathe' },
-      { name: 'Pulso rápido', value: 'pulse-fast' },
-      { name: 'Flotación vertical', value: 'float-y' },
-      { name: 'Flotación horizontal', value: 'float-x' },
-      { name: 'Rotación lenta', value: 'rotate-slow' },
+      { name: 'Respiracion suave', value: 'breathe' },
+      { name: 'Pulso rapido', value: 'pulse-fast' },
+      { name: 'Flotacion vertical', value: 'float-y' },
+      { name: 'Flotacion horizontal', value: 'float-x' },
+      { name: 'Rotacion lenta', value: 'rotate-slow' },
       { name: 'Giro 3D', value: 'spin-3d' },
-      { name: 'Balanceo péndulo', value: 'swing' },
+      { name: 'Balanceo pendulo', value: 'swing' },
       { name: 'Temblor sutil', value: 'shake' },
       { name: 'Tambaleo divertido', value: 'wobble' },
       { name: 'Rebote constante', value: 'bounce' },
-      { name: 'Latido cardíaco', value: 'heartbeat' },
-      { name: 'Banda elástica', value: 'rubberband' },
+      { name: 'Latido cardiaco', value: 'heartbeat' },
+      { name: 'Banda elastica', value: 'rubberband' },
       { name: 'Gelatina', value: 'jello' },
       { name: 'Destello continuo', value: 'flash' },
-      { name: 'Parpadeo neón', value: 'flicker' },
+      { name: 'Parpadeo neon', value: 'flicker' },
       { name: 'Efecto Glitch', value: 'glitch' },
-      { name: 'Órbita circular', value: 'orbit' },
+      { name: 'Orbita circular', value: 'orbit' },
       { name: 'Desplazamiento infinito', value: 'slide-infinite' },
       { name: 'Danza ondulada', value: 'wave-dance' },
     ];
 
     const LOGO_TEXT_ANIMATION_OPTIONS = [
       { name: 'Sin movimiento', value: 'none' },
-      { name: 'Respiración sutil', value: 'breathe' },
-      { name: 'Flotación suave', value: 'float' },
-      { name: 'Ondulación de texto', value: 'wave' },
-      { name: 'Rotación lenta', value: 'rotate' },
+      { name: 'Respiracion sutil', value: 'breathe' },
+      { name: 'Flotacion suave', value: 'float' },
+      { name: 'Ondulacion de texto', value: 'wave' },
+      { name: 'Rotacion lenta', value: 'rotate' },
       { name: 'Giro 3D vertical', value: 'flip-y' },
-      { name: 'Deformación cíclica', value: 'skew-loop' },
-      { name: 'Expansión de letras', value: 'tracking' },
+      { name: 'Deformacion ciclica', value: 'skew-loop' },
+      { name: 'Expansion de letras', value: 'tracking' },
       { name: 'Pulso de brillo', value: 'glow-pulse' },
       { name: 'Rebote sutil', value: 'bounce' },
       { name: 'Brillo deslizante (Oro)', value: 'shimmer' },
-      { name: 'Efecto Máquina de escribir', value: 'typewriter' },
-      { name: 'Parpadeo neón', value: 'neon-flicker' },
-      { name: 'Oscilación horizontal', value: 'slide-x' },
-      { name: 'Oscilación vertical', value: 'slide-y' },
-      { name: 'Enfoque cíclico', value: 'blur-loop' },
+      { name: 'Efecto Maquina de escribir', value: 'typewriter' },
+      { name: 'Parpadeo neon', value: 'neon-flicker' },
+      { name: 'Oscilacion horizontal', value: 'slide-x' },
+      { name: 'Oscilacion vertical', value: 'slide-y' },
+      { name: 'Enfoque ciclico', value: 'blur-loop' },
       { name: 'Efecto Glitch', value: 'glitch' },
       { name: 'Cambio de color fluido', value: 'color-shift' },
-      { name: 'Escala rítmica', value: 'scale-up-down' },
-      { name: 'Rebote elástico', value: 'elastic-bounce' },
+      { name: 'Escala ritmica', value: 'scale-up-down' },
+      { name: 'Rebote elastico', value: 'elastic-bounce' },
     ];
 
     const LOGO_SCALE_ANIMATION_OPTIONS = [
       { name: 'Ninguna', value: 'none' },
       { name: 'Pulso de escala', value: 'scale-pulse' },
       { name: 'Latido', value: 'scale-heartbeat' },
-      { name: 'Zoom in/out cíclico', value: 'scale-zoom-in-out' },
+      { name: 'Zoom in/out ciclico', value: 'scale-zoom-in-out' },
       { name: 'Rebote de escala', value: 'scale-bounce' },
       { name: 'Crecimiento suave', value: 'scale-grow' },
       { name: 'Encogimiento suave', value: 'scale-shrink' },
-      { name: 'Escala elástica', value: 'scale-elastic' },
+      { name: 'Escala elastica', value: 'scale-elastic' },
       { name: 'Escala explosiva', value: 'scale-pop' },
       { name: 'Escala por pasos (Retro)', value: 'scale-step' },
-      { name: 'Respiración amplia', value: 'scale-breathing-large' },
+      { name: 'Respiracion amplia', value: 'scale-breathing-large' },
       { name: 'Ola de escala', value: 'scale-wave' },
       { name: 'Escala con parpadeo', value: 'scale-flicker' },
       { name: 'Estiramiento horizontal', value: 'scale-stretch-x' },
       { name: 'Estiramiento vertical', value: 'scale-stretch-y' },
-      { name: 'Compresión cíclica', value: 'scale-compress' },
+      { name: 'Compresion ciclica', value: 'scale-compress' },
       { name: 'Escala 3D', value: 'scale-3d' },
       { name: 'Escala con balanceo', value: 'scale-swing' },
-      { name: 'Vibración de tamaño', value: 'scale-jitter' },
+      { name: 'Vibracion de tamano', value: 'scale-jitter' },
       { name: 'Escala hiper-activa', value: 'scale-hyper' },
     ];
 
@@ -1558,7 +1558,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-200 border border-cyan-300/20"><ImageIcon size={17} /></div>
               <div>
                 <p className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em]">Logo y Escala</p>
-                <p className="mt-1 text-xs font-bold text-slate-400">Imagen del logo, tamaño y opacidad</p>
+                <p className="mt-1 text-xs font-bold text-slate-400">Imagen del logo, tamano y opacidad</p>
               </div>
             </div>
             <ChevronDown size={16} className={`text-cyan-200 transition-transform duration-300 ${expandedSections.logoGeneral ? 'rotate-180' : ''}`} />
@@ -1640,7 +1640,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <label className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
-                  <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Tamaño</span><span>{currentTheme.logoSize || 78}%</span></span>
+                  <span className="mb-2 flex justify-between text-[10px] font-black uppercase text-slate-400"><span>Tamano</span><span>{currentTheme.logoSize || 78}%</span></span>
                   <input type="range" min="20" max="100" value={currentTheme.logoSize || 78} onChange={(e) => updatePendingTheme({ ...currentTheme, logoSize: parseInt(e.target.value) })} className="w-full accent-cyan-400" />
                 </label>
                 <label className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
@@ -1651,7 +1651,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
               {/* Advanced Controls: Rotation and Borders */}
               <div className="grid grid-cols-2 gap-3">
-                {renderRangeControl('Rotación Logo', currentTheme.logoRotation || 0, 0, 360, 5, (val) => updatePendingTheme({ ...currentTheme, logoRotation: val }), '°', 'accent-cyan-400')}
+                {renderRangeControl('Rotacion Logo', currentTheme.logoRotation || 0, 0, 360, 5, (val) => updatePendingTheme({ ...currentTheme, logoRotation: val }), 'deg', 'accent-cyan-400')}
                 {renderRangeControl('Esquinas Redondas', currentTheme.logoBorderRadius || 0, 0, 100, 2, (val) => updatePendingTheme({ ...currentTheme, logoBorderRadius: val }), 'px', 'accent-cyan-400')}
               </div>
 
@@ -1717,14 +1717,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  {renderRangeControl('Rotación Tono', currentTheme.logoHueRotate || 0, 0, 360, 10, (val) => updatePendingTheme({ ...currentTheme, logoHueRotate: val }), '°', 'accent-cyan-400')}
+                  {renderRangeControl('Rotacion Tono', currentTheme.logoHueRotate || 0, 0, 360, 10, (val) => updatePendingTheme({ ...currentTheme, logoHueRotate: val }), 'deg', 'accent-cyan-400')}
                   {renderRangeControl('Invertir', currentTheme.logoInvert || 0, 0, 100, 5, (val) => updatePendingTheme({ ...currentTheme, logoInvert: val }), '%', 'accent-cyan-400')}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
                   {renderRangeControl('Brillo', currentTheme.logoBrightness !== undefined ? currentTheme.logoBrightness : 100, 50, 150, 5, (val) => updatePendingTheme({ ...currentTheme, logoBrightness: val }), '%', 'accent-cyan-400')}
                   {renderRangeControl('Contraste', currentTheme.logoContrast !== undefined ? currentTheme.logoContrast : 100, 50, 150, 5, (val) => updatePendingTheme({ ...currentTheme, logoContrast: val }), '%', 'accent-cyan-400')}
-                  {renderRangeControl('Saturación', currentTheme.logoSaturation !== undefined ? currentTheme.logoSaturation : 100, 0, 200, 10, (val) => updatePendingTheme({ ...currentTheme, logoSaturation: val }), '%', 'accent-cyan-400')}
+                  {renderRangeControl('Saturacion', currentTheme.logoSaturation !== undefined ? currentTheme.logoSaturation : 100, 0, 200, 10, (val) => updatePendingTheme({ ...currentTheme, logoSaturation: val }), '%', 'accent-cyan-400')}
                 </div>
 
                 {renderRangeControl('Desenfoque (Blur)', currentTheme.logoBlur || 0, 0, 20, 1, (val) => updatePendingTheme({ ...currentTheme, logoBlur: val }), 'px', 'accent-cyan-400')}
@@ -1800,13 +1800,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             {renderRangeControl('Oscurecer Fondo', currentTheme.logoBgOverlayOpacity || 0, 0, 100, 5, (val) => updatePendingTheme({ ...currentTheme, logoBgOverlayOpacity: val }), '%', 'accent-cyan-400')}
 
             <div className="grid grid-cols-2 gap-3">
-              {renderRangeControl('Ángulo Degradado', currentTheme.logoBgGradientAngle !== undefined ? currentTheme.logoBgGradientAngle : 135, 0, 360, 15, (val) => updatePendingTheme({ ...currentTheme, logoBgGradientAngle: val }), '°', 'accent-cyan-400')}
+              {renderRangeControl('Angulo Degradado', currentTheme.logoBgGradientAngle !== undefined ? currentTheme.logoBgGradientAngle : 135, 0, 360, 15, (val) => updatePendingTheme({ ...currentTheme, logoBgGradientAngle: val }), 'deg', 'accent-cyan-400')}
               {renderRangeControl('Desenfoque del Fondo', currentTheme.logoBgLegibilityBlur || 0, 0, 24, 2, (val) => updatePendingTheme({ ...currentTheme, logoBgLegibilityBlur: val }), 'px', 'accent-cyan-400')}
             </div>
             
             <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3">
-              {renderRangeControl('Inclinación 3D X', currentTheme.logo3DTiltX || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logo3DTiltX: val }), '°', 'accent-cyan-400')}
-              {renderRangeControl('Inclinación 3D Y', currentTheme.logo3DTiltY || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logo3DTiltY: val }), '°', 'accent-cyan-400')}
+              {renderRangeControl('Inclinacion 3D X', currentTheme.logo3DTiltX || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logo3DTiltX: val }), 'deg', 'accent-cyan-400')}
+              {renderRangeControl('Inclinacion 3D Y', currentTheme.logo3DTiltY || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logo3DTiltY: val }), 'deg', 'accent-cyan-400')}
             </div>
           </div>
         )}
@@ -1838,8 +1838,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {currentTheme.logoBgAnimation && currentTheme.logoBgAnimation.type !== 'none' && (
               <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3 animate-fade-in">
-                {renderRangeControl('Dirección por Ángulo', currentTheme.logoBgAnimAngle || 0, 0, 360, 15, (val) => updatePendingTheme({ ...currentTheme, logoBgAnimAngle: val }), '°', 'accent-cyan-400')}
-                {renderRangeControl('Estela de Partículas', currentTheme.logoBgAnimTrail || 0, 0, 95, 5, (val) => updatePendingTheme({ ...currentTheme, logoBgAnimTrail: val }), '%', 'accent-cyan-400')}
+                {renderRangeControl('Direccion por Angulo', currentTheme.logoBgAnimAngle || 0, 0, 360, 15, (val) => updatePendingTheme({ ...currentTheme, logoBgAnimAngle: val }), 'deg', 'accent-cyan-400')}
+                {renderRangeControl('Estela de Particulas', currentTheme.logoBgAnimTrail || 0, 0, 95, 5, (val) => updatePendingTheme({ ...currentTheme, logoBgAnimTrail: val }), '%', 'accent-cyan-400')}
               </div>
             )}
           </div>
@@ -1924,7 +1924,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/12 text-cyan-200 border border-cyan-300/20"><Type size={17} /></div>
             <div>
               <p className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em]">Texto del Logo</p>
-              <p className="mt-1 text-xs font-bold text-slate-400">Iglesia, versículos o mensajes sobre el fondo</p>
+              <p className="mt-1 text-xs font-bold text-slate-400">Iglesia, versiculos o mensajes sobre el fondo</p>
             </div>
           </div>
           <ChevronDown size={16} className={`text-cyan-200 transition-transform duration-300 ${expandedSections.logoText ? 'rotate-180' : ''}`} />
@@ -1936,7 +1936,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <textarea
                 value={currentTheme.logoText || ''}
                 onChange={(e) => updatePendingTheme({ ...currentTheme, logoText: e.target.value })}
-                placeholder="Escribe aquí... (Ej. Iglesia Oasis de Gracia)"
+                placeholder="Escribe aqui... (Ej. Iglesia Oasis de Gracia)"
                 className="w-full min-h-[70px] rounded-xl border border-white/10 bg-slate-900 p-3 text-xs font-bold text-white outline-none focus:border-cyan-400/50 transition-colors"
               />
             </div>
@@ -1955,7 +1955,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {FONTS.map(font => <option key={font.name} value={font.value}>{font.name}</option>)}
                     </select>
                   </label>
-                  {renderRangeControl('Tamaño', currentTheme.logoTextFontSize || 8, 3, 25, 0.5, (val) => updatePendingTheme({ ...currentTheme, logoTextFontSize: val }), 'cqh', 'accent-cyan-400')}
+                  {renderRangeControl('Tamano', currentTheme.logoTextFontSize || 8, 3, 25, 0.5, (val) => updatePendingTheme({ ...currentTheme, logoTextFontSize: val }), 'cqh', 'accent-cyan-400')}
                 </div>
 
                 {/* Styles and Alignment */}
@@ -1987,7 +1987,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-3">
-                    <span className="mb-2 block text-[10px] font-black uppercase text-slate-400">Alineación</span>
+                    <span className="mb-2 block text-[10px] font-black uppercase text-slate-400">Alineacion</span>
                     <div className="grid grid-cols-4 gap-1.5">
                       {(['left', 'center', 'right', 'justify'] as const).map(align => {
                         const Icon = align === 'left' ? AlignLeft : align === 'center' ? AlignCenter : align === 'right' ? AlignRight : AlignJustify;
@@ -2123,13 +2123,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 {/* Advanced Text Format features */}
                 <div className="grid grid-cols-3 gap-2">
-                  {renderRangeControl('Rotación Letras', currentTheme.logoTextRotation || 0, -180, 180, 5, (val) => updatePendingTheme({ ...currentTheme, logoTextRotation: val }), '°', 'accent-cyan-400')}
-                  {renderRangeControl('Deformar X', currentTheme.logoTextSkewX || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logoTextSkewX: val }), '°', 'accent-cyan-400')}
+                  {renderRangeControl('Rotacion Letras', currentTheme.logoTextRotation || 0, -180, 180, 5, (val) => updatePendingTheme({ ...currentTheme, logoTextRotation: val }), 'deg', 'accent-cyan-400')}
+                  {renderRangeControl('Deformar X', currentTheme.logoTextSkewX || 0, -45, 45, 2, (val) => updatePendingTheme({ ...currentTheme, logoTextSkewX: val }), 'deg', 'accent-cyan-400')}
                   {renderRangeControl('Opacidad Letras', Math.round((currentTheme.logoTextOpacity !== undefined ? currentTheme.logoTextOpacity : 1) * 100), 20, 100, 5, (val) => updatePendingTheme({ ...currentTheme, logoTextOpacity: val / 100 }), '%', 'accent-cyan-400')}
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4 space-y-4">
-                  <span className="block text-[10px] font-black uppercase text-cyan-300 tracking-wider">Caja de Resaltado del Texto (Fondo Detrás)</span>
+                  <span className="block text-[10px] font-black uppercase text-cyan-300 tracking-wider">Caja de Resaltado del Texto (Fondo Detras)</span>
                   
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase text-slate-400">Color de Fondo Caja</span>
@@ -3147,8 +3147,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     {showBibleSuggestions && bibleSuggestions.length > 0 && inputType === 'scripture' && (
                       <div className="absolute top-full left-0 z-50 w-full mt-1 bg-gray-900 border border-indigo-500/50 rounded-xl shadow-2xl overflow-hidden animate-fade-in">
                         <div className="px-3 py-2 bg-indigo-900/30 border-b border-gray-700 flex justify-between items-center">
-                          <span className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">Sugerencias Bíblicas</span>
-                          <span className="text-[8px] text-slate-500">Libros, capítulos y versículos</span>
+                          <span className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">Sugerencias Biblicas</span>
+                          <span className="text-[8px] text-slate-500">Libros, capitulos y versiculos</span>
                         </div>
                         <div className="max-h-48 overflow-y-auto">
                           {bibleSuggestions.map((book, idx) => (
@@ -4736,4 +4736,3 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 };
 
 export default ControlPanel;
-

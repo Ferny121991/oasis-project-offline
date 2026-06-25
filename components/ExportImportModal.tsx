@@ -205,7 +205,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
                 const hasProjects = jsonData.projects && Array.isArray(jsonData.projects);
 
                 if (!hasPlaylist && !hasThemes && !hasProjects) {
-                    throw new Error('Archivo inválido: no contiene datos reconocibles');
+                    throw new Error('Archivo invalido: no contiene datos reconocibles');
                 }
 
                 setImportData({
@@ -234,7 +234,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
                     setSelectedImportItemIds(new Set(jsonData.playlist.map((item: PresentationItem) => item.id)));
                 }
             } catch (err) {
-                setError('Error al leer el archivo. Asegúrate de que sea un archivo .oasis.json válido.');
+                setError('Error al leer el archivo. Asegurate de que sea un archivo .oasis.json valido.');
             }
         };
         reader.readAsText(file);
@@ -388,7 +388,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
                                     autoFocus
                                 />
                                 <p className="text-xs text-gray-500 mt-1">
-                                    Se guardará como: <span className="text-indigo-400">{exportName || 'archivo'}.oasis.json</span>
+                                    Se guardara como: <span className="text-indigo-400">{exportName || 'archivo'}.oasis.json</span>
                                 </p>
                             </div>
 
@@ -396,7 +396,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
                             <div>
                                 <label className="block text-sm text-gray-400 mb-2 flex items-center gap-2">
                                     <Settings2 size={14} />
-                                    Selecciona qué exportar
+                                    Selecciona que exportar
                                 </label>
                                 <div className="space-y-2">
                                     <button
@@ -567,7 +567,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
                                     <div>
                                         <label className="block text-sm text-gray-400 mb-2 flex items-center gap-2">
                                             <Settings2 size={14} />
-                                            Selecciona qué importar
+                                            Selecciona que importar
                                         </label>
                                         <div className="space-y-2">
                                             {(importData.playlist?.length || 0) > 0 && (
@@ -681,7 +681,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm text-gray-400 mb-2">Modo de importación</label>
+                                        <label className="block text-sm text-gray-400 mb-2">Modo de importacion</label>
                                         <div className="grid grid-cols-2 gap-2">
                                             <button
                                                 onClick={() => setImportMode('merge')}
@@ -690,7 +690,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
                                                     : 'border-gray-600 text-gray-400 hover:border-gray-500'
                                                     }`}
                                             >
-                                                ➕ Agregar a existente
+                                                + Agregar a existente
                                             </button>
                                             <button
                                                 onClick={() => setImportMode('replace')}
@@ -699,7 +699,7 @@ const ExportImportModal: React.FC<ExportImportModalProps> = ({
                                                     : 'border-gray-600 text-gray-400 hover:border-gray-500'
                                                     }`}
                                             >
-                                                🔄 Reemplazar todo
+                                                SYNC Reemplazar todo
                                             </button>
                                         </div>
                                     </div>

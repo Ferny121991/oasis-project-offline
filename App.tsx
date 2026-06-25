@@ -21,7 +21,7 @@ import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, searchSongs, DensityMode } from './services/geminiService';
 import { createRealtimeSyncService, realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
 import { compressImage } from './services/imageService';
-import { storeMediaBlob, stripPlaylistMedia } from './services/mediaBlobStore';
+import { deleteMediaBlob, getSlideIdFromIdbUrl, isIdbMediaUrl, storeMediaBlob, stripPlaylistMedia } from './services/mediaBlobStore';
 import { isPresentationFile, parsePptxFile, parsePdfFile, getPresentationTypeName } from './services/presentationImportService';
 
 // Mobile Tab Type
@@ -247,7 +247,7 @@ const App: React.FC = () => {
   });
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  // ── Premium Toast HUD System (replaces all native browser alerts) ──
+  // -- Premium Toast HUD System (replaces all native browser alerts) --
   const [appToast, setAppToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const appToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -257,14 +257,14 @@ const App: React.FC = () => {
     appToastTimeoutRef.current = setTimeout(() => setAppToast(null), 4500);
   };
 
-  // Shadow global browser alert — all alert() calls in this component
+  // Shadow global browser alert - all alert() calls in this component
   // will use this premium in-app notification instead of the ugly browser popup
   const alert = (message: string) => {
     let toastType: 'success' | 'error' | 'info' = 'info';
     const lower = message.toLowerCase();
-    if (lower.includes('error') || lower.includes('por favor') || lower.includes('falló') || lower.includes('permiso')) {
+    if (lower.includes('error') || lower.includes('por favor') || lower.includes('fallo') || lower.includes('permiso')) {
       toastType = 'error';
-    } else if (lower.includes('éxito') || lower.includes('exitosamente') || lower.includes('agregado') || lower.includes('copiado') || lower.includes('guardado')) {
+    } else if (lower.includes('exito') || lower.includes('exitosamente') || lower.includes('agregado') || lower.includes('copiado') || lower.includes('guardado')) {
       toastType = 'success';
     }
     triggerAppToast(message, toastType);
@@ -347,7 +347,7 @@ const App: React.FC = () => {
     actionHistoryService.log(
       session?.user?.id,
       'live_stopped',
-      'Se detuvo la transmisión en vivo',
+      'Se detuvo la transmision en vivo',
       {}
     );
   }, [session?.user?.id]);
@@ -531,7 +531,7 @@ const App: React.FC = () => {
       const projectorLiveItem = liveItem && liveSlideIndex >= 0
         ? { ...liveItem, theme: applyLogoSettings(liveItem.theme, globalLogoSettings), slides: [liveItem.slides[liveSlideIndex]].filter(Boolean) }
         : liveItem ? { ...liveItem, theme: applyLogoSettings(liveItem.theme, globalLogoSettings) } : null;
-      // Strip large base64 video data — projector will load from IndexedDB via idb: reference
+      // Strip large base64 video data - projector will load from IndexedDB via idb: reference
       const safeLiveItem = projectorLiveItem ? {
         ...projectorLiveItem,
         slides: projectorLiveItem.slides.map(s => {
@@ -1165,7 +1165,7 @@ const App: React.FC = () => {
 
   const handleSyncCloud = async () => {
     if (!session) {
-      alert("Debes iniciar sesión con Google para sincronizar.");
+      alert("Debes iniciar sesion con Google para sincronizar.");
       return;
     }
 
@@ -1225,20 +1225,20 @@ const App: React.FC = () => {
         actionHistoryService.log(
           session.user.id,
           'cloud_sync_started',
-          'Sincronización manual iniciada'
+          'Sincronizacion manual iniciada'
         );
         await fetchUserData();
       };
 
-      setIsSyncing(false); // Liberar loading para el modal de confirmación
+      setIsSyncing(false); // Liberar loading para el modal de confirmacion
 
       if (hasLocalUnsavedChanges && hasCloudChanges) {
         setSyncConfirm({
-          title: "⚠️ ¡Conflicto de Sincronización!",
-          message: "Se detectaron cambios locales sin guardar Y actualizaciones recientes en la nube (realizadas desde tu celular). Si sincronizas ahora, se descargarán los datos de la nube y se SOBRESCRIBIRÁN y PERDERÁN tus cambios locales no guardados. ¿Deseas proceder?",
+          title: "ADVERTENCIA: ¡Conflicto de Sincronizacion!",
+          message: "Se detectaron cambios locales sin guardar Y actualizaciones recientes en la nube (realizadas desde tu celular). Si sincronizas ahora, se descargaran los datos de la nube y se SOBRESCRIBIRAN y PERDERAN tus cambios locales no guardados. ¿Deseas proceder?",
           itemsList: [
             "Tienes modificaciones locales actuales en tu computadora.",
-            "Hay datos más nuevos en la nube que sobrescribirán tu estado local."
+            "Hay datos mas nuevos en la nube que sobrescribiran tu estado local."
           ],
           type: 'danger',
           confirmText: "Descargar Nube y Sobrescribir",
@@ -1250,10 +1250,10 @@ const App: React.FC = () => {
         });
       } else if (hasLocalUnsavedChanges) {
         setSyncConfirm({
-          title: "⚠️ Cambios Locales sin Guardar",
-          message: "Tienes modificaciones en tu computadora que no has guardado en la nube. Al sincronizar (descargar de la nube), se restaurará el estado anterior de la nube y PERDERÁS tus modificaciones locales actuales. ¿Deseas sincronizar de todas formas?",
+          title: "ADVERTENCIA: Cambios Locales sin Guardar",
+          message: "Tienes modificaciones en tu computadora que no has guardado en la nube. Al sincronizar (descargar de la nube), se restaurara el estado anterior de la nube y PERDERAS tus modificaciones locales actuales. ¿Deseas sincronizar de todas formas?",
           itemsList: [
-            "Se descartarán los cambios que hiciste localmente desde la última vez que guardaste."
+            "Se descartaran los cambios que hiciste localmente desde la ultima vez que guardaste."
           ],
           type: 'warning',
           confirmText: "Sincronizar y descartar local",
@@ -1265,13 +1265,13 @@ const App: React.FC = () => {
         });
       } else if (hasCloudChanges) {
         setSyncConfirm({
-          title: "🔄 Cambios detectados en la Nube",
-          message: "El servidor detectó actualizaciones recientes en la nube (realizadas desde tu celular u otro dispositivo). ¿Estás de acuerdo en sincronizar y aplicar estos nuevos cambios en esta computadora?",
+          title: "SYNC Cambios detectados en la Nube",
+          message: "El servidor detecto actualizaciones recientes en la nube (realizadas desde tu celular u otro dispositivo). ¿Estas de acuerdo en sincronizar y aplicar estos nuevos cambios en esta computadora?",
           itemsList: [
-            "Se descargarán y aplicarán las canciones, pasajes o proyectos actualizados en la nube."
+            "Se descargaran y aplicaran las canciones, pasajes o proyectos actualizados en la nube."
           ],
           type: 'info',
-          confirmText: "Sí, sincronizar y aplicar",
+          confirmText: "Si, sincronizar y aplicar",
           cancelText: "Cancelar",
           onConfirm: () => {
             setSyncConfirm(null);
@@ -1306,15 +1306,15 @@ const App: React.FC = () => {
       const deletedItems: string[] = [];
 
       if (settings) {
-        // A. Comparar la playlist en la nube con la local para ver qué se eliminó
+        // A. Comparar la playlist en la nube con la local para ver que se elimino
         const cloudPlaylist = settings.playlist || [];
         const localPlaylistIds = new Set(playlist.map(item => item.id));
         
         cloudPlaylist.forEach((item: any) => {
           if (!localPlaylistIds.has(item.id)) {
-            deletedItems.push(`[Lista] ${item.title || 'Canción/Sección'}`);
+            deletedItems.push(`[Lista] ${item.title || 'Cancion/Seccion'}`);
           } else {
-            // El item sigue existiendo localmente. Verifiquemos si se eliminó algún slide (archivo) dentro de él
+            // El item sigue existiendo localmente. Verifiquemos si se elimino algun slide (archivo) dentro de el
             const localItem = playlist.find(li => li.id === item.id);
             if (localItem) {
               const localSlideIds = new Set(localItem.slides.map(s => s.id));
@@ -1329,7 +1329,7 @@ const App: React.FC = () => {
           }
         });
 
-        // B. Comparar proyectos en la nube con locales para ver qué se eliminó
+        // B. Comparar proyectos en la nube con locales para ver que se elimino
         const cloudProjects = settings.projects || [];
         const localProjectIds = new Set(projects.map(p => p.id));
         
@@ -1338,7 +1338,7 @@ const App: React.FC = () => {
             deletedItems.push(`[Proyecto] ${p.name || 'Proyecto sin nombre'}`);
           } else {
             // Evitar duplicar advertencias para el proyecto activo actual
-            // ya que sus elementos se comparan y reportan en la sección A (playlist principal)
+            // ya que sus elementos se comparan y reportan en la seccion A (playlist principal)
             if (currentProjectId && p.id === currentProjectId) return;
 
             const localProj = projects.find(lp => lp.id === p.id);
@@ -1349,7 +1349,7 @@ const App: React.FC = () => {
                 if (!localItemIds.has(item.id)) {
                   deletedItems.push(`[En Proyecto ${p.name}] ${item.title || 'Elemento'}`);
                 } else {
-                  // El item dentro del proyecto local sigue existiendo. Verifiquemos si se eliminó algún slide (archivo) dentro de él.
+                  // El item dentro del proyecto local sigue existiendo. Verifiquemos si se elimino algun slide (archivo) dentro de el.
                   const localItem = localProj.playlist.find(li => li.id === item.id);
                   if (localItem) {
                     const localSlideIds = new Set(localItem.slides.map(s => s.id));
@@ -1414,11 +1414,11 @@ const App: React.FC = () => {
       if (deletedItems.length > 0) {
         setIsSyncing(false); // Liberar carga
         setSyncConfirm({
-          title: "Confirmar eliminación en la nube",
-          message: "Se detectaron elementos que eliminaste localmente. Si guardas ahora, se borrarán permanentemente también en la nube. ¿Estás de acuerdo en eliminarlos de la nube?",
+          title: "Confirmar eliminacion en la nube",
+          message: "Se detectaron elementos que eliminaste localmente. Si guardas ahora, se borraran permanentemente tambien en la nube. ¿Estas de acuerdo en eliminarlos de la nube?",
           itemsList: deletedItems,
           type: 'danger',
-          confirmText: "Sí, borrar y guardar",
+          confirmText: "Si, borrar y guardar",
           cancelText: "Cancelar",
           onConfirm: () => {
             setSyncConfirm(null);
@@ -1560,9 +1560,9 @@ const App: React.FC = () => {
           
           cloudPlaylist.forEach((item: any) => {
             if (!localPlaylistIds.has(item.id)) {
-              deletedItems.push(`[Lista] ${item.title || 'Canción/Sección'}`);
+              deletedItems.push(`[Lista] ${item.title || 'Cancion/Seccion'}`);
             } else {
-              // El item sigue existiendo localmente. Verifiquemos si se eliminó algún slide (archivo) dentro de él
+              // El item sigue existiendo localmente. Verifiquemos si se elimino algun slide (archivo) dentro de el
               const localItem = playlist.find(li => li.id === item.id);
               if (localItem) {
                 const localSlideIds = new Set(localItem.slides.map(s => s.id));
@@ -1586,7 +1586,7 @@ const App: React.FC = () => {
               deletedItems.push(`[Proyecto] ${p.name || 'Proyecto sin nombre'}`);
             } else {
               // Evitar duplicar advertencias para el proyecto activo actual
-              // ya que sus elementos se comparan y reportan en la sección A (playlist principal)
+              // ya que sus elementos se comparan y reportan en la seccion A (playlist principal)
               if (currentProjectId && p.id === currentProjectId) return;
 
               const localProj = projects.find(lp => lp.id === p.id);
@@ -1597,7 +1597,7 @@ const App: React.FC = () => {
                   if (!localItemIds.has(item.id)) {
                     deletedItems.push(`[En Proyecto ${p.name}] ${item.title || 'Elemento'}`);
                   } else {
-                    // El item dentro del proyecto local sigue existiendo. Verifiquemos si se eliminó algún slide (archivo) dentro de él.
+                    // El item dentro del proyecto local sigue existiendo. Verifiquemos si se elimino algun slide (archivo) dentro de el.
                     const localItem = localProj.playlist.find(li => li.id === item.id);
                     if (localItem) {
                       const localSlideIds = new Set(localItem.slides.map(s => s.id));
@@ -1644,11 +1644,11 @@ const App: React.FC = () => {
         if (deletedItems.length > 0) {
           setIsSyncing(false); // Liberar carga
           setSyncConfirm({
-            title: "Confirmar eliminación en la nube (Auto-guardado)",
-            message: "El auto-guardado detectó que eliminaste elementos localmente. Si continúas, se borrarán permanentemente también en la nube. ¿Deseas aplicar estos cambios?",
+            title: "Confirmar eliminacion en la nube (Auto-guardado)",
+            message: "El auto-guardado detecto que eliminaste elementos localmente. Si continuas, se borraran permanentemente tambien en la nube. ¿Deseas aplicar estos cambios?",
             itemsList: deletedItems,
             type: 'danger',
-            confirmText: "Sí, borrar y guardar",
+            confirmText: "Si, borrar y guardar",
             cancelText: "Cancelar y pausar",
             onConfirm: () => {
               setSyncConfirm(null);
@@ -2012,7 +2012,7 @@ const App: React.FC = () => {
     actionHistoryService.log(
       session?.user?.id,
       'song_added',
-      `Añadido: ${item.title}`,
+      `Anadido: ${item.title}`,
       { itemId: item.id, type: item.type, slideCount: item.slides?.length || 0 }
     );
   }, [defaultCustomTheme, session?.user?.id]);
@@ -2048,6 +2048,11 @@ const App: React.FC = () => {
 
   const handleDeleteItem = (id: string) => {
     const item = playlist.find(i => i.id === id);
+    item?.slides.forEach(slide => {
+      if (isIdbMediaUrl(slide.mediaUrl)) {
+        deleteMediaBlob(getSlideIdFromIdbUrl(slide.mediaUrl));
+      }
+    });
     setPlaylist(prev => prev.filter(item => item.id !== id));
     if (activeItemId === id) {
       setActiveItemId(null);
@@ -2241,6 +2246,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSlide = (itemId: string, slideId: string) => {
+    const slide = playlist.find(item => item.id === itemId)?.slides.find(s => s.id === slideId);
+    if (isIdbMediaUrl(slide?.mediaUrl)) {
+      deleteMediaBlob(getSlideIdFromIdbUrl(slide!.mediaUrl!));
+    }
     setPlaylist(prev => prev.map(item => {
       if (item.id !== itemId) return item;
       return {
@@ -2277,7 +2286,7 @@ const App: React.FC = () => {
 
   const handleRefreshItem = async (item: PresentationItem) => {
     if (!item.query) {
-      alert("Este elemento no se puede actualizar automáticamente (no tiene búsqueda guardada).");
+      alert("Este elemento no se puede actualizar automaticamente (no tiene busqueda guardada).");
       return;
     }
 
@@ -2333,7 +2342,7 @@ const App: React.FC = () => {
 
       if (!isImage && !isVideo && !isPresentation) continue;
 
-      // ── POWERPOINT / PDF ──────────────────────────────────
+      // -- POWERPOINT / PDF ----------------------------------
       if (isPresentation) {
         const typeName = getPresentationTypeName(file);
         presentationTitle = file.name.replace(/\.[^.]+$/, '');
@@ -2346,7 +2355,7 @@ const App: React.FC = () => {
             importedSlides = await parsePdfFile(file);
           }
           newSlides.push(...importedSlides);
-          console.log(`✅ Imported ${importedSlides.length} slides from ${typeName}`);
+          console.log(`OK Imported ${importedSlides.length} slides from ${typeName}`);
         } catch (err) {
           console.error(`Failed to parse ${typeName}:`, err);
           alert(`Error al importar ${typeName}: ${(err as Error).message}`);
@@ -2418,7 +2427,7 @@ const App: React.FC = () => {
       ));
     } else {
       const title = presentationTitle 
-        || (files.length === 1 ? files[0].name : `Galería (${files.length} fotos)`);
+        || (files.length === 1 ? files[0].name : `Galeria (${files.length} fotos)`);
       const newItem: PresentationItem = {
         id: Math.random().toString(36).substr(2, 9),
         title,
@@ -2828,7 +2837,7 @@ const App: React.FC = () => {
               </div>
               <div className="text-center">
                 <p className="text-5xl font-black mb-2 tracking-tight">PANTALLA COMPLETA</p>
-                <p className="text-xl text-gray-400 font-medium">Haz clic aquí para iniciar la proyección</p>
+                <p className="text-xl text-gray-400 font-medium">Haz clic aqui para iniciar la proyeccion</p>
               </div>
               <div className="mt-4 px-6 py-2 bg-white/10 rounded-full text-sm text-gray-500 font-mono">
                 Presiona 'F' para alternar
@@ -2882,9 +2891,9 @@ const App: React.FC = () => {
         const isBible = /\d/.test(query);
         if (isBible) {
           const virtualBibleItem = {
-            title: `📖 Importar Pasaje Bíblico: "${query}"`,
+            title: `Biblia Importar Pasaje Biblico: "${query}"`,
             artist: 'Biblia Reina Valera 1960',
-            snippet: 'Genera diapositivas automáticas del pasaje'
+            snippet: 'Genera diapositivas automaticas del pasaje'
           };
           setPaletteResults([virtualBibleItem, ...songRes]);
         } else {
@@ -2904,7 +2913,7 @@ const App: React.FC = () => {
     setPaletteLoading(true);
     try {
       let item;
-      if (result.title.startsWith('📖 Importar Pasaje Bíblico:')) {
+      if (result.title.startsWith('Biblia Importar Pasaje Biblico:')) {
         item = await fetchBiblePassage(paletteQuery, 'Reina Valera 1960', 'classic');
       } else {
         item = await fetchSongLyrics(`${result.title} de ${result.artist}`, 'classic');
@@ -2949,7 +2958,7 @@ const App: React.FC = () => {
               <Lock size={40} />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-center">Acceso Restringido</h2>
-            <p className="text-gray-400 text-center text-sm">Esta es un área protegida. Por favor ingresa el código de seguridad para continuar.</p>
+            <p className="text-gray-400 text-center text-sm">Esta es un area protegida. Por favor ingresa el codigo de seguridad para continuar.</p>
           </div>
 
           <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
@@ -2968,7 +2977,7 @@ const App: React.FC = () => {
               />
               {authError && (
                 <div className="absolute -bottom-6 left-0 w-full text-center text-xs font-bold text-red-500 animate-pulse">
-                  Código Incorrecto
+                  Codigo Incorrecto
                 </div>
               )}
             </div>
@@ -3094,7 +3103,7 @@ const App: React.FC = () => {
           <button
             onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
             className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-50 h-16 w-[18px] items-center justify-center rounded-l-2xl border-y border-l border-white/10 bg-[#0c1220]/95 text-slate-400 hover:text-cyan-300 hover:bg-[#0f172a] hover:shadow-[0_0_15px_rgba(34,211,238,0.25)] hover:border-cyan-500/30 transition-all duration-300 cursor-pointer shadow-lg"
-            title={isRightSidebarCollapsed ? "Mostrar proyección y controles" : "Ocultar proyección y controles"}
+            title={isRightSidebarCollapsed ? "Mostrar proyeccion y controles" : "Ocultar proyeccion y controles"}
           >
             {isRightSidebarCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
@@ -3276,9 +3285,9 @@ const App: React.FC = () => {
                   <Music size={28} />
                 </div>
                 <div className="text-center max-w-sm">
-                  <h3 className="text-white font-black text-sm uppercase tracking-wider">Sin Canción Seleccionada</h3>
+                  <h3 className="text-white font-black text-sm uppercase tracking-wider">Sin Cancion Seleccionada</h3>
                   <p className="text-xs text-slate-400 mt-2 leading-relaxed font-medium">
-                    Selecciona una canción o pasaje en tu playlist lateral izquierda primero, y luego abre el Reflow Editor para editarla fluidamente en texto corrido.
+                    Selecciona una cancion o pasaje en tu playlist lateral izquierda primero, y luego abre el Reflow Editor para editarla fluidamente en texto corrido.
                   </p>
                 </div>
               </div>
@@ -3337,10 +3346,10 @@ const App: React.FC = () => {
                 <button
                   onClick={() => setShowMobileConnect(true)}
                   className="bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-300 border border-emerald-400/20 px-3 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all"
-                  title="Control Móvil"
+                  title="Control Movil"
                 >
                   <Smartphone size={14} />
-                  <span className="hidden xl:inline">Móvil</span>
+                  <span className="hidden xl:inline">Movil</span>
                 </button>
               </div>
               <Playlist
@@ -3410,7 +3419,7 @@ const App: React.FC = () => {
                 <button
                   onClick={handleSignOut}
                   className="ml-2 p-1.5 text-gray-500 hover:text-red-400 transition-colors"
-                  title="Cerrar Sesión"
+                  title="Cerrar Sesion"
                 >
                   <LogOut size={14} />
                 </button>
@@ -3438,7 +3447,7 @@ const App: React.FC = () => {
                 onClick={() => setShowMobileConnect(true)}
                 className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-600/10 hover:bg-green-600/20 text-green-400 text-[10px] font-bold transition-all border border-green-500/20"
               >
-                <Smartphone size={12} /> App Móvil
+                <Smartphone size={12} /> App Movil
               </button>
               <div className="text-[10px] text-gray-500 italic">
                 {isSyncing ? 'Sincronizando...' : 'Nube Activa'}
@@ -3452,7 +3461,7 @@ const App: React.FC = () => {
               Atajos: Espacio (Sig), Flechas (Nav), B (Black), C (Clear), L (Logo), F (Pantalla), P (Proyector)
             </div>
             <div className="text-[10px] text-orange-400 text-center font-bold animate-pulse">
-              NOTA: Para pantalla completa dale a cualquier letra y después a proy-full.
+              NOTA: Para pantalla completa dale a cualquier letra y despues a proy-full.
             </div>
           </div>
         </div>
@@ -3473,7 +3482,7 @@ const App: React.FC = () => {
         <div className="h-12 lg:h-14 bg-[#0a101b] border-b border-white/10 flex items-center justify-between px-3 lg:px-4 shrink-0 shadow-[0_16px_45px_rgba(0,0,0,0.24)]">
           <div className="flex items-center gap-2 text-cyan-300 font-black text-xs lg:text-sm truncate max-w-[55%] lg:max-w-[50%]">
             <PlayCircle size={14} className="shrink-0" />
-            <span className="truncate">{activeItem ? activeItem.title : 'Sin Selección'}</span>
+            <span className="truncate">{activeItem ? activeItem.title : 'Sin Seleccion'}</span>
             {activeItem && (
               <span className="hidden xl:inline text-[10px] text-slate-500 font-black">
                 {activeSlideIndex + 1}/{activeItem.slides.length}
@@ -3864,7 +3873,7 @@ const App: React.FC = () => {
         onClose={() => setShowActionHistory(false)}
       />
 
-      {/* ── Premium Sync Confirmation Modal ── */}
+      {/* -- Premium Sync Confirmation Modal -- */}
       {syncConfirm && (
         <div className="fixed inset-0 z-[99999] bg-black/65 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900/95 border border-white/10 rounded-[24px] max-w-md w-full overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.85),0_0_30px_rgba(99,102,241,0.06)] animate-fade-in">
@@ -3926,7 +3935,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* ── Premium Toast Notification HUD ── */}
+      {/* -- Premium Toast Notification HUD -- */}
       {appToast && (
         <div style={{
           position: 'fixed',
@@ -3984,7 +3993,7 @@ const App: React.FC = () => {
               <input
                 type="text"
                 autoFocus
-                placeholder="Buscar canción o pasaje bíblico (ej: Genesis 1, Cuan Grande)..."
+                placeholder="Buscar cancion o pasaje biblico (ej: Genesis 1, Cuan Grande)..."
                 value={paletteQuery}
                 onChange={(e) => {
                   setPaletteQuery(e.target.value);
@@ -4027,7 +4036,7 @@ const App: React.FC = () => {
               ) : paletteResults.length > 0 ? (
                 paletteResults.map((res, idx) => {
                   const isActive = paletteActiveIndex === idx;
-                  const isBible = res.title.startsWith('📖 Importar Pasaje Bíblico:');
+                  const isBible = res.title.startsWith('Biblia Importar Pasaje Biblico:');
 
                   return (
                     <div
@@ -4062,7 +4071,7 @@ const App: React.FC = () => {
                           </span>
                         ) : (
                           <span className="text-[9px] font-black bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                            Canción
+                            Cancion
                           </span>
                         )}
                         {isActive && (
@@ -4076,14 +4085,14 @@ const App: React.FC = () => {
                 })
               ) : paletteQuery.trim() ? (
                 <div className="py-12 text-center text-slate-500 text-sm font-semibold italic">
-                  No se encontraron canciones. Escribe números para importar pasajes bíblicos.
+                  No se encontraron canciones. Escribe numeros para importar pasajes biblicos.
                 </div>
               ) : (
                 <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-500">
                   <LayoutGrid size={32} className="opacity-15 animate-bounce" />
                   <span className="text-xs font-bold uppercase tracking-wider">FlujoEclesial Spotlight</span>
                   <span className="text-[10px] text-slate-600 font-medium text-center max-w-sm leading-relaxed px-4">
-                    Escribe para buscar. Presiona <kbd className="bg-slate-950 px-1.5 py-0.5 rounded border border-white/10 text-[9px] mx-1 text-slate-400 font-mono">ENTER</kbd> para importar pasajes bíblicos y canciones en un clic.
+                    Escribe para buscar. Presiona <kbd className="bg-slate-950 px-1.5 py-0.5 rounded border border-white/10 text-[9px] mx-1 text-slate-400 font-mono">ENTER</kbd> para importar pasajes biblicos y canciones en un clic.
                   </span>
                 </div>
               )}

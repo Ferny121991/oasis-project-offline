@@ -148,7 +148,7 @@ export function stripLargeMedia(slides: any[]): any[] {
   return slides.map(slide => {
     if (slide.type === 'video' && slide.mediaUrl) {
       if (isIdbMediaUrl(slide.mediaUrl)) {
-        // Keep the idb: reference — it's just a tiny string like "idb:abc123"
+        // Keep the idb: reference - it's just a tiny string like "idb:abc123"
         return slide;
       }
       // Strip base64 data URLs for videos (they're too large)
