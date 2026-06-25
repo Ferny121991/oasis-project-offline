@@ -161,7 +161,11 @@ const App: React.FC = () => {
   const [audioElapsedOffset, setAudioElapsedOffset] = useState<number>(0);
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [audioVolume, setAudioVolume] = useState(85);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
   const audioIframeRef = useRef<HTMLIFrameElement>(null);
+  const audioVolumeRef = useRef(85);
+  const isAudioMutedRef = useRef(false);
   const [isPreviewHidden, setIsPreviewHidden] = useState(false); // BLACKOUT
   const [isTextHidden, setIsTextHidden] = useState(false); // CLEAR TEXT (Background stays)
   const [isBackgroundHidden, setIsBackgroundHidden] = useState(false); // CLEAR BACKGROUND
@@ -515,6 +519,12 @@ const App: React.FC = () => {
               setAudioStartTime(Date.now());
               setAudioElapsedOffset(0);
               setAudioCurrentTime(0);
+              try {
+                if (typeof bgPlayerRef.current?.setVolume === 'function') bgPlayerRef.current.setVolume(audioVolumeRef.current);
+                if (isAudioMutedRef.current && typeof bgPlayerRef.current?.mute === 'function') bgPlayerRef.current.mute();
+              } catch (error) {
+                console.warn('Audio ready volume sync failed:', error);
+              }
               syncAudioProgress();
               progressInterval = setInterval(syncAudioProgress, 1000);
             },
@@ -592,6 +602,45 @@ const App: React.FC = () => {
     const baseline = audioCurrentTime || (audioElapsedOffset / 1000);
     seekAudioTo(baseline + seconds);
   }, [audioCurrentTime, audioElapsedOffset, seekAudioTo]);
+
+  const setBackgroundAudioVolume = useCallback((volume: number) => {
+    const nextVolume = Math.min(100, Math.max(0, Math.round(Number(volume) || 0)));
+    setAudioVolume(nextVolume);
+    audioVolumeRef.current = nextVolume;
+    try {
+      if (bgPlayerRef.current && typeof bgPlayerRef.current.setVolume === 'function') {
+        bgPlayerRef.current.setVolume(nextVolume);
+        if (nextVolume > 0 && isAudioMutedRef.current && typeof bgPlayerRef.current.unMute === 'function') {
+          bgPlayerRef.current.unMute();
+          setIsAudioMuted(false);
+          isAudioMutedRef.current = false;
+        }
+      } else if (audioIframeRef.current) {
+        audioIframeRef.current.contentWindow?.postMessage(`{"event":"command","func":"setVolume","args":[${nextVolume}]}`, '*');
+      }
+    } catch (error) {
+      console.warn('Audio volume command failed:', error);
+    }
+  }, []);
+
+  const toggleBackgroundAudioMute = useCallback(() => {
+    const nextMuted = !isAudioMutedRef.current;
+    setIsAudioMuted(nextMuted);
+    isAudioMutedRef.current = nextMuted;
+    try {
+      if (bgPlayerRef.current) {
+        const fn = nextMuted ? 'mute' : 'unMute';
+        if (typeof bgPlayerRef.current[fn] === 'function') {
+          bgPlayerRef.current[fn]();
+        }
+      } else if (audioIframeRef.current) {
+        const func = nextMuted ? 'mute' : 'unMute';
+        audioIframeRef.current.contentWindow?.postMessage(`{"event":"command","func":"${func}","args":""}`, '*');
+      }
+    } catch (error) {
+      console.warn('Audio mute command failed:', error);
+    }
+  }, []);
 
   const navigateLivePrev = useCallback(() => {
     if (!liveItemId) return;
@@ -891,10 +940,15 @@ const App: React.FC = () => {
             }
           }
           break;
+        case 'go_live_active':
+          if (activeItemId) makeLive(activeItemId, activeSlideIndex >= 0 ? activeSlideIndex : 0);
+          break;
         case 'jump_to_slide':
           if (commandData?.index !== undefined) {
-            setLiveSlideIndex(commandData.index);
             setActiveSlideIndex(commandData.index);
+            if (commandData.makeLive !== false) {
+              setLiveSlideIndex(commandData.index);
+            }
           }
           break;
         case 'change_project':
@@ -975,6 +1029,12 @@ const App: React.FC = () => {
             seekAudioTo(Number(commandData.seconds));
           }
           break;
+        case 'audio_set_volume':
+          setBackgroundAudioVolume(Number(commandData?.volume));
+          break;
+        case 'audio_toggle_mute':
+          toggleBackgroundAudioMute();
+          break;
         case 'stop_live': stopLive(); break;
         case 'zoom_update':
           if (commandData) {
@@ -998,7 +1058,15 @@ const App: React.FC = () => {
                     bibleVersion: commandData.version
                   };
                   setPlaylist(prev => [...prev, newItem]);
-                  if (commandData.makeLive) makeLive(newItem.id, 0);
+                  setActiveItemId(newItem.id);
+                  setActiveSlideIndex(0);
+                  if (commandData.makeLive) {
+                    setLiveItemId(newItem.id);
+                    setLiveSlideIndex(0);
+                    setFrozenLiveItem(newItem);
+                    setIsPreviewHidden(false);
+                    setIsLogoActive(false);
+                  }
                 }
               }).catch(console.error);
             });
@@ -1018,7 +1086,48 @@ const App: React.FC = () => {
                     query: commandData.query
                   };
                   setPlaylist(prev => [...prev, newItem]);
-                  if (commandData.makeLive) makeLive(newItem.id, 0);
+                  setActiveItemId(newItem.id);
+                  setActiveSlideIndex(0);
+                  if (commandData.makeLive) {
+                    setLiveItemId(newItem.id);
+                    setLiveSlideIndex(0);
+                    setFrozenLiveItem(newItem);
+                    setIsPreviewHidden(false);
+                    setIsLogoActive(false);
+                  }
+                }
+              }).catch(console.error);
+            });
+          }
+          break;
+        case 'add_youtube':
+          if (commandData?.query) {
+            import('./services/geminiService').then(({ searchYouTube }) => {
+              searchYouTube(commandData.query).then(results => {
+                const firstVideo = results.find((result: any) => result.kind !== 'playlist' && !result.playlistId);
+                if (!firstVideo) return;
+                const newItem: PresentationItem = {
+                  id: `youtube_${Date.now()}`,
+                  title: firstVideo.title || commandData.query,
+                  type: 'custom',
+                  slides: [{
+                    id: `yt_${Date.now()}`,
+                    type: 'youtube',
+                    content: firstVideo.title || commandData.query,
+                    videoId: firstVideo.id,
+                    label: 'YOUTUBE'
+                  }],
+                  theme: creationTheme
+                };
+                setPlaylist(prev => [...prev, newItem]);
+                setActiveItemId(newItem.id);
+                setActiveSlideIndex(0);
+                if (commandData.makeLive) {
+                  setLiveItemId(newItem.id);
+                  setLiveSlideIndex(0);
+                  setFrozenLiveItem(newItem);
+                  setIsPreviewHidden(false);
+                  setIsLogoActive(false);
                 }
               }).catch(console.error);
             });
@@ -1034,12 +1143,19 @@ const App: React.FC = () => {
     return () => {
       realtimeSyncService.unsubscribe();
     };
-  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, navigateNextAudio, navigatePrevAudio, seekAudio, seekAudioTo, stopLive, isAudioPlaying, saveCurrentProjectInto, creationTheme]);
+  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, navigateNextAudio, navigatePrevAudio, seekAudio, seekAudioTo, setBackgroundAudioVolume, toggleBackgroundAudioMute, stopLive, isAudioPlaying, saveCurrentProjectInto, creationTheme]);
 
   // Broadcast live state (debounced)
   const lastStateStr = useRef<string>('');
   useEffect(() => {
     if (!remoteControlId || isProjectorMode || isRemoteControlMode) return;
+
+    let recentActions: { id?: string, action_type?: string, description: string, created_at?: string }[] = [];
+    try {
+      recentActions = JSON.parse(localStorage.getItem('oasis_action_history') || '[]').slice(0, 8);
+    } catch (error) {
+      recentActions = [];
+    }
 
     const stateToBroadcast = {
       liveItemId,
@@ -1058,7 +1174,10 @@ const App: React.FC = () => {
       backgroundAudioDuration: audioDuration,
       backgroundAudioIndex: currentAudioIndex,
       backgroundAudioCount: bgAudioPlaylist.length,
+      backgroundAudioVolume: audioVolume,
+      isAudioMuted,
       isAudioPlaying: isAudioPlaying,
+      recentActions,
       zoomState,
       imageContentScale: liveItem?.theme?.imageContentScale ?? 1,
       imageContentOffsetX: liveItem?.theme?.imageContentOffsetX ?? 0,
@@ -1093,7 +1212,7 @@ const App: React.FC = () => {
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, isRemoteControlMode, playlist, activeItem, liveItem, projects, currentProjectId, backgroundAudioItem, audioCurrentTime, audioDuration, currentAudioIndex, bgAudioPlaylist.length, isAudioPlaying]);
+  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, isRemoteControlMode, playlist, activeItem, liveItem, projects, currentProjectId, backgroundAudioItem, audioCurrentTime, audioDuration, currentAudioIndex, bgAudioPlaylist.length, audioVolume, isAudioMuted, isAudioPlaying]);
 
   useEffect(() => {
     if (!isRemoteControlMode || !remoteControlIdFromUrl) return;
@@ -3154,6 +3273,10 @@ const App: React.FC = () => {
           audioCurrentTime={audioCurrentTime}
           audioDuration={audioDuration}
           onSeekAudioTo={seekAudioTo}
+          audioVolume={audioVolume}
+          isAudioMuted={isAudioMuted}
+          onSetAudioVolume={setBackgroundAudioVolume}
+          onToggleAudioMute={toggleBackgroundAudioMute}
           onNextAudio={navigateNextAudio}
           onPrevAudio={navigatePrevAudio}
           onRemoveAudio={(id) => setBgAudioPlaylist(prev => prev.filter(t => t.id !== id))}

@@ -24,9 +24,12 @@ import {
     Square,
     SkipBack,
     SkipForward,
+    Star,
     Type,
     Upload,
     Video,
+    Volume2,
+    VolumeX,
     X,
     ZoomIn,
     ZoomOut,
@@ -57,11 +60,19 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const [searchQuery, setSearchQuery] = useState('');
     const [songQuery, setSongQuery] = useState('');
     const [bibleQuery, setBibleQuery] = useState('');
+    const [quickAddQuery, setQuickAddQuery] = useState('');
+    const [quickAddType, setQuickAddType] = useState<'song' | 'bible' | 'youtube'>('song');
     const [bibleVersion, setBibleVersion] = useState('RVR1960');
     const [newProjectName, setNewProjectName] = useState('');
     const [mediaTitle, setMediaTitle] = useState('');
     const [uploadStatus, setUploadStatus] = useState('');
     const [isZoomExpanded, setIsZoomExpanded] = useState(false);
+    const [favoriteItemIds, setFavoriteItemIds] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('oasis_remote_favorite_items') || '[]'); } catch { return []; }
+    });
+    const [favoriteProjectIds, setFavoriteProjectIds] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('oasis_remote_favorite_projects') || '[]'); } catch { return []; }
+    });
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageGestureRef = useRef({
         lastX: 0,
@@ -71,12 +82,18 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     });
 
     const activeItem = liveState?.playlist?.find(p => p.id === liveState.liveItemId);
-    const currentSlide = liveState?.activeItemSlides?.[liveState.liveSlideIndex];
+    const stagedItem = liveState?.playlist?.find(p => p.id === liveState.activeItemId);
+    const displaySlideIndex = liveState?.activeItemId && liveState.activeItemId !== liveState.liveItemId
+        ? Math.max(0, liveState.activeSlideIndex || 0)
+        : Math.max(0, liveState?.liveSlideIndex || 0);
+    const currentSlide = liveState?.activeItemSlides?.[displaySlideIndex];
     const hasLiveItem = !!liveState?.liveItemId;
+    const hasPreparedItem = !!liveState?.activeItemId && liveState.activeItemId !== liveState?.liveItemId;
     const audioCurrentTime = Math.max(0, Number(liveState?.backgroundAudioCurrentTime) || 0);
     const audioDuration = Math.max(0, Number(liveState?.backgroundAudioDuration) || 0);
     const audioProgress = audioDuration > 0 ? Math.min(100, Math.max(0, (audioCurrentTime / audioDuration) * 100)) : 0;
     const hasBackgroundAudio = !!liveState?.backgroundAudioTitle;
+    const audioVolume = Math.min(100, Math.max(0, Number(liveState?.backgroundAudioVolume) || 0));
     const audioPositionLabel = typeof liveState?.backgroundAudioIndex === 'number' && liveState.backgroundAudioIndex >= 0
         ? `${liveState.backgroundAudioIndex + 1}/${liveState.backgroundAudioCount || '?'}`
         : '';
@@ -87,6 +104,35 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     }, [liveState?.playlist, searchQuery]);
 
     const connectionLabel = isConnected ? (hasLiveItem ? 'EN VIVO' : 'ONLINE') : 'RECONECTANDO';
+
+    const toggleFavoriteItem = (id: string) => {
+        setFavoriteItemIds(prev => {
+            const next = prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id];
+            localStorage.setItem('oasis_remote_favorite_items', JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const toggleFavoriteProject = (id: string) => {
+        setFavoriteProjectIds(prev => {
+            const next = prev.includes(id) ? prev.filter(projectId => projectId !== id) : [...prev, id];
+            localStorage.setItem('oasis_remote_favorite_projects', JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const runQuickAdd = () => {
+        const query = quickAddQuery.trim();
+        if (!query) return;
+        if (quickAddType === 'song') {
+            sendCommand('add_song', { query, makeLive: true });
+        } else if (quickAddType === 'bible') {
+            sendCommand('add_bible', { query, version: bibleVersion, makeLive: true });
+        } else {
+            sendCommand('add_youtube', { query, makeLive: true });
+        }
+        setQuickAddQuery('');
+    };
 
     const sendImageGestureCommand = (command: string, data: Record<string, any> = {}, force = false) => {
         const now = Date.now();
@@ -284,6 +330,23 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             </div>
                         </div>
 
+                        {hasPreparedItem && stagedItem && (
+                            <div className="rounded-[1.5rem] border border-amber-300/25 bg-amber-400/10 p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-black uppercase tracking-wider text-amber-200">Preparado para salir</p>
+                                        <p className="truncate text-sm font-black text-white">{stagedItem.title}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => sendCommand('go_live_active')}
+                                        className="shrink-0 rounded-2xl bg-amber-300 px-4 py-3 text-xs font-black text-slate-950 active:scale-95"
+                                    >
+                                        Poner en vivo
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-3 gap-2">
                             <button
                                 onClick={() => sendCommand('blackout')}
@@ -410,21 +473,36 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             </div>
                         )}
 
-                        {hasLiveItem && (
+                        {!!liveState.recentActions?.length && (
+                            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-3">
+                                <h2 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">Historial reciente</h2>
+                                <div className="space-y-2">
+                                    {liveState.recentActions.slice(0, 4).map((action, index) => (
+                                        <div key={action.id || index} className="rounded-xl bg-slate-950/55 border border-white/5 px-3 py-2">
+                                            <p className="text-xs font-bold text-slate-200 line-clamp-2">{action.description}</p>
+                                            <p className="mt-1 text-[9px] uppercase tracking-wider text-slate-500">{action.action_type || 'accion'}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {!!liveState.activeItemSlides?.length && (
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">Slides del item</h2>
-                                    <button onClick={() => sendCommand('stop_live')} className="text-[10px] font-black text-red-300 flex items-center gap-1">
+                                    <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">{hasPreparedItem ? 'Slides preparados' : 'Slides del item'}</h2>
+                                    {hasLiveItem && <button onClick={() => sendCommand('stop_live')} className="text-[10px] font-black text-red-300 flex items-center gap-1">
                                         <AlertCircle size={12} /> Detener
-                                    </button>
+                                    </button>}
                                 </div>
                                 {liveState.activeItemSlides?.map((slide, index) => {
-                                    const isLive = index === liveState.liveSlideIndex;
+                                    const isLive = !hasPreparedItem && index === liveState.liveSlideIndex;
+                                    const isPreparedSlide = hasPreparedItem && index === (liveState.activeSlideIndex || 0);
                                     return (
                                         <button
                                             key={slide.id || index}
-                                            onClick={() => sendCommand('jump_to_slide', { index })}
-                                            className={`w-full flex items-center gap-3 rounded-2xl border p-2 text-left active:scale-[0.99] ${isLive ? 'bg-indigo-500/15 border-indigo-400/40' : 'bg-white/[0.04] border-white/10'}`}
+                                            onClick={() => sendCommand('jump_to_slide', { index, makeLive: !hasPreparedItem })}
+                                            className={`w-full flex items-center gap-3 rounded-2xl border p-2 text-left active:scale-[0.99] ${isLive ? 'bg-indigo-500/15 border-indigo-400/40' : isPreparedSlide ? 'bg-amber-500/10 border-amber-300/30' : 'bg-white/[0.04] border-white/10'}`}
                                         >
                                             <div className="w-20 aspect-video rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden text-slate-400 relative">
                                                 {slide.type === 'image' && slide.mediaUrl && <img src={slide.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
@@ -435,7 +513,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${isLive ? 'bg-indigo-400/20 text-indigo-200' : 'bg-white/10 text-slate-400'}`}>
-                                                        {isLive ? 'Actual' : `Slide ${index + 1}`}
+                                                        {isLive ? 'Actual' : isPreparedSlide ? 'Preparado' : `Slide ${index + 1}`}
                                                     </span>
                                                 </div>
                                                 <p className="text-sm font-bold truncate">{stripHtml(slide.content) || slide.label || slide.type}</p>
@@ -462,22 +540,46 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         <div className="space-y-2">
                             {filteredPlaylist.map(item => {
                                 const isLive = liveState.liveItemId === item.id;
+                                const isPrepared = liveState.activeItemId === item.id && !isLive;
+                                const isFavorite = favoriteItemIds.includes(item.id);
                                 const ItemIcon = item.type === 'song' ? Music : item.type === 'scripture' ? BookOpen : LayoutGrid;
                                 return (
-                                    <button
+                                    <div
                                         key={item.id}
-                                        onClick={() => sendCommand('jump_to_item', { itemId: item.id, makeLive: true })}
-                                        className={`w-full flex items-center gap-3 rounded-2xl border p-3 text-left active:scale-[0.99] ${isLive ? 'bg-emerald-500/10 border-emerald-400/30' : 'bg-white/[0.04] border-white/10'}`}
+                                        className={`rounded-2xl border p-3 text-left ${isLive ? 'bg-emerald-500/10 border-emerald-400/30' : isPrepared ? 'bg-amber-500/10 border-amber-300/30' : 'bg-white/[0.04] border-white/10'}`}
                                     >
-                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${isLive ? 'bg-emerald-400/15 text-emerald-300' : 'bg-slate-900 text-slate-400'}`}>
-                                            <ItemIcon size={20} />
-                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => toggleFavoriteItem(item.id)}
+                                                className={`w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 ${isFavorite ? 'bg-amber-300 text-slate-950' : 'bg-slate-900 text-slate-500'}`}
+                                                title="Favorito"
+                                            >
+                                                <Star size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+                                            </button>
+                                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${isLive ? 'bg-emerald-400/15 text-emerald-300' : isPrepared ? 'bg-amber-300/15 text-amber-200' : 'bg-slate-900 text-slate-400'}`}>
+                                                <ItemIcon size={20} />
+                                            </div>
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-black truncate">{item.title}</p>
                                             <p className="text-xs text-slate-500">{item.slides?.length || 0} slides · {item.type}</p>
                                         </div>
-                                        {isLive ? <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" /> : <PlayCircle size={18} className="text-slate-500" />}
-                                    </button>
+                                        {isLive ? <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" /> : isPrepared ? <span className="text-[9px] font-black text-amber-200 uppercase">Listo</span> : null}
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => sendCommand('jump_to_item', { itemId: item.id, makeLive: false })}
+                                                className="h-10 rounded-xl border border-white/10 bg-white/[0.06] text-xs font-black text-slate-200 active:scale-95"
+                                            >
+                                                Preparar
+                                            </button>
+                                            <button
+                                                onClick={() => sendCommand('jump_to_item', { itemId: item.id, makeLive: true })}
+                                                className="h-10 rounded-xl bg-emerald-500 text-xs font-black text-slate-950 active:scale-95"
+                                            >
+                                                En vivo
+                                            </button>
+                                        </div>
+                                    </div>
                                 );
                             })}
                             {filteredPlaylist.length === 0 && (
@@ -528,6 +630,34 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                 />
                                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-950/80">
                                     <div className="h-full rounded-full bg-gradient-to-r from-pink-500 to-indigo-400" style={{ width: `${audioProgress}%` }} />
+                                </div>
+                            </div>
+
+                            <div className="mt-3 rounded-3xl border border-white/10 bg-black/20 p-4">
+                                <div className="mb-2 flex items-center justify-between text-xs font-black text-slate-300">
+                                    <span className="flex items-center gap-2">
+                                        {liveState.isAudioMuted ? <VolumeX size={16} className="text-red-300" /> : <Volume2 size={16} className="text-pink-200" />}
+                                        Volumen
+                                    </span>
+                                    <span className="text-pink-200">{liveState.isAudioMuted ? 'Mute' : `${audioVolume}%`}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => sendCommand('audio_toggle_mute')}
+                                        disabled={!hasBackgroundAudio}
+                                        className={`h-11 w-14 rounded-2xl border border-white/10 flex items-center justify-center active:scale-95 disabled:opacity-35 ${liveState.isAudioMuted ? 'bg-red-500/20 text-red-200' : 'bg-white/[0.06] text-slate-200'}`}
+                                    >
+                                        {liveState.isAudioMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                                    </button>
+                                    <input
+                                        type="range"
+                                        min={0}
+                                        max={100}
+                                        value={audioVolume}
+                                        onChange={(event) => sendCommand('audio_set_volume', { volume: Number(event.target.value) })}
+                                        disabled={!hasBackgroundAudio}
+                                        className="min-w-0 flex-1 accent-pink-500 disabled:opacity-40"
+                                    />
                                 </div>
                             </div>
 
@@ -608,18 +738,32 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         <div className="grid grid-cols-2 gap-3">
                             {liveState.projects?.map(project => {
                                 const selected = liveState.currentProjectName === project.name;
+                                const isFavorite = favoriteProjectIds.includes(project.id);
                                 return (
-                                    <button
+                                    <div
                                         key={project.id}
-                                        onClick={() => sendCommand('change_project', { projectId: project.id })}
                                         className={`aspect-square rounded-2xl border p-3 text-left flex flex-col justify-between active:scale-[0.98] ${selected ? 'bg-indigo-500/15 border-indigo-400/40' : 'bg-white/[0.04] border-white/10'}`}
                                     >
-                                        <Folder size={32} className={selected ? 'text-indigo-300' : 'text-slate-500'} />
+                                        <div className="flex items-start justify-between">
+                                            <Folder size={32} className={selected ? 'text-indigo-300' : 'text-slate-500'} />
+                                            <button
+                                                onClick={() => toggleFavoriteProject(project.id)}
+                                                className={`h-9 w-9 rounded-xl flex items-center justify-center ${isFavorite ? 'bg-amber-300 text-slate-950' : 'bg-slate-900 text-slate-500'}`}
+                                            >
+                                                <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} />
+                                            </button>
+                                        </div>
                                         <div>
                                             <p className="text-sm font-black line-clamp-2">{project.name}</p>
                                             <p className="text-[10px] text-slate-500 uppercase mt-1">Proyecto</p>
+                                            <button
+                                                onClick={() => sendCommand('change_project', { projectId: project.id })}
+                                                className="mt-3 h-9 w-full rounded-xl bg-indigo-500 text-[10px] font-black text-white active:scale-95"
+                                            >
+                                                Abrir
+                                            </button>
                                         </div>
-                                    </button>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -628,6 +772,51 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 
                 {activeTab === 'add' && (
                     <section className="p-4 max-w-md mx-auto space-y-4">
+                        <div className="rounded-[1.75rem] border border-cyan-300/20 bg-cyan-400/10 p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-cyan-100 font-black">
+                                <Search size={18} /> Buscador rapido
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                {[
+                                    { id: 'song' as const, label: 'Cancion' },
+                                    { id: 'bible' as const, label: 'Biblia' },
+                                    { id: 'youtube' as const, label: 'YouTube' },
+                                ].map(option => (
+                                    <button
+                                        key={option.id}
+                                        onClick={() => setQuickAddType(option.id)}
+                                        className={`h-10 rounded-xl text-[10px] font-black uppercase border active:scale-95 ${quickAddType === option.id ? 'bg-cyan-300 text-slate-950 border-cyan-200' : 'bg-slate-950/60 text-slate-300 border-white/10'}`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <input
+                                value={quickAddQuery}
+                                onChange={(e) => setQuickAddQuery(e.target.value)}
+                                placeholder={quickAddType === 'bible' ? 'Ej: Juan 3:16' : quickAddType === 'youtube' ? 'Buscar video en YouTube' : 'Nombre de cancion'}
+                                className="w-full h-12 rounded-2xl bg-slate-950 border border-white/10 px-3 text-sm outline-none focus:border-cyan-300"
+                            />
+                            {quickAddType === 'bible' && (
+                                <select
+                                    value={bibleVersion}
+                                    onChange={(e) => setBibleVersion(e.target.value)}
+                                    className="w-full h-11 rounded-xl bg-slate-950 border border-white/10 px-3 text-sm outline-none"
+                                >
+                                    <option value="Reina Valera 1960">Reina Valera 1960</option>
+                                    <option value="Nueva Version Internacional">Nueva Version Internacional</option>
+                                    <option value="Nueva Traduccion Viviente">Nueva Traduccion Viviente</option>
+                                    <option value="La Biblia de las Americas">La Biblia de las Americas</option>
+                                </select>
+                            )}
+                            <button
+                                onClick={runQuickAdd}
+                                className="w-full h-12 rounded-2xl bg-cyan-300 text-slate-950 text-sm font-black active:scale-[0.99]"
+                            >
+                                Buscar, agregar y poner en vivo
+                            </button>
+                        </div>
+
                         <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4 space-y-3">
                             <div className="flex items-center gap-2 text-sky-200 font-black">
                                 <Upload size={18} /> Subir imagenes

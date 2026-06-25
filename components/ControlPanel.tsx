@@ -3,7 +3,7 @@ import { fetchSongLyrics, fetchBiblePassage, processManualText, searchSongs, Den
 import { compressImage } from '../services/imageService';
 import { PresentationItem, Theme, AnimationType, Slide, TextSegment, HistoryEntry, BackgroundAnimationConfig, BackgroundAnimationType } from '../types';
 import { THEME_PRESETS, TEXT_STYLE_EDITIONS } from '../constants';
-import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Undo, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star, AlertCircle, ArrowLeft, Copy, ListMusic } from 'lucide-react';
+import { Music, BookOpen, Monitor, Loader2, Plus, Edit3, AlignJustify, Grid, FileText, AlignCenter, Search, User, X, Sliders, PlayCircle, Image as ImageIcon, Type, Bold, Italic, PenTool, CaseUpper, Upload, ChevronDown, Underline, Strikethrough, AlignLeft, AlignRight, Highlighter, Palette, Ratio, BoxSelect, PaintBucket, Layers, RotateCcw, Undo, Eraser, Book, LayoutGrid, Square, Check, PauseCircle, SkipForward, SkipBack, Clock, Mic, Maximize2, Eye, EyeOff, ExternalLink, XCircle, Minus, ChevronLeft, ChevronRight, Trash2, Edit2, LogIn, User as UserIcon, LogOut, RefreshCw, Star, AlertCircle, ArrowLeft, Copy, ListMusic, Volume2, VolumeX } from 'lucide-react';
 import RichTextEditor, { textToSegments, segmentsToText } from './RichTextEditor';
 import HistoryPanel from './HistoryPanel';
 
@@ -38,6 +38,10 @@ interface ControlPanelProps {
   audioCurrentTime?: number;
   audioDuration?: number;
   onSeekAudioTo?: (seconds: number) => void;
+  audioVolume?: number;
+  isAudioMuted?: boolean;
+  onSetAudioVolume?: (volume: number) => void;
+  onToggleAudioMute?: () => void;
   onNextAudio?: () => void;
   onPrevAudio?: () => void;
   onRemoveAudio?: (id: string) => void;
@@ -342,6 +346,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   audioCurrentTime = 0,
   audioDuration = 0,
   onSeekAudioTo,
+  audioVolume = 85,
+  isAudioMuted = false,
+  onSetAudioVolume,
+  onToggleAudioMute,
   onNextAudio,
   onPrevAudio,
   onRemoveAudio,
@@ -3414,6 +3422,33 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         className="w-full accent-pink-500 cursor-pointer disabled:opacity-40"
                         title="Mover tiempo de la musica"
                       />
+                    </div>
+
+                    <div className="mb-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2.5">
+                      <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-300">
+                        <span className="flex items-center gap-1.5">
+                          {isAudioMuted ? <VolumeX size={13} className="text-red-300" /> : <Volume2 size={13} className="text-pink-200" />}
+                          Volumen
+                        </span>
+                        <span className="text-pink-200">{isAudioMuted ? 'Mute' : `${audioVolume}%`}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => onToggleAudioMute?.()}
+                          className={`h-9 w-11 rounded-xl border border-white/10 flex items-center justify-center transition-all active:scale-95 ${isAudioMuted ? 'bg-red-500/20 text-red-200' : 'bg-white/5 text-slate-300 hover:text-white'}`}
+                          title="Silenciar musica"
+                        >
+                          {isAudioMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                        </button>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={audioVolume}
+                          onChange={(e) => onSetAudioVolume?.(Number(e.target.value))}
+                          className="min-w-0 flex-1 accent-pink-500"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-5 items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">

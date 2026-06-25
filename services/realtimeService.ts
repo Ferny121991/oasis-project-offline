@@ -21,6 +21,8 @@ export interface LiveState {
     backgroundAudioDuration?: number;
     backgroundAudioIndex?: number;
     backgroundAudioCount?: number;
+    backgroundAudioVolume?: number;
+    isAudioMuted?: boolean;
     isAudioPlaying?: boolean;
     imageContentScale?: number;
     imageContentOffsetX?: number;
@@ -29,6 +31,7 @@ export interface LiveState {
     videoDuration?: number;
     projects?: { id: string, name: string }[];
     currentProjectName?: string;
+    recentActions?: { id?: string, action_type?: string, description: string, created_at?: string }[];
     lastUpdated: string;
     // Command from mobile to main
     command?: string | null;
