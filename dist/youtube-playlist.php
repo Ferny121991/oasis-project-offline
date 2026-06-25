@@ -81,6 +81,110 @@ function collect_playlist_videos($node, &$videos, &$seen, $maxVideos) {
   }
 }
 
+function find_continuation_token($node) {
+  if (!is_array($node)) return null;
+
+  if (isset($node['continuationCommand']['token'])) {
+    return $node['continuationCommand']['token'];
+  }
+
+  if (isset($node['nextContinuationData']['continuation'])) {
+    return $node['nextContinuationData']['continuation'];
+  }
+
+  if (isset($node['continuationItemRenderer']['continuationEndpoint']['continuationCommand']['token'])) {
+    return $node['continuationItemRenderer']['continuationEndpoint']['continuationCommand']['token'];
+  }
+
+  foreach ($node as $child) {
+    if (is_array($child)) {
+      $found = find_continuation_token($child);
+      if ($found !== null) return $found;
+    }
+  }
+
+  return null;
+}
+
+function post_json($url, $payload) {
+  $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+  if (function_exists('curl_init')) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_FOLLOWLOCATION => true,
+      CURLOPT_CONNECTTIMEOUT => 8,
+      CURLOPT_TIMEOUT => 18,
+      CURLOPT_POST => true,
+      CURLOPT_POSTFIELDS => $body,
+      CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+      CURLOPT_HTTPHEADER => [
+        'Content-Type: application/json',
+        'Accept: application/json',
+        'Origin: https://www.youtube.com',
+        'Referer: https://www.youtube.com/'
+      ]
+    ]);
+    $response = curl_exec($ch);
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return ($status >= 200 && $status < 300 && is_string($response)) ? $response : '';
+  }
+
+  $context = stream_context_create([
+    'http' => [
+      'method' => 'POST',
+      'timeout' => 18,
+      'header' => "Content-Type: application/json\r\nAccept: application/json\r\nOrigin: https://www.youtube.com\r\nReferer: https://www.youtube.com/\r\nUser-Agent: Mozilla/5.0\r\n",
+      'content' => $body
+    ]
+  ]);
+  $response = @file_get_contents($url, false, $context);
+  return is_string($response) ? $response : '';
+}
+
+function expand_playlist_continuations($initialData, $html, &$videos, &$seen, $maxVideos) {
+  if (!is_array($initialData) || count($videos) >= $maxVideos) return;
+
+  preg_match('/"INNERTUBE_API_KEY":"([^"]+)"/', $html, $apiMatch);
+  preg_match('/"clientVersion":"([^"]+)"/', $html, $versionMatch);
+
+  $apiKey = isset($apiMatch[1]) ? $apiMatch[1] : '';
+  $clientVersion = isset($versionMatch[1]) ? $versionMatch[1] : '2.20240601.00.00';
+  if ($apiKey === '') return;
+
+  $continuation = find_continuation_token($initialData);
+  $seenTokens = [];
+
+  for ($page = 0; $page < 12 && $continuation && count($videos) < $maxVideos; $page++) {
+    if (isset($seenTokens[$continuation])) break;
+    $seenTokens[$continuation] = true;
+
+    $payload = [
+      'context' => [
+        'client' => [
+          'clientName' => 'WEB',
+          'clientVersion' => $clientVersion,
+          'hl' => 'es',
+          'gl' => 'US'
+        ]
+      ],
+      'continuation' => $continuation
+    ];
+
+    $json = post_json('https://www.youtube.com/youtubei/v1/browse?key=' . rawurlencode($apiKey), $payload);
+    if ($json === '') break;
+
+    $data = json_decode($json, true);
+    if (!is_array($data)) break;
+
+    $before = count($videos);
+    collect_playlist_videos($data, $videos, $seen, $maxVideos);
+    $continuation = find_continuation_token($data);
+    if (count($videos) === $before && !$continuation) break;
+  }
+}
+
 function parse_playlist_html($html, $maxVideos) {
   if (!preg_match('/ytInitialData\s*=\s*({[\s\S]+?});\s*<\/script>/', $html, $match)
       && !preg_match('/ytInitialData\s*=\s*({[\s\S]+?})\s*;<\/script>/', $html, $match)) {
@@ -92,6 +196,7 @@ function parse_playlist_html($html, $maxVideos) {
   $videos = [];
   $seen = [];
   collect_playlist_videos($data, $videos, $seen, $maxVideos);
+  expand_playlist_continuations($data, $html, $videos, $seen, $maxVideos);
   return $videos;
 }
 
