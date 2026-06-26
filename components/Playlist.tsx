@@ -533,7 +533,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
           </div>
 
           {editingItemId === item.id ? (
-            <div className="flex items-center gap-2 flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 flex-1 min-w-0 max-w-full" onClick={(e) => e.stopPropagation()}>
               <input
                 type="text"
                 value={tempTitle}
@@ -542,11 +542,25 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
                   if (e.key === 'Enter') saveTitle();
                   if (e.key === 'Escape') setEditingItemId(null);
                 }}
-                className="flex-1 bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg border border-indigo-500 outline-none"
+                className="min-w-0 flex-1 bg-slate-950/90 text-white text-sm px-3 py-2 rounded-xl border border-indigo-400/80 outline-none shadow-inner shadow-black/40 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20"
                 autoFocus
               />
-              <button onClick={saveTitle} className="text-green-500 hover:text-green-400"><Check size={16} /></button>
-              <button onClick={() => setEditingItemId(null)} className="text-red-500 hover:text-red-400"><X size={16} /></button>
+              <button
+                onClick={saveTitle}
+                className="h-9 w-9 shrink-0 rounded-xl border border-emerald-400/25 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400 hover:text-slate-950 transition-colors flex items-center justify-center"
+                title="Guardar nombre"
+                type="button"
+              >
+                <Check size={16} strokeWidth={3} />
+              </button>
+              <button
+                onClick={() => setEditingItemId(null)}
+                className="h-9 w-9 shrink-0 rounded-xl border border-red-400/25 bg-red-400/10 text-red-300 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center"
+                title="Cancelar edicion"
+                type="button"
+              >
+                <X size={16} strokeWidth={3} />
+              </button>
             </div>
           ) : (
             <button
@@ -568,6 +582,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
         </div>
 
         {/* Quick Color Pills Selector */}
+        {editingItemId !== item.id && (
         <div className="hidden sm:flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded-full border border-white/5 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto shrink-0" onClick={(e) => e.stopPropagation()}>
           {[
             { value: '#6366f1', label: 'Indigo' },
@@ -591,13 +606,14 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
           {item.dividerColor && (
             <button
               onClick={() => onUpdateDivider?.(item.id, item.title, undefined, item.dividerIcon)}
-              className="text-[8px] text-gray-500 hover:text-white px-1 font-bold"
+              className="h-4 w-4 flex items-center justify-center text-gray-500 hover:text-white rounded-full hover:bg-white/10"
               title="Quitar color"
             >
-              ✕
+              <X size={10} strokeWidth={3} />
             </button>
           )}
         </div>
+        )}
 
         {/* Slide Count Badge */}
         <span className="min-w-11 text-center text-xs bg-white/10 text-slate-200 px-2 py-1.5 rounded-xl font-black border border-white/10" title={`${item.slides.length} diapositivas`}>
