@@ -8,6 +8,8 @@ interface AnimatedBackgroundProps {
     color2?: string;
     intensity?: number;
     size?: number;
+    opacity?: number;
+    quality?: 'low' | 'medium' | 'high';
     direction?: 'up' | 'down' | 'left' | 'right' | 'center' | 'random';
     shape?: 'circle' | 'square' | 'line' | 'cross' | 'diamond';
     animAngle?: number;
@@ -35,6 +37,8 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
     color2 = '#6366f1',
     intensity = 50,
     size = 12,
+    opacity = 90,
+    quality = 'medium',
     direction = 'random',
     shape = 'circle',
     animAngle = 0,
@@ -58,7 +62,9 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 
         const countForType = () => {
             const multiplier = type === 'stars' || type === 'snow' ? 3 : type === 'rain' ? 5 : 1;
-            return Math.min(Math.max(Math.round(intensity * multiplier), 12), 650);
+            const qualityFactor = quality === 'low' ? 0.45 : quality === 'high' ? 1 : 0.72;
+            const maxParticles = quality === 'low' ? 180 : quality === 'high' ? 650 : 380;
+            return Math.min(Math.max(Math.round(intensity * multiplier * qualityFactor), 12), maxParticles);
         };
 
         const velocityForDirection = () => {
@@ -93,7 +99,8 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
         };
 
         const updateDimensions = () => {
-            const dpr = window.devicePixelRatio || 1;
+            const rawDpr = window.devicePixelRatio || 1;
+            const dpr = quality === 'low' ? 1 : quality === 'medium' ? Math.min(rawDpr, 1.35) : Math.min(rawDpr, 2);
             const nextWidth = canvas.offsetWidth;
             const nextHeight = canvas.offsetHeight;
             if (nextWidth <= 0 || nextHeight <= 0) return;
@@ -411,7 +418,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
             window.removeEventListener('resize', updateDimensions);
         };
-    }, [type, speed, color, color2, intensity, size, direction, shape, animAngle, animTrail]);
+    }, [type, speed, color, color2, intensity, size, direction, shape, animAngle, animTrail, quality]);
 
     if (type === 'none') return null;
 
@@ -420,7 +427,8 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
             <div
                 className="absolute inset-0 z-0 animate-pulse-slow pointer-events-none"
                 style={{
-                    background: `radial-gradient(circle at center, ${color}55 0%, ${color2}22 34%, transparent 72%)`
+                    background: `radial-gradient(circle at center, ${color}55 0%, ${color2}22 34%, transparent 72%)`,
+                    opacity: opacity / 100
                 }}
             />
         );
@@ -428,7 +436,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 
     if (type === 'aurora') {
         return (
-            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" style={{ opacity: opacity / 100 }}>
                 <div
                     className="absolute -inset-[30%] opacity-70 blur-3xl"
                     style={{
@@ -442,7 +450,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 
     if (type === 'rays') {
         return (
-            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" style={{ opacity: opacity / 100 }}>
                 <div
                     className="absolute -inset-[20%] opacity-55"
                     style={{
@@ -458,7 +466,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
         <canvas
             ref={canvasRef}
             className="absolute inset-0 z-0 pointer-events-none w-full h-full"
-            style={{ opacity: 0.9 }}
+            style={{ opacity: opacity / 100 }}
         />
     );
 };

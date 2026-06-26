@@ -205,9 +205,79 @@ const DEFAULT_BG_ANIMATION: BackgroundAnimationConfig = {
   color2: '#6366f1',
   intensity: 50,
   size: 10,
+  opacity: 90,
+  quality: 'medium',
   direction: 'random',
   shape: 'circle'
 };
+
+const MOTION_RECIPES: {
+  name: string;
+  detail: string;
+  swatch: string;
+  config: BackgroundAnimationConfig;
+}[] = [
+  {
+    name: 'Adoracion Suave',
+    detail: 'Lento, limpio y elegante para logo o lectura.',
+    swatch: 'radial-gradient(circle at 35% 35%, #ffffff 0%, #67e8f9 35%, #1e1b4b 100%)',
+    config: { type: 'particles', speed: 0.55, intensity: 34, size: 8, opacity: 64, quality: 'medium', color: '#ffffff', color2: '#67e8f9', direction: 'up', shape: 'circle' }
+  },
+  {
+    name: 'Aura del Logo',
+    detail: 'Halo respirando detras del logo.',
+    swatch: 'radial-gradient(circle, #fef3c7 0%, #38bdf8 42%, #020617 100%)',
+    config: { type: 'gradient-pulse', speed: 0.8, intensity: 48, size: 14, opacity: 82, quality: 'low', color: '#fef3c7', color2: '#38bdf8', direction: 'center', shape: 'circle' }
+  },
+  {
+    name: 'Aurora Celeste',
+    detail: 'Movimiento ambiental amplio y moderno.',
+    swatch: 'linear-gradient(135deg, #22d3ee 0%, #6366f1 45%, #f59e0b 100%)',
+    config: { type: 'aurora', speed: 0.65, intensity: 54, size: 12, opacity: 72, quality: 'medium', color: '#22d3ee', color2: '#f59e0b', direction: 'random', shape: 'line' }
+  },
+  {
+    name: 'Cruces de Luz',
+    detail: 'Efecto sobrio para pantalla de iglesia.',
+    swatch: 'linear-gradient(135deg, #020617 0%, #164e63 50%, #facc15 100%)',
+    config: { type: 'cross-light', speed: 0.9, intensity: 58, size: 12, opacity: 70, quality: 'medium', color: '#e0f2fe', color2: '#facc15', direction: 'up', shape: 'cross' }
+  },
+  {
+    name: 'Estrellas Profundas',
+    detail: 'Fondo oscuro con puntos sutiles.',
+    swatch: 'radial-gradient(circle at center, #e0f2fe 0%, #1e3a8a 36%, #020617 100%)',
+    config: { type: 'stars', speed: 0.35, intensity: 45, size: 4, opacity: 76, quality: 'medium', color: '#ffffff', color2: '#93c5fd', direction: 'random', shape: 'circle' }
+  },
+  {
+    name: 'Rayos Worship',
+    detail: 'Luz radial para momentos altos.',
+    swatch: 'conic-gradient(from 90deg, #020617, #22d3ee, #f59e0b, #020617)',
+    config: { type: 'rays', speed: 0.75, intensity: 64, size: 18, opacity: 58, quality: 'low', color: '#38bdf8', color2: '#f59e0b', direction: 'center', shape: 'line' }
+  },
+  {
+    name: 'Neblina Viva',
+    detail: 'Nubes suaves para fondos generales.',
+    swatch: 'linear-gradient(135deg, #0f172a 0%, #0e7490 48%, #312e81 100%)',
+    config: { type: 'clouds', speed: 0.45, intensity: 42, size: 16, opacity: 52, quality: 'medium', color: '#67e8f9', color2: '#a78bfa', direction: 'right', shape: 'circle' }
+  },
+  {
+    name: 'Energia Celebracion',
+    detail: 'Mas movimiento para canciones vivas.',
+    swatch: 'linear-gradient(135deg, #16a34a 0%, #06b6d4 42%, #f43f5e 100%)',
+    config: { type: 'geometric', speed: 1.45, intensity: 86, size: 13, opacity: 72, quality: 'high', color: '#34d399', color2: '#f472b6', direction: 'random', shape: 'diamond' }
+  },
+  {
+    name: 'Ondas Tranquilas',
+    detail: 'Movimiento fluido para lectura o oracion.',
+    swatch: 'linear-gradient(135deg, #082f49 0%, #14b8a6 55%, #f8fafc 100%)',
+    config: { type: 'waves', speed: 0.55, intensity: 42, size: 14, opacity: 62, quality: 'medium', color: '#bfdbfe', color2: '#2dd4bf', direction: 'right', shape: 'line' }
+  },
+  {
+    name: 'Minimal Proyector',
+    detail: 'Ligero para computadoras lentas.',
+    swatch: 'linear-gradient(135deg, #020617 0%, #111827 100%)',
+    config: { type: 'particles', speed: 0.35, intensity: 18, size: 6, opacity: 45, quality: 'low', color: '#e5e7eb', color2: '#64748b', direction: 'up', shape: 'circle' }
+  }
+];
 
 // Complete list of Bible books in Spanish
 const BIBLE_BOOKS = [
@@ -1253,7 +1323,44 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     logoTextStrokeColor: currentTheme.logoTextStrokeColor,
     logoTextLineHeight: currentTheme.logoTextLineHeight,
     logoTextLetterSpacing: currentTheme.logoTextLetterSpacing,
-    logoTextGradient: currentTheme.logoTextGradient
+    logoTextGradient: currentTheme.logoTextGradient,
+    logoRotation: currentTheme.logoRotation,
+    logoBorderRadius: currentTheme.logoBorderRadius,
+    logoBorderWidth: currentTheme.logoBorderWidth,
+    logoBorderColor: currentTheme.logoBorderColor,
+    logoShadowBlur: currentTheme.logoShadowBlur,
+    logoShadowColor: currentTheme.logoShadowColor,
+    logoGrayscale: currentTheme.logoGrayscale,
+    logoSepia: currentTheme.logoSepia,
+    logoHueRotate: currentTheme.logoHueRotate,
+    logoInvert: currentTheme.logoInvert,
+    logoBlur: currentTheme.logoBlur,
+    logoBrightness: currentTheme.logoBrightness,
+    logoContrast: currentTheme.logoContrast,
+    logoSaturation: currentTheme.logoSaturation,
+    logoBgOverlayOpacity: currentTheme.logoBgOverlayOpacity,
+    logoAnimationType: currentTheme.logoAnimationType,
+    logoAnimationSpeed: currentTheme.logoAnimationSpeed,
+    logoTextAnimationType: currentTheme.logoTextAnimationType,
+    logoTextAnimationSpeed: currentTheme.logoTextAnimationSpeed,
+    logoScaleAnimationType: currentTheme.logoScaleAnimationType,
+    logoScaleAnimationSpeed: currentTheme.logoScaleAnimationSpeed,
+    logoTextSkewX: currentTheme.logoTextSkewX,
+    logoTextRotation: currentTheme.logoTextRotation,
+    logoTextOpacity: currentTheme.logoTextOpacity,
+    logoTextHighlightColor: currentTheme.logoTextHighlightColor,
+    logoTextHighlightPadding: currentTheme.logoTextHighlightPadding,
+    logoTextHighlightRadius: currentTheme.logoTextHighlightRadius,
+    logo3DTiltX: currentTheme.logo3DTiltX,
+    logo3DTiltY: currentTheme.logo3DTiltY,
+    logoReflection: currentTheme.logoReflection,
+    logoBlendMode: currentTheme.logoBlendMode,
+    logoBgGradientAngle: currentTheme.logoBgGradientAngle,
+    logoBgLegibilityBlur: currentTheme.logoBgLegibilityBlur,
+    logoBgAnimAngle: currentTheme.logoBgAnimAngle,
+    logoBgAnimTrail: currentTheme.logoBgAnimTrail,
+    logoAnimAmplitude: currentTheme.logoAnimAmplitude,
+    logoTextHighlightBlur: currentTheme.logoTextHighlightBlur
   });
 
   const renderBackgroundAnimationEditor = (
@@ -1263,6 +1370,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   ) => {
     const current = { ...DEFAULT_BG_ANIMATION, ...(animation || {}) };
     const activePreset = BG_ANIMATION_PRESETS.find(option => option.value === current.type)?.name || 'Personalizada';
+    const activeOpacity = current.opacity ?? 90;
+    const activeQuality = current.quality || 'medium';
 
     return (
       <div className="space-y-4">
@@ -1278,6 +1387,31 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             >
               {current.type !== 'none' ? 'Activo' : 'Apagado'}
             </button>
+          </div>
+
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            {MOTION_RECIPES.map(recipe => {
+              const isActive = current.type === recipe.config.type
+                && Math.round(Number(current.speed || 0) * 10) === Math.round(Number(recipe.config.speed || 0) * 10)
+                && current.color === recipe.config.color
+                && current.color2 === recipe.config.color2;
+              return (
+                <button
+                  key={recipe.name}
+                  onClick={() => onChange({ ...DEFAULT_BG_ANIMATION, ...recipe.config })}
+                  className={`group relative min-h-[84px] overflow-hidden rounded-2xl border p-3 text-left transition ${isActive
+                    ? 'border-cyan-300/80 bg-cyan-400/12 shadow-lg shadow-cyan-950/25'
+                    : 'border-white/10 bg-white/[0.04] hover:border-cyan-300/45 hover:bg-white/[0.065]'}`}
+                >
+                  <div className="absolute inset-0 opacity-65 transition group-hover:opacity-85" style={{ background: recipe.swatch }} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/62 to-transparent" />
+                  <div className="relative z-10">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-white">{recipe.name}</p>
+                    <p className="mt-1 max-w-[140px] text-[9px] font-bold leading-snug text-slate-300">{recipe.detail}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -1300,6 +1434,31 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <div className="grid grid-cols-2 gap-3">
               {renderRangeControl('Velocidad', Number(current.speed || 1), 0.1, 5, 0.1, (value) => onChange({ ...current, speed: value }), 'x', accentClass)}
               {renderRangeControl('Cantidad', Number(current.intensity || 50), 10, 220, 5, (value) => onChange({ ...current, intensity: value }), '', accentClass)}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {renderRangeControl('Opacidad', activeOpacity, 0, 100, 5, (value) => onChange({ ...current, opacity: value }), '%', accentClass)}
+              <label className="block rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+                <span className="mb-2 block text-[10px] font-black uppercase text-slate-400">Calidad / rendimiento</span>
+                <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-slate-950/80 p-1">
+                  {[
+                    { label: 'Baja', value: 'low' as const },
+                    { label: 'Media', value: 'medium' as const },
+                    { label: 'Alta', value: 'high' as const }
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      onClick={() => onChange({ ...current, quality: option.value })}
+                      className={`rounded-lg px-2 py-2 text-[9px] font-black uppercase transition ${activeQuality === option.value
+                        ? 'bg-cyan-400 text-slate-950'
+                        : 'text-slate-500 hover:bg-white/5 hover:text-white'}`}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </label>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1511,6 +1670,69 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       { name: 'Escala hiper-activa', value: 'scale-hyper' },
     ];
 
+    const LOGO_MOTION_SUITES = [
+      {
+        name: 'Bienvenida Suave',
+        detail: 'Logo estable, aura lenta y elegante.',
+        swatch: 'radial-gradient(circle, #ffffff 0%, #93c5fd 42%, #020617 100%)',
+        theme: {
+          logoBackground: 'radial-gradient(circle at center, #f8fafc 0%, #dbeafe 48%, #0f172a 100%)',
+          logoBgAnimation: MOTION_RECIPES[0].config,
+          logoAnimationType: 'breathe',
+          logoAnimationSpeed: 6,
+          logoScaleAnimationType: 'scale-breathing-large',
+          logoScaleAnimationSpeed: 7,
+          logoAnimAmplitude: 70,
+          logoGlow: true
+        }
+      },
+      {
+        name: 'Aura Worship',
+        detail: 'Halo luminoso detras del logo.',
+        swatch: 'radial-gradient(circle, #fef3c7 0%, #22d3ee 45%, #312e81 100%)',
+        theme: {
+          logoBackground: 'radial-gradient(circle at center, #020617 0%, #172554 55%, #000000 100%)',
+          logoBgAnimation: MOTION_RECIPES[1].config,
+          logoAnimationType: 'float-y',
+          logoAnimationSpeed: 5.5,
+          logoScaleAnimationType: 'scale-pulse',
+          logoScaleAnimationSpeed: 5.5,
+          logoAnimAmplitude: 90,
+          logoGlow: true
+        }
+      },
+      {
+        name: 'Celebracion',
+        detail: 'Mas energia para alabanza.',
+        swatch: 'linear-gradient(135deg, #22c55e 0%, #06b6d4 45%, #f43f5e 100%)',
+        theme: {
+          logoBackground: 'linear-gradient(135deg, #020617 0%, #064e3b 45%, #7f1d1d 100%)',
+          logoBgAnimation: MOTION_RECIPES[7].config,
+          logoAnimationType: 'wave-dance',
+          logoAnimationSpeed: 4,
+          logoScaleAnimationType: 'scale-pop',
+          logoScaleAnimationSpeed: 3.5,
+          logoAnimAmplitude: 125,
+          logoGlow: true
+        }
+      },
+      {
+        name: 'Proyector Ligero',
+        detail: 'Movimiento minimo para evitar carga.',
+        swatch: 'linear-gradient(135deg, #020617 0%, #111827 100%)',
+        theme: {
+          logoBackground: 'radial-gradient(circle at center, #111827 0%, #020617 100%)',
+          logoBgAnimation: MOTION_RECIPES[9].config,
+          logoAnimationType: 'none',
+          logoAnimationSpeed: 5,
+          logoScaleAnimationType: 'none',
+          logoScaleAnimationSpeed: 5,
+          logoAnimAmplitude: 40,
+          logoGlow: false
+        }
+      }
+    ];
+
     return (
       <div className="p-5 pb-24 space-y-5 animate-fade-in">
         {hasPendingChanges && (
@@ -1615,6 +1837,46 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           >
             <Undo size={14} /> Deshacer Cambio
           </button>
+        </div>
+
+        <div className="overflow-hidden rounded-[1.35rem] border border-cyan-300/20 bg-[linear-gradient(180deg,rgba(14,22,38,0.94),rgba(6,12,24,0.94))] p-4 shadow-2xl shadow-black/25">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em]">Presets de Movimiento</p>
+              <p className="mt-1 text-xs font-bold text-slate-400">Aplica logo, fondo animado y ritmo con un toque.</p>
+            </div>
+            <button
+              onClick={() => updatePendingTheme({
+                ...currentTheme,
+                logoBgAnimation: undefined,
+                logoAnimationType: 'none',
+                logoScaleAnimationType: 'none',
+                logoTextAnimationType: 'none',
+                logoAnimAmplitude: 100
+              })}
+              className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-[9px] font-black uppercase text-slate-400 hover:border-red-300/35 hover:text-red-200"
+              type="button"
+            >
+              Apagar
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {LOGO_MOTION_SUITES.map(suite => (
+              <button
+                key={suite.name}
+                onClick={() => updatePendingTheme({ ...currentTheme, ...suite.theme })}
+                className="group relative min-h-[86px] overflow-hidden rounded-2xl border border-white/10 p-3 text-left transition hover:border-cyan-300/45 hover:bg-white/[0.06]"
+                type="button"
+              >
+                <div className="absolute inset-0 opacity-70 transition group-hover:opacity-90" style={{ background: suite.swatch }} />
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/55 to-transparent" />
+                <div className="relative z-10">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-white">{suite.name}</p>
+                  <p className="mt-1 max-w-[135px] text-[9px] font-bold leading-snug text-slate-300">{suite.detail}</p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* SECTION: Logo y Escala */}

@@ -370,6 +370,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
             color2={theme.bgAnimation.color2}
             intensity={theme.bgAnimation.intensity}
             size={theme.bgAnimation.size}
+            opacity={theme.bgAnimation.opacity}
+            quality={theme.bgAnimation.quality}
             direction={theme.bgAnimation.direction}
             shape={theme.bgAnimation.shape}
           />
@@ -678,6 +680,8 @@ const LiveScreen: React.FC<LiveScreenProps> = ({
                       color2={theme.logoBgAnimation.color2}
                       intensity={theme.logoBgAnimation.intensity}
                       size={theme.logoBgAnimation.size}
+                      opacity={theme.logoBgAnimation.opacity}
+                      quality={theme.logoBgAnimation.quality}
                       direction={theme.logoBgAnimation.direction}
                       shape={theme.logoBgAnimation.shape}
                       animAngle={theme.logoBgAnimAngle}

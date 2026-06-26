@@ -57,6 +57,8 @@ export interface BackgroundAnimationConfig {
   color2?: string;
   intensity?: number;
   size?: number;
+  opacity?: number;
+  quality?: 'low' | 'medium' | 'high';
   direction?: 'up' | 'down' | 'left' | 'right' | 'center' | 'random';
   shape?: 'circle' | 'square' | 'line' | 'cross' | 'diamond';
 }
