@@ -1047,6 +1047,31 @@ const App: React.FC = () => {
         case 'audio_toggle_mute':
           toggleBackgroundAudioMute();
           break;
+        case 'add_background_audio': {
+          const videoId = typeof commandData?.videoId === 'string' ? commandData.videoId.trim() : '';
+          const playlistId = typeof commandData?.playlistId === 'string' ? commandData.playlistId.trim() : '';
+          if (!videoId && !playlistId) break;
+
+          const newItem = {
+            id: `bga_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            videoId: videoId || undefined,
+            playlistId: playlistId || undefined,
+            title: commandData?.title || (playlistId ? 'Playlist de fondo' : 'Audio de fondo'),
+            sourcePlaylistId: playlistId || undefined,
+            sourcePlaylistTitle: commandData?.sourcePlaylistTitle || undefined
+          };
+
+          setBgAudioPlaylist(prev => {
+            const alreadyExists = prev.some(item =>
+              (playlistId && item.playlistId === playlistId) ||
+              (videoId && item.videoId === videoId)
+            );
+            return alreadyExists ? prev : [...prev, newItem];
+          });
+          setCurrentAudioIndex(prev => prev === -1 ? 0 : prev);
+          setIsAudioPlaying(true);
+          break;
+        }
         case 'stop_live': stopLive(); break;
         case 'zoom_update':
           if (commandData) {

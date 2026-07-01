@@ -168,6 +168,17 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
             await sendCommand('add_youtube', { query: video.title, videoId: video.id, title: video.title, makeLive });
         }
     };
+
+    const addYoutubeAsBackgroundAudio = async (video: YouTubeSearchResult) => {
+        const playlistId = video.playlistId || (video.kind === 'playlist' ? video.id : undefined);
+        await sendCommand('add_background_audio', {
+            title: video.title,
+            videoId: playlistId ? undefined : video.id,
+            playlistId,
+            sourcePlaylistTitle: playlistId ? video.title : undefined,
+        });
+        setActiveTab('audio');
+    };
     const sendImageGestureCommand = (command: string, data: Record<string, any> = {}, force = false) => {
         const now = Date.now();
         if (!force && now - imageGestureRef.current.lastSentAt < 45) return;
@@ -936,9 +947,10 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                                 <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">{video.author || 'YouTube'}</p>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 border-t border-white/10 p-2">
+                                        <div className="grid grid-cols-3 gap-2 border-t border-white/10 p-2">
                                             <button onClick={() => addYoutubeResult(video, false)} className="h-10 rounded-xl border border-white/10 bg-white/[0.06] text-xs font-black text-slate-200 active:scale-95">Preparar</button>
                                             <button onClick={() => addYoutubeResult(video, true)} className="h-10 rounded-xl bg-red-500 text-xs font-black text-white active:scale-95">En vivo</button>
+                                            <button onClick={() => addYoutubeAsBackgroundAudio(video)} className="h-10 rounded-xl bg-pink-600 text-xs font-black text-white active:scale-95">Audio</button>
                                         </div>
                                     </div>
                                 ))}
