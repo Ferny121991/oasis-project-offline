@@ -978,11 +978,23 @@ const App: React.FC = () => {
           break;
         case 'add_media':
           if (Array.isArray(commandData?.slides) && commandData.slides.length > 0) {
+            const cleanSlides = commandData.slides
+              .filter((slide: any) => slide?.mediaUrl && (slide.type === 'image' || slide.type === 'video'))
+              .map((slide: any, index: number) => ({
+                id: slide.id || `remote_media_${Date.now()}_${index}`,
+                type: slide.type,
+                content: slide.content || '',
+                mediaUrl: slide.mediaUrl,
+                label: slide.label || (slide.type === 'video' ? `VIDEO ${index + 1}` : `IMAGEN ${index + 1}`)
+              }));
+
+            if (cleanSlides.length === 0) break;
+
             const newItem: PresentationItem = {
               id: Math.random().toString(36).substr(2, 9),
-              title: commandData.title || `Media remota (${commandData.slides.length})`,
+              title: commandData.title || `Media remota (${cleanSlides.length})`,
               type: 'custom',
-              slides: commandData.slides,
+              slides: cleanSlides,
               theme: creationTheme
             };
             setPlaylist(prev => [...prev, newItem]);

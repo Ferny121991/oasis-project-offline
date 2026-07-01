@@ -36,7 +36,6 @@ import {
     Maximize
 } from 'lucide-react';
 import { LiveState } from '../services/realtimeService';
-import { compressImage } from '../services/imageService';
 import { searchYouTube, YouTubeSearchResult } from '../services/geminiService';
 
 interface RemoteControlPanelProps {
@@ -231,6 +230,45 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
         reader.readAsDataURL(file);
     });
 
+    const compressRemoteImage = (file: File): Promise<string> => new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+            try {
+                const maxWidth = 820;
+                const maxHeight = 460;
+                const ratio = Math.min(1, maxWidth / img.width, maxHeight / img.height);
+                const width = Math.max(1, Math.round(img.width * ratio));
+                const height = Math.max(1, Math.round(img.height * ratio));
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('No se pudo preparar la imagen.'));
+                    return;
+                }
+
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.38));
+            } catch (error) {
+                reject(error);
+            } finally {
+                URL.revokeObjectURL(objectUrl);
+            }
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error('No se pudo leer la imagen.'));
+        };
+
+        img.src = objectUrl;
+    });
+
     const handleMediaUpload = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
 
@@ -265,8 +303,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         label: `VIDEO - ${cleanName}`
                     });
                 } else {
-                    const raw = await readFileAsDataUrl(file);
-                    const mediaUrl = await compressImage(raw, 1120, 720, 0.42);
+                    const mediaUrl = await compressRemoteImage(file);
                     slides.push({
                         id: Math.random().toString(36).slice(2, 11),
                         type: 'image',
@@ -281,7 +318,8 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
             await sendCommand('add_media', {
                 title: mediaTitle.trim() || (slides.length === 1 ? slides[0].label : `Medios remoto (${slides.length})`),
                 slides,
-                makeLive: true
+                makeLive: true,
+                remoteUpload: true
             });
             setUploadStatus(`${slides.length} archivo${slides.length === 1 ? '' : 's'} enviado${slides.length === 1 ? '' : 's'} al presentador.`);
             setMediaTitle('');
@@ -923,7 +961,10 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                 accept="image/*,video/*"
                                 multiple
                                 className="hidden"
-                                onChange={(e) => handleMediaUpload(e.target.files)}
+                                onChange={(e) => {
+                                    handleMediaUpload(e.target.files);
+                                    e.currentTarget.value = '';
+                                }}
                             />
                             <button
                                 onClick={() => fileInputRef.current?.click()}
