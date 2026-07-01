@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { LiveState } from '../services/realtimeService';
 import { compressImage } from '../services/imageService';
+import { searchYouTube, YouTubeSearchResult } from '../services/geminiService';
 
 interface RemoteControlPanelProps {
     liveState: LiveState | null;
@@ -58,14 +59,15 @@ const formatAudioTime = (seconds?: number) => {
 const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, sendCommand, isConnected, onClose }) => {
     const [activeTab, setActiveTab] = useState<RemoteTab>('control');
     const [searchQuery, setSearchQuery] = useState('');
-    const [songQuery, setSongQuery] = useState('');
-    const [bibleQuery, setBibleQuery] = useState('');
     const [quickAddQuery, setQuickAddQuery] = useState('');
-    const [quickAddType, setQuickAddType] = useState<'song' | 'bible' | 'youtube'>('song');
+    const [quickAddType, setQuickAddType] = useState<'bible' | 'youtube'>('youtube');
     const [bibleVersion, setBibleVersion] = useState('RVR1960');
     const [newProjectName, setNewProjectName] = useState('');
     const [mediaTitle, setMediaTitle] = useState('');
     const [uploadStatus, setUploadStatus] = useState('');
+    const [youtubeResults, setYoutubeResults] = useState<YouTubeSearchResult[]>([]);
+    const [youtubeLoading, setYoutubeLoading] = useState(false);
+    const [youtubeError, setYoutubeError] = useState('');
     const [isZoomExpanded, setIsZoomExpanded] = useState(false);
     const [favoriteItemIds, setFavoriteItemIds] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('oasis_remote_favorite_items') || '[]'); } catch { return []; }
@@ -97,10 +99,19 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const audioPositionLabel = typeof liveState?.backgroundAudioIndex === 'number' && liveState.backgroundAudioIndex >= 0
         ? `${liveState.backgroundAudioIndex + 1}/${liveState.backgroundAudioCount || '?'}`
         : '';
+    const imageScale = Math.round((Number(liveState?.imageContentScale) || 1) * 100);
+    const imageOffsetX = Math.round(Number(liveState?.imageContentOffsetX) || 0);
+    const imageOffsetY = Math.round(Number(liveState?.imageContentOffsetY) || 0);
+    const imagePreviewTransform = `translate(${imageOffsetX}%, ${imageOffsetY}%) scale(${Math.max(0.2, Number(liveState?.imageContentScale) || 1)})`;
 
     const filteredPlaylist = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        return (liveState?.playlist || []).filter(item => item.title.toLowerCase().includes(query));
+        const seen = new Set<string>();
+        return (liveState?.playlist || []).filter(item => {
+            if (seen.has(item.id)) return false;
+            seen.add(item.id);
+            return item.title.toLowerCase().includes(query);
+        });
     }, [liveState?.playlist, searchQuery]);
 
     const connectionLabel = isConnected ? (hasLiveItem ? 'EN VIVO' : 'ONLINE') : 'RECONECTANDO';
@@ -121,19 +132,43 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
         });
     };
 
-    const runQuickAdd = () => {
+    const runQuickAdd = async () => {
         const query = quickAddQuery.trim();
         if (!query) return;
-        if (quickAddType === 'song') {
-            sendCommand('add_song', { query, makeLive: true });
-        } else if (quickAddType === 'bible') {
-            sendCommand('add_bible', { query, version: bibleVersion, makeLive: true });
-        } else {
-            sendCommand('add_youtube', { query, makeLive: true });
+        if (quickAddType === 'bible') {
+            await sendCommand('add_bible', { query, version: bibleVersion, makeLive: true });
+            setQuickAddQuery('');
+            return;
         }
-        setQuickAddQuery('');
+
+        setYoutubeLoading(true);
+        setYoutubeError('');
+        try {
+            const results = await searchYouTube(query);
+            const seen = new Set<string>();
+            const unique = results.filter(result => {
+                const key = result.playlistId ? `playlist:${result.playlistId}` : `video:${result.id}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            }).slice(0, 12);
+            setYoutubeResults(unique);
+            if (unique.length === 0) setYoutubeError('No encontre resultados de YouTube.');
+        } catch (error) {
+            console.error(error);
+            setYoutubeError('No se pudo buscar en YouTube desde el movil.');
+        } finally {
+            setYoutubeLoading(false);
+        }
     };
 
+    const addYoutubeResult = async (video: YouTubeSearchResult, makeLive = true) => {
+        if (video.playlistId || video.kind === 'playlist') {
+            await sendCommand('add_youtube', { query: video.title, playlistId: video.playlistId, title: video.title, makeLive });
+        } else {
+            await sendCommand('add_youtube', { query: video.title, videoId: video.id, title: video.title, makeLive });
+        }
+    };
     const sendImageGestureCommand = (command: string, data: Record<string, any> = {}, force = false) => {
         const now = Date.now();
         if (!force && now - imageGestureRef.current.lastSentAt < 45) return;
@@ -196,45 +231,68 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
         reader.readAsDataURL(file);
     });
 
-    const handleImageUpload = async (files: FileList | null) => {
+    const handleMediaUpload = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
 
-        const images = Array.from(files).filter(file => file.type.startsWith('image/')).slice(0, 8);
-        if (images.length === 0) {
-            setUploadStatus('Selecciona imagenes validas.');
+        const selected = Array.from(files)
+            .filter(file => file.type.startsWith('image/') || file.type.startsWith('video/'))
+            .slice(0, 10);
+
+        if (selected.length === 0) {
+            setUploadStatus('Selecciona imagenes o videos validos.');
             return;
         }
 
-        setUploadStatus(`Preparando ${images.length} imagen${images.length === 1 ? '' : 'es'}...`);
+        setUploadStatus(`Preparando 0/${selected.length} archivos...`);
         try {
-            const slides = await Promise.all(images.map(async (file) => {
-                const raw = await readFileAsDataUrl(file);
-                const mediaUrl = await compressImage(raw, 1280, 720, 0.45);
-                return {
-                    id: Math.random().toString(36).slice(2, 11),
-                    type: 'image' as const,
-                    content: '',
-                    mediaUrl,
-                    label: file.name.replace(/\.[^.]+$/, '').toUpperCase()
-                };
-            }));
+            const slides = [] as Array<{ id: string; type: 'image' | 'video'; content: string; mediaUrl: string; label: string }>;
+            for (let index = 0; index < selected.length; index += 1) {
+                const file = selected[index];
+                const cleanName = file.name.replace(/\.[^.]+$/, '').toUpperCase();
+                setUploadStatus(`Preparando ${index + 1}/${selected.length}: ${file.name}`);
 
+                if (file.type.startsWith('video/')) {
+                    if (file.size > 25 * 1024 * 1024) {
+                        setUploadStatus(`Video muy pesado: ${file.name}. Maximo 25MB desde movil.`);
+                        continue;
+                    }
+                    const mediaUrl = await readFileAsDataUrl(file);
+                    slides.push({
+                        id: Math.random().toString(36).slice(2, 11),
+                        type: 'video',
+                        content: '',
+                        mediaUrl,
+                        label: `VIDEO - ${cleanName}`
+                    });
+                } else {
+                    const raw = await readFileAsDataUrl(file);
+                    const mediaUrl = await compressImage(raw, 1120, 720, 0.42);
+                    slides.push({
+                        id: Math.random().toString(36).slice(2, 11),
+                        type: 'image',
+                        content: '',
+                        mediaUrl,
+                        label: `IMAGEN - ${cleanName}`
+                    });
+                }
+            }
+
+            if (slides.length === 0) return;
             await sendCommand('add_media', {
-                title: mediaTitle.trim() || (slides.length === 1 ? slides[0].label : `Imagenes remoto (${slides.length})`),
+                title: mediaTitle.trim() || (slides.length === 1 ? slides[0].label : `Medios remoto (${slides.length})`),
                 slides,
                 makeLive: true
             });
-            setUploadStatus('Imagenes enviadas al presentador.');
+            setUploadStatus(`${slides.length} archivo${slides.length === 1 ? '' : 's'} enviado${slides.length === 1 ? '' : 's'} al presentador.`);
             setMediaTitle('');
         } catch (error) {
             console.error(error);
-            setUploadStatus('No se pudo enviar la imagen.');
+            setUploadStatus('No se pudo enviar el archivo. Intenta con menos archivos o mas livianos.');
         } finally {
             if (fileInputRef.current) fileInputRef.current.value = '';
-            setTimeout(() => setUploadStatus(''), 3000);
+            setTimeout(() => setUploadStatus(''), 5000);
         }
     };
-
     if (!liveState) {
         return (
             <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,#12324a_0%,#07111f_36%,#020409_100%)] text-white flex items-center justify-center p-6">
@@ -432,13 +490,13 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                     onClick={() => setIsZoomExpanded(true)}
                                 >
                                     {currentSlide.mediaUrl ? (
-                                        <img src={currentSlide.mediaUrl} alt="" className="absolute inset-0 h-full w-full object-contain" draggable={false} />
+                                        <img src={currentSlide.mediaUrl} alt="" className="absolute inset-0 h-full w-full object-contain transition-transform duration-100" style={{ transform: imagePreviewTransform }} draggable={false} />
                                     ) : renderSlideBackdrop()}
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/20 pointer-events-none" />
                                     <div className="absolute inset-3 rounded-[1.25rem] border border-dashed border-cyan-200/28 pointer-events-none" />
                                     <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none">
                                         <p className="text-sm font-black text-white">Abrir y mover zoom</p>
-                                        <p className="text-xs text-slate-300 mt-1">Doble toque para reiniciar</p>
+                                        <p className="text-xs text-slate-300 mt-1">Doble toque para reiniciar</p>`r`n                                        <div className="mt-2 flex gap-2 text-[10px] font-black text-cyan-100">`r`n                                            <span className="rounded-full bg-black/45 px-2 py-1">Zoom {imageScale}%</span>`r`n                                            <span className="rounded-full bg-black/45 px-2 py-1">X {imageOffsetX}%</span>`r`n                                            <span className="rounded-full bg-black/45 px-2 py-1">Y {imageOffsetY}%</span>`r`n                                        </div>
                                     </div>
                                     <button 
                                         onClick={(e) => {
@@ -774,17 +832,19 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                     <section className="p-4 max-w-md mx-auto space-y-4">
                         <div className="rounded-[1.75rem] border border-cyan-300/20 bg-cyan-400/10 p-4 space-y-3">
                             <div className="flex items-center gap-2 text-cyan-100 font-black">
-                                <Search size={18} /> Buscador rapido
+                                <Search size={18} /> Buscar y agregar
                             </div>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                                 {[
-                                    { id: 'song' as const, label: 'Cancion' },
-                                    { id: 'bible' as const, label: 'Biblia' },
                                     { id: 'youtube' as const, label: 'YouTube' },
+                                    { id: 'bible' as const, label: 'Biblia' },
                                 ].map(option => (
                                     <button
                                         key={option.id}
-                                        onClick={() => setQuickAddType(option.id)}
+                                        onClick={() => {
+                                            setQuickAddType(option.id);
+                                            setYoutubeError('');
+                                        }}
                                         className={`h-10 rounded-xl text-[10px] font-black uppercase border active:scale-95 ${quickAddType === option.id ? 'bg-cyan-300 text-slate-950 border-cyan-200' : 'bg-slate-950/60 text-slate-300 border-white/10'}`}
                                     >
                                         {option.label}
@@ -794,7 +854,8 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             <input
                                 value={quickAddQuery}
                                 onChange={(e) => setQuickAddQuery(e.target.value)}
-                                placeholder={quickAddType === 'bible' ? 'Ej: Juan 3:16' : quickAddType === 'youtube' ? 'Buscar video en YouTube' : 'Nombre de cancion'}
+                                onKeyDown={(e) => { if (e.key === 'Enter') runQuickAdd(); }}
+                                placeholder={quickAddType === 'bible' ? 'Ej: Juan 3:16' : 'Nombre o link de YouTube'}
                                 className="w-full h-12 rounded-2xl bg-slate-950 border border-white/10 px-3 text-sm outline-none focus:border-cyan-300"
                             />
                             {quickAddType === 'bible' && (
@@ -811,92 +872,73 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             )}
                             <button
                                 onClick={runQuickAdd}
-                                className="w-full h-12 rounded-2xl bg-cyan-300 text-slate-950 text-sm font-black active:scale-[0.99]"
+                                disabled={youtubeLoading}
+                                className="w-full h-12 rounded-2xl bg-cyan-300 text-slate-950 text-sm font-black active:scale-[0.99] disabled:opacity-60"
                             >
-                                Buscar, agregar y poner en vivo
+                                {quickAddType === 'youtube' ? (youtubeLoading ? 'Buscando YouTube...' : 'Buscar videos') : 'Agregar versiculo en vivo'}
                             </button>
+                            {youtubeError && <div className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-200">{youtubeError}</div>}
                         </div>
+
+                        {quickAddType === 'youtube' && youtubeResults.length > 0 && (
+                            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-3 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Resultados YouTube</h3>
+                                    <span className="text-[10px] font-black text-cyan-200">{youtubeResults.length}</span>
+                                </div>
+                                {youtubeResults.map(video => (
+                                    <div key={`${video.playlistId || video.id}-${video.kind || 'video'}`} className="rounded-2xl border border-white/10 bg-slate-950/55 overflow-hidden">
+                                        <div className="flex gap-3 p-2">
+                                            <div className="relative w-28 aspect-video rounded-xl overflow-hidden bg-black shrink-0">
+                                                {video.thumbnail && <img src={video.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+                                                <div className="absolute left-1.5 top-1.5 rounded-full bg-red-600 px-2 py-0.5 text-[8px] font-black text-white">{video.playlistId || video.kind === 'playlist' ? 'PLAYLIST' : 'VIDEO'}</div>
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="line-clamp-2 text-sm font-black text-white">{video.title}</p>
+                                                <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">{video.author || 'YouTube'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 border-t border-white/10 p-2">
+                                            <button onClick={() => addYoutubeResult(video, false)} className="h-10 rounded-xl border border-white/10 bg-white/[0.06] text-xs font-black text-slate-200 active:scale-95">Preparar</button>
+                                            <button onClick={() => addYoutubeResult(video, true)} className="h-10 rounded-xl bg-red-500 text-xs font-black text-white active:scale-95">En vivo</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4 space-y-3">
                             <div className="flex items-center gap-2 text-sky-200 font-black">
-                                <Upload size={18} /> Subir imagenes
+                                <Upload size={18} /> Subir imagenes y videos
                             </div>
                             <input
                                 value={mediaTitle}
                                 onChange={(e) => setMediaTitle(e.target.value)}
-                                placeholder="Titulo opcional para la galeria"
+                                placeholder="Titulo opcional para el grupo"
                                 className="w-full h-11 rounded-xl bg-slate-950 border border-white/10 px-3 text-sm outline-none focus:border-sky-400"
                             />
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,video/*"
                                 multiple
                                 className="hidden"
-                                onChange={(e) => handleImageUpload(e.target.files)}
+                                onChange={(e) => handleMediaUpload(e.target.files)}
                             />
                             <button
                                 onClick={() => fileInputRef.current?.click()}
                                 className="w-full h-12 rounded-xl bg-sky-600 text-white text-sm font-black active:scale-[0.99] flex items-center justify-center gap-2"
                             >
-                                <ImageIcon size={18} /> Elegir imagenes y enviar
+                                <ImageIcon size={18} /> Elegir archivos y enviar
                             </button>
                             <p className="text-[11px] text-slate-400 leading-relaxed">
-                                Se comprimen antes de enviarse para que el proyector no se bloquee. Maximo 8 por envio.
+                                Las imagenes se comprimen antes de enviarse. Videos desde movil: maximo 25MB por archivo.
                             </p>
                             {uploadStatus && (
                                 <div className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-sky-200">
                                     {uploadStatus}
                                 </div>
                             )}
-                        </div>
-
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 space-y-3">
-                            <div className="flex items-center gap-2 text-indigo-200 font-black">
-                                <Sparkles size={18} /> Generar cancion
-                            </div>
-                            <input
-                                value={songQuery}
-                                onChange={(e) => setSongQuery(e.target.value)}
-                                placeholder="Ej: Way Maker"
-                                className="w-full h-11 rounded-xl bg-slate-950 border border-white/10 px-3 text-sm outline-none focus:border-indigo-400"
-                            />
-                            <button
-                                onClick={() => songQuery.trim() && sendCommand('add_song', { query: songQuery.trim(), makeLive: true })}
-                                className="w-full h-11 rounded-xl bg-indigo-600 text-white text-sm font-black active:scale-[0.99]"
-                            >
-                                Agregar y poner en vivo
-                            </button>
-                        </div>
-
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 space-y-3">
-                            <div className="flex items-center gap-2 text-emerald-200 font-black">
-                                <BookOpen size={18} /> Pasaje biblico
-                            </div>
-                            <input
-                                value={bibleQuery}
-                                onChange={(e) => setBibleQuery(e.target.value)}
-                                placeholder="Ej: Juan 3:16"
-                                className="w-full h-11 rounded-xl bg-slate-950 border border-white/10 px-3 text-sm outline-none focus:border-emerald-400"
-                            />
-                            <div className="flex gap-2">
-                                <select
-                                    value={bibleVersion}
-                                    onChange={(e) => setBibleVersion(e.target.value)}
-                                    className="w-28 h-11 rounded-xl bg-slate-950 border border-white/10 px-2 text-xs outline-none"
-                                >
-                                    <option value="RVR1960">RVR1960</option>
-                                    <option value="NVI">NVI</option>
-                                    <option value="TLA">TLA</option>
-                                    <option value="DHH">DHH</option>
-                                </select>
-                                <button
-                                    onClick={() => bibleQuery.trim() && sendCommand('add_bible', { query: bibleQuery.trim(), version: bibleVersion, makeLive: true })}
-                                    className="flex-1 h-11 rounded-xl bg-emerald-600 text-white text-sm font-black active:scale-[0.99]"
-                                >
-                                    Generar pasaje
-                                </button>
-                            </div>
                         </div>
                     </section>
                 )}
@@ -933,6 +975,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                     <header className="absolute top-0 inset-x-0 z-10 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-center pointer-events-none">
                         <div className="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 pointer-events-auto">
                             <p className="text-xs font-bold text-white tracking-wider">MODO ZOOM FULLSCREEN</p>
+                            <p className="mt-1 text-[10px] font-black text-cyan-200">Zoom {imageScale}% - X {imageOffsetX}% - Y {imageOffsetY}%</p>
                         </div>
                         <button
                             onClick={() => setIsZoomExpanded(false)}
@@ -949,7 +992,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         onDoubleClick={() => sendImageGestureCommand('image_reset', {}, true)}
                     >
                         {currentSlide.mediaUrl ? (
-                            <img src={currentSlide.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-contain" draggable={false} />
+                            <img src={currentSlide.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-contain transition-transform duration-100" style={{ transform: imagePreviewTransform }} draggable={false} />
                         ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-center text-slate-500 px-8">
                                 La imagen es muy grande para verla en el telefono, pero el zoom sigue controlando el proyector.
@@ -989,3 +1032,4 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 };
 
 export default RemoteControlPanel;
+

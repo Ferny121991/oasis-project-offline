@@ -1100,13 +1100,67 @@ const App: React.FC = () => {
             });
           }
           break;
-        case 'add_youtube':
+        case 'add_youtube': {
+          const publishRemoteYouTubeItem = (newItem: PresentationItem) => {
+            setPlaylist(prev => [...prev, newItem]);
+            setActiveItemId(newItem.id);
+            setActiveSlideIndex(0);
+            if (commandData.makeLive) {
+              setLiveItemId(newItem.id);
+              setLiveSlideIndex(0);
+              setFrozenLiveItem(newItem);
+              setIsPreviewHidden(false);
+              setIsLogoActive(false);
+            }
+          };
+
+          if (commandData?.videoId) {
+            const title = commandData.title || commandData.query || 'Video de YouTube';
+            publishRemoteYouTubeItem({
+              id: `youtube_${Date.now()}`,
+              title,
+              type: 'custom',
+              slides: [{
+                id: `yt_${Date.now()}`,
+                type: 'youtube',
+                content: title,
+                videoId: commandData.videoId,
+                label: 'YOUTUBE'
+              }],
+              theme: creationTheme
+            });
+            break;
+          }
+
+          if (commandData?.playlistId) {
+            import('./services/geminiService').then(({ fetchYouTubePlaylistVideos }) => {
+              fetchYouTubePlaylistVideos(commandData.playlistId).then(videos => {
+                const slides = videos.slice(0, 80).map((video: any, index: number) => ({
+                  id: `yt_${Date.now()}_${index}`,
+                  type: 'youtube' as const,
+                  content: video.title || `Video ${index + 1}`,
+                  videoId: video.id || video.videoId,
+                  label: `VIDEO ${index + 1}`
+                })).filter((slide: any) => !!slide.videoId);
+                if (slides.length === 0) return;
+                publishRemoteYouTubeItem({
+                  id: `youtube_playlist_${Date.now()}`,
+                  title: commandData.title || commandData.query || 'Playlist de YouTube',
+                  type: 'custom',
+                  slides,
+                  theme: creationTheme
+                });
+              }).catch(console.error);
+            });
+            break;
+          }
+
           if (commandData?.query) {
             import('./services/geminiService').then(({ searchYouTube }) => {
               searchYouTube(commandData.query).then(results => {
                 const firstVideo = results.find((result: any) => result.kind !== 'playlist' && !result.playlistId);
                 if (!firstVideo) return;
-                const newItem: PresentationItem = {
+                publishRemoteYouTubeItem({
                   id: `youtube_${Date.now()}`,
                   title: firstVideo.title || commandData.query,
                   type: 'custom',
@@ -1118,21 +1172,12 @@ const App: React.FC = () => {
                     label: 'YOUTUBE'
                   }],
                   theme: creationTheme
-                };
-                setPlaylist(prev => [...prev, newItem]);
-                setActiveItemId(newItem.id);
-                setActiveSlideIndex(0);
-                if (commandData.makeLive) {
-                  setLiveItemId(newItem.id);
-                  setLiveSlideIndex(0);
-                  setFrozenLiveItem(newItem);
-                  setIsPreviewHidden(false);
-                  setIsLogoActive(false);
-                }
+                });
               }).catch(console.error);
             });
           }
           break;
+        }
       }
       // Clear the command after processing
       if (!commandData?.transient) {
@@ -4324,3 +4369,4 @@ const MonitorIcon = ({ size }: { size: number }) => (
 );
 
 export default App;
+
