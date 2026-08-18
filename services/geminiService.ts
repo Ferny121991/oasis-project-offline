@@ -1601,6 +1601,24 @@ const fetchYouTubeLocalSearch = async (query: string): Promise<YouTubeSearchResu
 };
 
 export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
+  const directPlaylistId = extractPlaylistId(query);
+  if (directPlaylistId) {
+    const playlistVideos = await fetchYouTubePlaylistVideos(directPlaylistId, 300);
+    if (playlistVideos.length === 0) {
+      throw new Error('La playlist no existe, es privada o no contiene videos publicos.');
+    }
+    return [{
+      id: directPlaylistId,
+      kind: 'playlist',
+      playlistId: directPlaylistId,
+      title: playlistVideos[0]?.playlistTitle || 'Playlist de YouTube',
+      author: 'YouTube',
+      thumbnail: playlistVideos[0]?.thumbnail || '',
+      videoCount: playlistVideos.length,
+      playlistVideos
+    }];
+  }
+
   try {
     return await fetchYouTubeLocalSearch(query);
   } catch (error) {

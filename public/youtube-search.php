@@ -185,6 +185,7 @@ $url = 'https://www.youtube.com/results?search_query=' . rawurlencode($query) . 
 $html = oasis_fetch_url($url);
 $results = [];
 $seen = [];
+$collectionLimit = max(60, $maxResults * 4);
 
 if ($html !== '') {
   $patterns = [
@@ -194,7 +195,7 @@ if ($html !== '') {
   foreach ($patterns as $pattern) {
     if (preg_match($pattern, $html, $match)) {
       $data = json_decode($match[1], true);
-      if (is_array($data)) oasis_collect_results($data, $results, $seen, $maxResults);
+      if (is_array($data)) oasis_collect_results($data, $results, $seen, $collectionLimit);
       if (count($results) > 0) break;
     }
   }
@@ -220,9 +221,24 @@ if (count($results) === 0 && $html !== '') {
     $json = oasis_post_json('https://www.youtube.com/youtubei/v1/search?key=' . rawurlencode($apiKey), $payload);
     if ($json !== '') {
       $data = json_decode($json, true);
-      if (is_array($data)) oasis_collect_results($data, $results, $seen, $maxResults);
+      if (is_array($data)) oasis_collect_results($data, $results, $seen, $collectionLimit);
     }
   }
+}
+
+if (count($results) > 0) {
+  $videos = array_values(array_filter($results, function ($item) {
+    return isset($item['kind']) && $item['kind'] === 'video';
+  }));
+  $playlists = array_values(array_filter($results, function ($item) {
+    return isset($item['kind']) && $item['kind'] === 'playlist';
+  }));
+  $playlistSlots = min(6, count($playlists));
+  $videoSlots = max(0, $maxResults - $playlistSlots);
+  $results = array_merge(
+    array_slice($videos, 0, $videoSlots),
+    array_slice($playlists, 0, $maxResults - min($videoSlots, count($videos)))
+  );
 }
 
 if (count($results) === 0) http_response_code(502);
