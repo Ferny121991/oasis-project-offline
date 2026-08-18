@@ -1573,7 +1573,40 @@ export const fetchYouTubePlaylistVideos = async (playlistId: string, maxVideos =
   return [];
 };
 
+const fetchYouTubeLocalSearch = async (query: string): Promise<YouTubeSearchResult[]> => {
+  const params = new URLSearchParams({ q: query, max: '18' });
+  const res = await fetchWithTimeout(`/youtube-search.php?${params.toString()}`, 20000);
+  if (!res.ok) throw new Error(`Local YouTube search failed with status ${res.status}`);
+  const data = await res.json();
+  const items = Array.isArray(data?.results) ? data.results : [];
+  const mapped = items.map((item: any) => {
+    const isPlaylist = item.kind === 'playlist' || !!item.playlistId;
+    const id = isPlaylist
+      ? extractPlaylistId(item.playlistId || item.id || '')
+      : extractVideoId(item.id || item.videoId || '');
+    if (!id) return null;
+    return {
+      id,
+      kind: isPlaylist ? 'playlist' as const : 'video' as const,
+      playlistId: isPlaylist ? id : undefined,
+      title: item.title || (isPlaylist ? 'Playlist de YouTube' : 'Video de YouTube'),
+      author: item.author || 'YouTube',
+      thumbnail: item.thumbnail || (isPlaylist ? '' : `https://img.youtube.com/vi/${id}/mqdefault.jpg`),
+      duration: item.duration || undefined,
+      videoCount: Number(item.videoCount) || undefined
+    } as YouTubeSearchResult;
+  }).filter(Boolean) as YouTubeSearchResult[];
+  if (mapped.length === 0) throw new Error('Local YouTube search returned no results.');
+  return mapped;
+};
+
 export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[]> => {
+  try {
+    return await fetchYouTubeLocalSearch(query);
+  } catch (error) {
+    console.warn('Local YouTube search failed, trying other providers.', error);
+  }
+
   if (youtubeApiKey) {
     try {
       return await fetchYouTubeOfficial(query);
