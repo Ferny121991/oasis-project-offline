@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     AlertCircle,
     BookOpen,
@@ -55,7 +55,7 @@ const formatAudioTime = (seconds?: number) => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
-const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, sendCommand, isConnected, onClose }) => {
+const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, sendCommand: sendCommandProp, isConnected, onClose }) => {
     const [activeTab, setActiveTab] = useState<RemoteTab>('control');
     const [searchQuery, setSearchQuery] = useState('');
     const [quickAddQuery, setQuickAddQuery] = useState('');
@@ -68,6 +68,10 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const [youtubeLoading, setYoutubeLoading] = useState(false);
     const [youtubeError, setYoutubeError] = useState('');
     const [isZoomExpanded, setIsZoomExpanded] = useState(false);
+    const [commandFeedback, setCommandFeedback] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
+    const [audioSeekDraft, setAudioSeekDraft] = useState<number | null>(null);
+    const [volumeDraft, setVolumeDraft] = useState<number | null>(null);
+    const [zoomScaleDraft, setZoomScaleDraft] = useState<number | null>(null);
     const [favoriteItemIds, setFavoriteItemIds] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('oasis_remote_favorite_items') || '[]'); } catch { return []; }
     });
@@ -75,12 +79,55 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
         try { return JSON.parse(localStorage.getItem('oasis_remote_favorite_projects') || '[]'); } catch { return []; }
     });
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const imageGestureRef = useRef({
         lastX: 0,
         lastY: 0,
         lastDistance: 0,
-        lastSentAt: 0
+        lastSentAt: 0,
+        startX: 0,
+        startY: 0,
+        moved: false,
+        lastTapAt: 0
     });
+
+    const commandLabels: Record<string, string> = {
+        next: 'Siguiente slide',
+        prev: 'Slide anterior',
+        blackout: 'Blackout actualizado',
+        clear: 'Texto actualizado',
+        clear_background: 'Fondo actualizado',
+        logo: 'Logo actualizado',
+        restore_live: 'Proyeccion restaurada',
+        go_live_active: 'Contenido puesto en vivo',
+        stop_live: 'Transmision detenida',
+        toggle_audio: 'Reproductor actualizado',
+        audio_next: 'Siguiente audio',
+        audio_prev: 'Audio anterior',
+        audio_toggle_mute: 'Silencio actualizado',
+        toggle_split: 'Pantalla dividida actualizada',
+        toggle_karaoke: 'Karaoke actualizado'
+    };
+
+    const sendCommand = useCallback(async (command: string, data?: any) => {
+        const isTransient = data?.transient === true;
+        try {
+            await sendCommandProp(command, data);
+            if (!isTransient) {
+                if ('vibrate' in navigator) navigator.vibrate(18);
+                setCommandFeedback({ text: commandLabels[command] || 'Comando enviado', tone: 'ok' });
+                if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+                feedbackTimerRef.current = setTimeout(() => setCommandFeedback(null), 1400);
+            }
+        } catch (error) {
+            console.error(error);
+            setCommandFeedback({ text: 'No se pudo enviar. Reintenta.', tone: 'error' });
+        }
+    }, [sendCommandProp]);
+
+    useEffect(() => () => {
+        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    }, []);
 
     const activeItem = liveState?.playlist?.find(p => p.id === liveState.liveItemId);
     const stagedItem = liveState?.playlist?.find(p => p.id === liveState.activeItemId);
@@ -101,6 +148,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const imageScale = Math.round((Number(liveState?.imageContentScale) || 1) * 100);
     const imageOffsetX = Math.round(Number(liveState?.imageContentOffsetX) || 0);
     const imageOffsetY = Math.round(Number(liveState?.imageContentOffsetY) || 0);
+    const zoomTargetItemId = liveState?.activeItemId || liveState?.liveItemId || undefined;
     const imagePreviewTransform = `translate(${imageOffsetX}%, ${imageOffsetY}%) scale(${Math.max(0.2, Number(liveState?.imageContentScale) || 1)})`;
 
     const filteredPlaylist = useMemo(() => {
@@ -110,10 +158,28 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
             if (seen.has(item.id)) return false;
             seen.add(item.id);
             return item.title.toLowerCase().includes(query);
-        });
-    }, [liveState?.playlist, searchQuery]);
+        }).sort((first, second) => Number(favoriteItemIds.includes(second.id)) - Number(favoriteItemIds.includes(first.id)));
+    }, [liveState?.playlist, searchQuery, favoriteItemIds]);
 
     const connectionLabel = isConnected ? (hasLiveItem ? 'EN VIVO' : 'ONLINE') : 'RECONECTANDO';
+
+    useEffect(() => {
+        if (audioSeekDraft === null) return;
+        const timer = setTimeout(() => setAudioSeekDraft(null), 500);
+        return () => clearTimeout(timer);
+    }, [liveState?.backgroundAudioCurrentTime, audioSeekDraft]);
+
+    useEffect(() => {
+        if (volumeDraft === null) return;
+        const timer = setTimeout(() => setVolumeDraft(null), 450);
+        return () => clearTimeout(timer);
+    }, [liveState?.backgroundAudioVolume, volumeDraft]);
+
+    useEffect(() => {
+        if (zoomScaleDraft === null) return;
+        const timer = setTimeout(() => setZoomScaleDraft(null), 350);
+        return () => clearTimeout(timer);
+    }, [liveState?.imageContentScale, zoomScaleDraft]);
 
     const toggleFavoriteItem = (id: string) => {
         setFavoriteItemIds(prev => {
@@ -183,7 +249,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
         const now = Date.now();
         if (!force && now - imageGestureRef.current.lastSentAt < 45) return;
         imageGestureRef.current.lastSentAt = now;
-        sendCommand(command, { ...data, transient: !force });
+        sendCommand(command, { ...data, itemId: zoomTargetItemId, transient: !force });
     };
 
     const getTouchDistance = (touches: TouchList) => {
@@ -196,6 +262,9 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
         if (event.touches.length === 1) {
             imageGestureRef.current.lastX = event.touches[0].clientX;
             imageGestureRef.current.lastY = event.touches[0].clientY;
+            imageGestureRef.current.startX = event.touches[0].clientX;
+            imageGestureRef.current.startY = event.touches[0].clientY;
+            imageGestureRef.current.moved = false;
         }
 
         if (event.touches.length === 2) {
@@ -213,6 +282,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
             const factor = distance / lastDistance;
             if (Math.abs(factor - 1) > 0.01) {
                 sendImageGestureCommand('image_zoom', { factor });
+                imageGestureRef.current.moved = true;
             }
             imageGestureRef.current.lastDistance = distance;
             return;
@@ -224,14 +294,35 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
             const deltaY = ((touch.clientY - imageGestureRef.current.lastY) / rect.height) * 100;
             if (Math.abs(deltaX) > 0.18 || Math.abs(deltaY) > 0.18) {
                 sendImageGestureCommand('image_pan', { deltaX, deltaY });
+                imageGestureRef.current.moved = true;
             }
             imageGestureRef.current.lastX = touch.clientX;
             imageGestureRef.current.lastY = touch.clientY;
         }
     };
 
-    const handleImagePadTouchEnd = () => {
+    const handleImagePadTouchEnd = (event: React.TouchEvent<HTMLDivElement>, focusOnTap = false) => {
         imageGestureRef.current.lastDistance = 0;
+        if (!focusOnTap || imageGestureRef.current.moved || event.touches.length > 0 || event.changedTouches.length === 0) return;
+
+        const now = Date.now();
+        if (now - imageGestureRef.current.lastTapAt < 320) {
+            imageGestureRef.current.lastTapAt = 0;
+            sendImageGestureCommand('image_reset', {}, true);
+            return;
+        }
+
+        imageGestureRef.current.lastTapAt = now;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const touch = event.changedTouches[0];
+        const xPercent = ((touch.clientX - rect.left) / rect.width) * 100;
+        const yPercent = ((touch.clientY - rect.top) / rect.height) * 100;
+        const currentScale = Number(liveState?.imageContentScale) || 1;
+        sendImageGestureCommand('image_focus', {
+            xPercent,
+            yPercent,
+            scale: currentScale < 1.8 ? 2.2 : Math.min(5, currentScale + 0.7)
+        }, true);
     };
 
     const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
@@ -326,12 +417,52 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
             }
 
             if (slides.length === 0) return;
-            await sendCommand('add_media', {
-                title: mediaTitle.trim() || (slides.length === 1 ? slides[0].label : `Medios remoto (${slides.length})`),
-                slides,
-                makeLive: true,
-                remoteUpload: true
-            });
+            const batchId = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const groupTitle = mediaTitle.trim() || (slides.length === 1 ? slides[0].label : `Medios remoto (${slides.length})`);
+            const chunkSize = 150000;
+
+            for (let slideIndex = 0; slideIndex < slides.length; slideIndex += 1) {
+                const slide = slides[slideIndex];
+                setUploadStatus(`Enviando ${slideIndex + 1}/${slides.length}: ${slide.label}`);
+
+                if (slide.mediaUrl.length <= chunkSize) {
+                    await sendCommand('add_media', {
+                        title: groupTitle,
+                        slides: [slide],
+                        batchId,
+                        makeLive: true,
+                        remoteUpload: true,
+                        transient: true
+                    });
+                    continue;
+                }
+
+                const uploadId = `${batchId}_${slideIndex}`;
+                const chunks = Math.ceil(slide.mediaUrl.length / chunkSize);
+                await sendCommand('media_upload_start', {
+                    uploadId,
+                    chunkCount: chunks,
+                    type: slide.type,
+                    label: slide.label,
+                    title: groupTitle,
+                    batchId,
+                    makeLive: true,
+                    transient: true
+                });
+
+                for (let chunkIndex = 0; chunkIndex < chunks; chunkIndex += 1) {
+                    setUploadStatus(`Enviando ${slideIndex + 1}/${slides.length} - bloque ${chunkIndex + 1}/${chunks}`);
+                    await sendCommand('media_upload_chunk', {
+                        uploadId,
+                        index: chunkIndex,
+                        chunk: slide.mediaUrl.slice(chunkIndex * chunkSize, (chunkIndex + 1) * chunkSize),
+                        transient: true
+                    });
+                    await new Promise(resolve => setTimeout(resolve, 30));
+                }
+
+                await sendCommand('media_upload_complete', { uploadId, transient: true });
+            }
             setUploadStatus(`${slides.length} archivo${slides.length === 1 ? '' : 's'} enviado${slides.length === 1 ? '' : 's'} al presentador.`);
             setMediaTitle('');
         } catch (error) {
@@ -379,7 +510,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
     const renderSlideBackdrop = () => {
         if (!currentSlide) return null;
         if (currentSlide.type === 'image' && currentSlide.mediaUrl) {
-            return <img src={currentSlide.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-55" />;
+            return <img src={currentSlide.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-contain opacity-70 transition-transform duration-100" style={{ transform: imagePreviewTransform }} />;
         }
         if (currentSlide.type === 'video' && currentSlide.mediaUrl) {
             return <video src={currentSlide.mediaUrl} className="absolute inset-0 w-full h-full object-cover opacity-55" muted preload="metadata" />;
@@ -399,7 +530,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 
     return (
         <div className="flex flex-col h-[100dvh] w-full bg-[linear-gradient(180deg,#06111f_0%,#0b1020_45%,#020409_100%)] text-slate-100 overflow-hidden font-sans antialiased">
-            <header className="shrink-0 px-4 pt-4 pb-3 bg-[#06111f]/95 border-b border-white/10 backdrop-blur">
+            <header className="shrink-0 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-3 bg-[#06111f]/95 border-b border-white/10 backdrop-blur">
                 <div className="flex items-center justify-between gap-3">
                     <button
                         onClick={onClose}
@@ -417,6 +548,16 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         <span className="text-[10px] font-black">{connectionLabel}</span>
                     </div>
                 </div>
+                <div className="mt-2 flex min-h-5 items-center justify-between gap-3 px-1">
+                    <p className="truncate text-[10px] font-bold text-slate-500">
+                        {isConnected ? 'Respuesta en tiempo real activa' : 'Los comandos se enviaran al recuperar conexion'}
+                    </p>
+                    {commandFeedback && (
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black transition-all ${commandFeedback.tone === 'ok' ? 'bg-emerald-400/15 text-emerald-200' : 'bg-red-400/15 text-red-200'}`}>
+                            {commandFeedback.text}
+                        </span>
+                    )}
+                </div>
             </header>
 
             <main className="flex-1 overflow-y-auto pb-24">
@@ -428,6 +569,9 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-black/45 border border-white/10 px-2.5 py-1 text-[10px] font-black uppercase">
                                 <Radio size={12} className="text-emerald-300" />
                                 {hasLiveItem ? `Slide ${(liveState.liveSlideIndex ?? 0) + 1}` : 'Sin vivo'}
+                            </div>
+                            <div className={`absolute right-3 top-3 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase backdrop-blur ${liveState.isPreviewHidden ? 'border-red-300/30 bg-red-500/25 text-red-100' : liveState.isLogoActive ? 'border-indigo-300/30 bg-indigo-500/25 text-indigo-100' : liveState.isTextHidden || liveState.isBackgroundHidden ? 'border-amber-300/30 bg-amber-500/25 text-amber-100' : 'border-emerald-300/20 bg-black/45 text-emerald-200'}`}>
+                                {liveState.isPreviewHidden ? 'Blackout' : liveState.isLogoActive ? 'Logo' : liveState.isTextHidden ? 'Sin texto' : liveState.isBackgroundHidden ? 'Sin fondo' : 'Proyeccion normal'}
                             </div>
                             <div className="absolute inset-x-0 bottom-0 p-4">
                                 <p className="text-xs text-cyan-200/80 font-bold uppercase mb-1">{currentSlide?.label || currentSlide?.type || 'Vista previa'}</p>
@@ -454,7 +598,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             </div>
                         )}
 
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                             <button
                                 onClick={() => sendCommand('blackout')}
                                 className={`rounded-2xl border p-3 flex flex-col items-center gap-2 active:scale-[0.98] ${liveState.isPreviewHidden ? 'bg-red-500/15 border-red-400/30 text-red-200' : 'bg-white/[0.05] border-white/10 text-slate-300'}`}
@@ -468,6 +612,13 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             >
                                 <Square size={22} />
                                 <span className="text-[10px] font-black uppercase">Texto</span>
+                            </button>
+                            <button
+                                onClick={() => sendCommand('clear_background')}
+                                className={`rounded-2xl border p-3 flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${liveState.isBackgroundHidden ? 'bg-amber-500/15 border-amber-400/30 text-amber-200' : 'bg-white/[0.05] border-white/10 text-slate-300'}`}
+                            >
+                                <Monitor size={22} />
+                                <span className="text-[10px] font-black uppercase">Fondo</span>
                             </button>
                             <button
                                 onClick={() => sendCommand('logo')}
@@ -493,15 +644,37 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             </button>
                         </div>
 
-                        {hasBackgroundAudio && (
+                        <div className="grid grid-cols-3 gap-2">
                             <button
-                                onClick={() => setActiveTab('audio')}
-                                className="w-full rounded-[1.5rem] border border-pink-400/25 bg-pink-500/10 p-3 text-left active:scale-[0.99] shadow-lg shadow-black/20"
+                                onClick={() => sendCommand('restore_live')}
+                                className="h-11 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-[10px] font-black uppercase text-emerald-200 transition-all active:scale-[0.97]"
                             >
+                                Restaurar
+                            </button>
+                            <button
+                                onClick={() => sendCommand('toggle_split')}
+                                className={`h-11 rounded-2xl border text-[10px] font-black uppercase transition-all active:scale-[0.97] ${liveState.showSplitScreen ? 'border-indigo-300/35 bg-indigo-400/20 text-indigo-100' : 'border-white/10 bg-white/[0.05] text-slate-300'}`}
+                            >
+                                Dividir
+                            </button>
+                            <button
+                                onClick={() => sendCommand('toggle_karaoke')}
+                                className={`h-11 rounded-2xl border text-[10px] font-black uppercase transition-all active:scale-[0.97] ${liveState.isKaraokeActive ? 'border-pink-300/35 bg-pink-400/20 text-pink-100' : 'border-white/10 bg-white/[0.05] text-slate-300'}`}
+                            >
+                                Karaoke
+                            </button>
+                        </div>
+
+                        {hasBackgroundAudio && (
+                            <div className="w-full rounded-[1.5rem] border border-pink-400/25 bg-pink-500/10 p-3 shadow-lg shadow-black/20">
                                 <div className="flex items-center gap-3">
-                                    <div className={`h-12 w-12 rounded-2xl bg-pink-600 flex items-center justify-center text-white ${liveState.isAudioPlaying ? 'animate-pulse' : ''}`}>
+                                    <button
+                                        onClick={() => sendCommand('toggle_audio')}
+                                        className={`h-12 w-12 shrink-0 rounded-2xl bg-pink-600 flex items-center justify-center text-white transition-transform active:scale-95 ${liveState.isAudioPlaying ? 'shadow-lg shadow-pink-950/40' : ''}`}
+                                        title={liveState.isAudioPlaying ? 'Pausar musica' : 'Reproducir musica'}
+                                    >
                                         {liveState.isAudioPlaying ? <PauseCircle size={24} /> : <PlayCircle size={24} />}
-                                    </div>
+                                    </button>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-pink-200">
                                             Musica de fondo {audioPositionLabel && <span className="rounded-full bg-black/30 px-2 py-0.5 text-slate-300">{audioPositionLabel}</span>}
@@ -512,7 +685,13 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                         </div>
                                     </div>
                                 </div>
-                            </button>
+                                <div className="mt-3 grid grid-cols-4 gap-2">
+                                    <button onClick={() => sendCommand('audio_prev')} className="h-9 rounded-xl border border-white/10 bg-black/20 text-pink-100 flex items-center justify-center active:scale-95" title="Audio anterior"><SkipBack size={17} /></button>
+                                    <button onClick={() => sendCommand('audio_seek_relative', { seconds: -15 })} className="h-9 rounded-xl border border-white/10 bg-black/20 text-pink-100 text-[10px] font-black active:scale-95">-15s</button>
+                                    <button onClick={() => sendCommand('audio_next')} className="h-9 rounded-xl border border-white/10 bg-black/20 text-pink-100 flex items-center justify-center active:scale-95" title="Siguiente audio"><SkipForward size={17} /></button>
+                                    <button onClick={() => setActiveTab('audio')} className="h-9 rounded-xl bg-pink-500 text-white text-[10px] font-black active:scale-95">Abrir</button>
+                                </div>
+                            </div>
                         )}
 
                         {currentSlide?.type === 'image' && (
@@ -534,7 +713,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                     className="relative h-56 rounded-[1.5rem] border border-white/10 bg-black overflow-hidden touch-none select-none shadow-inner"
                                     onTouchStart={handleImagePadTouchStart}
                                     onTouchMove={handleImagePadTouchMove}
-                                    onTouchEnd={handleImagePadTouchEnd}
+                                    onTouchEnd={(event) => handleImagePadTouchEnd(event, false)}
                                     onDoubleClick={() => sendImageGestureCommand('image_reset', {}, true)}
                                     onClick={() => setIsZoomExpanded(true)}
                                 >
@@ -545,7 +724,12 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                     <div className="absolute inset-3 rounded-[1.25rem] border border-dashed border-cyan-200/28 pointer-events-none" />
                                     <div className="absolute inset-x-0 bottom-0 p-4 pointer-events-none">
                                         <p className="text-sm font-black text-white">Abrir y mover zoom</p>
-                                        <p className="text-xs text-slate-300 mt-1">Doble toque para reiniciar</p>`r`n                                        <div className="mt-2 flex gap-2 text-[10px] font-black text-cyan-100">`r`n                                            <span className="rounded-full bg-black/45 px-2 py-1">Zoom {imageScale}%</span>`r`n                                            <span className="rounded-full bg-black/45 px-2 py-1">X {imageOffsetX}%</span>`r`n                                            <span className="rounded-full bg-black/45 px-2 py-1">Y {imageOffsetY}%</span>`r`n                                        </div>
+                                        <p className="text-xs text-slate-300 mt-1">Arrastra para mover y pellizca para acercar</p>
+                                        <div className="mt-2 flex gap-2 text-[10px] font-black text-cyan-100">
+                                            <span className="rounded-full bg-black/45 px-2 py-1">Zoom {imageScale}%</span>
+                                            <span className="rounded-full bg-black/45 px-2 py-1">X {imageOffsetX}%</span>
+                                            <span className="rounded-full bg-black/45 px-2 py-1">Y {imageOffsetY}%</span>
+                                        </div>
                                     </div>
                                     <button 
                                         onClick={(e) => {
@@ -723,15 +907,21 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 
                             <div className="mt-5 rounded-3xl border border-white/10 bg-black/25 p-4">
                                 <div className="mb-2 flex items-center justify-between text-xs font-black text-slate-300">
-                                    <span>{formatAudioTime(audioCurrentTime)}</span>
+                                    <span>{formatAudioTime(audioSeekDraft ?? audioCurrentTime)}</span>
                                     <span className="text-pink-200">{audioDuration > 0 ? formatAudioTime(audioDuration) : '--:--'}</span>
                                 </div>
                                 <input
                                     type="range"
                                     min={0}
                                     max={Math.max(1, Math.floor(audioDuration || 0))}
-                                    value={Math.min(Math.floor(audioCurrentTime), Math.max(1, Math.floor(audioDuration || 0)))}
-                                    onChange={(event) => sendCommand('audio_seek_to', { seconds: Number(event.target.value) })}
+                                    value={Math.min(Math.floor(audioSeekDraft ?? audioCurrentTime), Math.max(1, Math.floor(audioDuration || 0)))}
+                                    onChange={(event) => {
+                                        const seconds = Number(event.target.value);
+                                        setAudioSeekDraft(seconds);
+                                        sendCommand('audio_seek_to', { seconds, transient: true });
+                                    }}
+                                    onPointerUp={(event) => sendCommand('audio_seek_to', { seconds: Number(event.currentTarget.value) })}
+                                    onTouchEnd={(event) => sendCommand('audio_seek_to', { seconds: Number(event.currentTarget.value) })}
                                     disabled={!hasBackgroundAudio || !audioDuration}
                                     className="w-full accent-pink-500 disabled:opacity-40"
                                 />
@@ -746,7 +936,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                         {liveState.isAudioMuted ? <VolumeX size={16} className="text-red-300" /> : <Volume2 size={16} className="text-pink-200" />}
                                         Volumen
                                     </span>
-                                    <span className="text-pink-200">{liveState.isAudioMuted ? 'Mute' : `${audioVolume}%`}</span>
+                                    <span className="text-pink-200">{liveState.isAudioMuted ? 'Mute' : `${Math.round(volumeDraft ?? audioVolume)}%`}</span>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <button
@@ -760,8 +950,14 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                                         type="range"
                                         min={0}
                                         max={100}
-                                        value={audioVolume}
-                                        onChange={(event) => sendCommand('audio_set_volume', { volume: Number(event.target.value) })}
+                                        value={volumeDraft ?? audioVolume}
+                                        onChange={(event) => {
+                                            const volume = Number(event.target.value);
+                                            setVolumeDraft(volume);
+                                            sendCommand('audio_set_volume', { volume, transient: true });
+                                        }}
+                                        onPointerUp={(event) => sendCommand('audio_set_volume', { volume: Number(event.currentTarget.value) })}
+                                        onTouchEnd={(event) => sendCommand('audio_set_volume', { volume: Number(event.currentTarget.value) })}
                                         disabled={!hasBackgroundAudio}
                                         className="min-w-0 flex-1 accent-pink-500 disabled:opacity-40"
                                     />
@@ -843,7 +1039,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
 
                         <h2 className="text-sm font-black uppercase tracking-wider text-slate-400">Proyectos guardados</h2>
                         <div className="grid grid-cols-2 gap-3">
-                            {liveState.projects?.map(project => {
+                            {(liveState.projects || []).slice().sort((first, second) => Number(favoriteProjectIds.includes(second.id)) - Number(favoriteProjectIds.includes(first.id))).map(project => {
                                 const selected = liveState.currentProjectName === project.name;
                                 const isFavorite = favoriteProjectIds.includes(project.id);
                                 return (
@@ -997,7 +1193,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                 )}
             </main>
 
-            <nav className="absolute bottom-0 inset-x-0 border-t border-white/10 bg-[#07111f]/90 backdrop-blur-xl px-4 pt-2 pb-5 shadow-[0_-20px_45px_rgba(0,0,0,0.45)]">
+            <nav className="absolute bottom-0 inset-x-0 border-t border-white/10 bg-[#07111f]/95 backdrop-blur-xl px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-20px_45px_rgba(0,0,0,0.45)]">
                 <div className="grid grid-cols-5 gap-1.5 max-w-md mx-auto rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-1.5">
                     {[
                         { id: 'control' as const, label: 'Control', icon: Monitor },
@@ -1041,7 +1237,7 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                         className="flex-1 w-full h-full touch-none select-none relative bg-black"
                         onTouchStart={handleImagePadTouchStart}
                         onTouchMove={handleImagePadTouchMove}
-                        onTouchEnd={handleImagePadTouchEnd}
+                        onTouchEnd={(event) => handleImagePadTouchEnd(event, true)}
                         onDoubleClick={() => sendImageGestureCommand('image_reset', {}, true)}
                     >
                         {currentSlide.mediaUrl ? (
@@ -1056,26 +1252,60 @@ const RemoteControlPanel: React.FC<RemoteControlPanelProps> = ({ liveState, send
                             <ZoomIn size={60} className="text-white drop-shadow-2xl" />
                         </div>
                     </div>
-                    <div className="absolute bottom-8 inset-x-4 flex items-center justify-between pointer-events-none max-w-md mx-auto">
-                        <button
-                            onClick={() => sendImageGestureCommand('image_reset', {}, true)}
-                            className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white pointer-events-auto active:scale-95 shadow-xl"
-                        >
-                            <RotateCcw size={22} />
-                        </button>
-                        <div className="flex gap-2 pointer-events-auto shadow-xl bg-black/60 p-2 rounded-[2rem] border border-white/10 backdrop-blur-md">
+                    <div className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] inset-x-4 pointer-events-none max-w-md mx-auto space-y-3">
+                        <div className="pointer-events-auto rounded-2xl border border-white/10 bg-black/70 p-3 backdrop-blur-md shadow-xl">
+                            <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase text-slate-300">
+                                <span>Nivel de zoom</span>
+                                <span className="text-cyan-200">{Math.round(zoomScaleDraft ?? imageScale)}%</span>
+                            </div>
+                            <input
+                                type="range"
+                                min={25}
+                                max={500}
+                                step={5}
+                                value={zoomScaleDraft ?? imageScale}
+                                onChange={(event) => {
+                                    const scalePercent = Number(event.target.value);
+                                    setZoomScaleDraft(scalePercent);
+                                    sendImageGestureCommand('image_set_transform', {
+                                        scale: scalePercent / 100,
+                                        offsetX: imageOffsetX,
+                                        offsetY: imageOffsetY
+                                    });
+                                }}
+                                onPointerUp={(event) => sendImageGestureCommand('image_set_transform', {
+                                    scale: Number(event.currentTarget.value) / 100,
+                                    offsetX: imageOffsetX,
+                                    offsetY: imageOffsetY
+                                }, true)}
+                                className="w-full accent-cyan-400"
+                            />
+                            <p className="mt-2 text-center text-[10px] text-slate-400">Toca un punto para acercarlo. Arrastra para mover. Doble toque reinicia.</p>
+                        </div>
+                        <div className="flex items-center justify-between">
                             <button
-                                onClick={() => sendImageGestureCommand('image_zoom', { factor: 0.85 }, true)}
-                                className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95"
+                                onClick={() => sendImageGestureCommand('image_reset', {}, true)}
+                                className="w-14 h-14 rounded-full bg-black/70 backdrop-blur-md border border-white/10 flex items-center justify-center text-white pointer-events-auto active:scale-95 shadow-xl"
+                                title="Restablecer zoom"
                             >
-                                <ZoomOut size={22} />
+                                <RotateCcw size={22} />
                             </button>
-                            <button
-                                onClick={() => sendImageGestureCommand('image_zoom', { factor: 1.18 }, true)}
-                                className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white active:scale-95"
-                            >
-                                <ZoomIn size={22} />
-                            </button>
+                            <div className="flex gap-2 pointer-events-auto shadow-xl bg-black/70 p-2 rounded-[2rem] border border-white/10 backdrop-blur-md">
+                                <button
+                                    onClick={() => sendImageGestureCommand('image_zoom', { factor: 0.85 }, true)}
+                                    className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95"
+                                    title="Alejar"
+                                >
+                                    <ZoomOut size={22} />
+                                </button>
+                                <button
+                                    onClick={() => sendImageGestureCommand('image_zoom', { factor: 1.18 }, true)}
+                                    className="w-12 h-12 rounded-full bg-cyan-400 flex items-center justify-center text-slate-950 active:scale-95"
+                                    title="Acercar"
+                                >
+                                    <ZoomIn size={22} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,8 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import QRCode from 'react-qr-code';
 import { Check, Copy, Link, Monitor, Radio, ShieldCheck, Smartphone, Wifi, X } from 'lucide-react';
-import { createRealtimeSyncService, LiveState } from '../services/realtimeService';
-import RemoteControlPanel from './RemoteControlPanel';
 
 interface MobileConnectModalProps {
     isOpen: boolean;
@@ -14,9 +12,6 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
     const [ipAddress, setIpAddress] = useState('');
     const [port, setPort] = useState('');
     const [copied, setCopied] = useState(false);
-    const [showMobileControl, setShowMobileControl] = useState(false);
-    const [liveState, setLiveState] = useState<LiveState | null>(null);
-    const previewSyncService = useRef(createRealtimeSyncService());
 
     useEffect(() => {
         const savedIp = localStorage.getItem('oasis_host_ip');
@@ -28,19 +23,6 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
 
         setPort(window.location.port || '');
     }, []);
-
-    useEffect(() => {
-        if (!showMobileControl || !controlId) return;
-
-        const syncService = previewSyncService.current;
-        syncService.subscribe(controlId, (state: LiveState) => {
-            setLiveState(state);
-        });
-
-        return () => {
-            syncService.unsubscribe();
-        };
-    }, [showMobileControl, controlId]);
 
     const handleIpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setIpAddress(e.target.value);
@@ -59,6 +41,10 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const handleOpenPreview = () => {
+        window.open(getConnectUrl(), 'oasis-remote-preview', 'noopener,noreferrer');
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -72,8 +58,7 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
                     <X size={24} />
                 </button>
 
-                {!showMobileControl ? (
-                    <div className="p-6">
+                <div className="p-6">
                         <div className="flex items-center gap-3 mb-5 border-b border-white/10 pb-4">
                             <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 text-indigo-300 flex items-center justify-center border border-indigo-400/20">
                                 <Smartphone size={20} />
@@ -155,11 +140,11 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
                             </div>
 
                             <button
-                                onClick={() => setShowMobileControl(true)}
+                                onClick={handleOpenPreview}
                                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-black flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-600/25 active:scale-[0.99]"
                             >
                                 <Monitor size={18} />
-                                Probar Control Remoto Aqui
+                                Abrir prueba en otra pestana
                             </button>
 
                             <div className="text-center">
@@ -168,17 +153,7 @@ const MobileConnectModal: React.FC<MobileConnectModalProps> = ({ isOpen, onClose
                                 </div>
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="fixed inset-0 z-[100000] bg-[#070b16] w-full h-[100dvh] flex flex-col m-0 p-0 overflow-hidden">
-                        <RemoteControlPanel
-                            liveState={liveState}
-                            isConnected={previewSyncService.current.isConnected()}
-                            sendCommand={(cmd, data) => previewSyncService.current.sendCommand(controlId, cmd, data)}
-                            onClose={() => setShowMobileControl(false)}
-                        />
-                    </div>
-                )}
+                </div>
             </div>
         </div>
     );

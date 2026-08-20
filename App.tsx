@@ -21,7 +21,7 @@ import { Session } from '@supabase/supabase-js';
 import { fetchSongLyrics, fetchBiblePassage, searchSongs, DensityMode } from './services/geminiService';
 import { createRealtimeSyncService, realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
 import { compressImage } from './services/imageService';
-import { deleteMediaBlob, getSlideIdFromIdbUrl, isIdbMediaUrl, storeMediaBlob, stripPlaylistMedia } from './services/mediaBlobStore';
+import { deleteMediaBlob, getMediaBlobUrl, getSlideIdFromIdbUrl, isIdbMediaUrl, storeMediaBlob, stripPlaylistMedia } from './services/mediaBlobStore';
 import { isPresentationFile, parsePptxFile, parsePdfFile, getPresentationTypeName } from './services/presentationImportService';
 
 // Mobile Tab Type
@@ -132,6 +132,40 @@ function describeCloudError(error: any, fallback: string): string {
   }
 
   return rawMessage ? `Guardado local. Nube: ${rawMessage.slice(0, 80)}` : fallback;
+}
+
+async function createRemoteImagePreview(slide: Slide): Promise<string | undefined> {
+  if (slide.type !== 'image' || !slide.mediaUrl) return undefined;
+  let sourceUrl = slide.mediaUrl;
+  if (isIdbMediaUrl(sourceUrl)) {
+    sourceUrl = await getMediaBlobUrl(getSlideIdFromIdbUrl(sourceUrl)) || '';
+  }
+  if (!sourceUrl) return undefined;
+  if (sourceUrl.startsWith('data:image/') && sourceUrl.length < 220000) return sourceUrl;
+
+  return new Promise(resolve => {
+    const image = new window.Image();
+    image.onload = () => {
+      try {
+        const maxWidth = 360;
+        const maxHeight = 203;
+        const ratio = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+        const width = Math.max(1, Math.round(image.naturalWidth * ratio));
+        const height = Math.max(1, Math.round(image.naturalHeight * ratio));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        if (!context) return resolve(undefined);
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.5));
+      } catch {
+        resolve(undefined);
+      }
+    };
+    image.onerror = () => resolve(undefined);
+    image.src = sourceUrl;
+  });
 }
 
 const App: React.FC = () => {
@@ -306,6 +340,7 @@ const App: React.FC = () => {
 
   // Zoom State
   const [zoomState, setZoomState] = useState<{ scale: number, x: number, y: number } | null>(null);
+  const [remoteSlidePreviews, setRemoteSlidePreviews] = useState<Record<string, string>>({});
 
   // Mobile & Sync State
   const [isMobile, setIsMobile] = useState(false);
@@ -363,15 +398,46 @@ const App: React.FC = () => {
   const isSwitchingProject = useRef(false);
   const isSigningOut = useRef(false);
   const lastProcessedCommandId = useRef<string | null>(null);
+  const remoteMediaChunksRef = useRef(new Map<string, {
+    chunks: string[];
+    type: 'image' | 'video';
+    label: string;
+    title: string;
+    batchId: string;
+    makeLive: boolean;
+  }>());
+  const remoteMediaPublishQueueRef = useRef<Promise<void>>(Promise.resolve());
   const remoteControlId = session?.user?.id || localRemoteControlId;
 
   // --- Derived State ---
   const activeItem = playlist.find(i => i.id === activeItemId);
   // Priority for live item: 1. Find in current playlist, 2. Fallback to frozenLiveItem
   const liveItem = (liveItemId ? playlist.find(i => i.id === liveItemId) : null) || frozenLiveItem;
+  const remoteVisualItem = activeItem || liveItem;
   const backgroundAudioItem = currentAudioIndex >= 0 ? bgAudioPlaylist[currentAudioIndex] : null;
   const defaultCustomTheme = customThemes.find(theme => theme.isDefault);
   const creationTheme = defaultCustomTheme || stagedTheme;
+
+  useEffect(() => {
+    let cancelled = false;
+    const imageSlides = (activeItem?.slides || []).filter(slide => slide.type === 'image' && slide.mediaUrl);
+    if (imageSlides.length === 0) {
+      setRemoteSlidePreviews({});
+      return;
+    }
+
+    Promise.all(imageSlides.map(async slide => [slide.id, await createRemoteImagePreview(slide)] as const))
+      .then(entries => {
+        if (cancelled) return;
+        const previews: Record<string, string> = {};
+        entries.forEach(([slideId, preview]) => {
+          if (preview) previews[slideId] = preview;
+        });
+        setRemoteSlidePreviews(previews);
+      });
+
+    return () => { cancelled = true; };
+  }, [activeItem?.id, activeItem?.slides]);
 
   // Refs for stable callbacks
   const bgAudioPlaylistRef = useRef(bgAudioPlaylist);
@@ -964,12 +1030,8 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Realtime Sync for Mobile Control
-  useEffect(() => {
-    if (!remoteControlId || isRemoteControlMode) return;
-
-    // Subscribe to realtime changes
-    realtimeSyncService.subscribe(remoteControlId, (state: LiveState) => {
+  // Keep command processing current without rebuilding the realtime channel on every slide change.
+  const handleRemoteCommand = useCallback((state: LiveState) => {
       // Process commands from mobile
       const { command, commandData, commandId } = state;
       if (!command) return;
@@ -978,12 +1040,55 @@ const App: React.FC = () => {
 
       const clampImageScale = (value: number) => Math.min(5, Math.max(0.25, value));
       const clampImageOffset = (value: number) => Math.min(150, Math.max(-150, value));
-      const updateLiveItemTheme = (updater: (theme: Theme) => Theme) => {
-        if (!liveItemId) return;
+      const updateRemoteItemTheme = (updater: (theme: Theme) => Theme) => {
+        const targetItemId = typeof commandData?.itemId === 'string' ? commandData.itemId : liveItemId;
+        if (!targetItemId) return;
         setPlaylist(prev => prev.map(item =>
-          item.id === liveItemId ? { ...item, theme: updater(item.theme) } : item
+          item.id === targetItemId ? { ...item, theme: updater(item.theme) } : item
         ));
-        setFrozenLiveItem(prev => prev && prev.id === liveItemId ? { ...prev, theme: updater(prev.theme) } : prev);
+        setFrozenLiveItem(prev => prev && prev.id === targetItemId ? { ...prev, theme: updater(prev.theme) } : prev);
+      };
+
+      const publishRemoteMedia = (slides: Slide[], data: any) => {
+        if (slides.length === 0) return;
+        const batchId = String(data?.batchId || Date.now());
+        const itemId = `remote_media_${batchId}`;
+        const itemTitle = data?.title || `Media remota (${slides.length})`;
+
+        remoteMediaPublishQueueRef.current = remoteMediaPublishQueueRef.current.then(async () => {
+          const storedSlides = await Promise.all(slides.map(async slide => {
+            if (!slide.mediaUrl?.startsWith('data:')) return slide;
+            const mediaBlob = await fetch(slide.mediaUrl).then(response => response.blob());
+            return { ...slide, mediaUrl: await storeMediaBlob(slide.id, mediaBlob) };
+          }));
+
+          setPlaylist(prev => {
+            const existing = prev.find(item => item.id === itemId);
+            if (existing) {
+              return prev.map(item => item.id === itemId
+                ? { ...item, slides: [...item.slides, ...storedSlides] }
+                : item);
+            }
+            return [...prev, {
+              id: itemId,
+              title: itemTitle,
+              type: 'custom',
+              slides: storedSlides,
+              theme: creationTheme
+            }];
+          });
+          setActiveItemId(itemId);
+          setActiveSlideIndex(0);
+          if (data?.makeLive) {
+            setLiveItemId(itemId);
+            setLiveSlideIndex(0);
+            setFrozenLiveItem(prev => prev?.id === itemId
+              ? { ...prev, slides: [...prev.slides, ...storedSlides] }
+              : { id: itemId, title: itemTitle, type: 'custom', slides: storedSlides, theme: creationTheme });
+            setIsPreviewHidden(false);
+            setIsLogoActive(false);
+          }
+        }).catch(error => console.error('Remote media storage failed:', error));
       };
 
       switch (command) {
@@ -1074,40 +1179,80 @@ const App: React.FC = () => {
 
             if (cleanSlides.length === 0) break;
 
-            const newItem: PresentationItem = {
-              id: Math.random().toString(36).substr(2, 9),
-              title: commandData.title || `Media remota (${cleanSlides.length})`,
-              type: 'custom',
-              slides: cleanSlides,
-              theme: creationTheme
-            };
-            setPlaylist(prev => [...prev, newItem]);
-            setActiveItemId(newItem.id);
-            setActiveSlideIndex(0);
-            if (commandData.makeLive) {
-              setLiveItemId(newItem.id);
-              setLiveSlideIndex(0);
-              setFrozenLiveItem(newItem);
-              setIsPreviewHidden(false);
-              setIsLogoActive(false);
-            }
+            publishRemoteMedia(cleanSlides, commandData);
           }
           break;
+        case 'media_upload_start': {
+          const uploadId = String(commandData?.uploadId || '');
+          const chunkCount = Math.max(1, Number(commandData?.chunkCount) || 1);
+          if (!uploadId || chunkCount > 240) break;
+          remoteMediaChunksRef.current.set(uploadId, {
+            chunks: new Array(chunkCount),
+            type: commandData?.type === 'video' ? 'video' : 'image',
+            label: commandData?.label || 'MEDIA REMOTA',
+            title: commandData?.title || 'Media remota',
+            batchId: String(commandData?.batchId || uploadId),
+            makeLive: commandData?.makeLive !== false
+          });
+          break;
+        }
+        case 'media_upload_chunk': {
+          const uploadId = String(commandData?.uploadId || '');
+          const upload = remoteMediaChunksRef.current.get(uploadId);
+          const index = Number(commandData?.index);
+          if (!upload || !Number.isInteger(index) || index < 0 || index >= upload.chunks.length) break;
+          upload.chunks[index] = String(commandData?.chunk || '');
+          break;
+        }
+        case 'media_upload_complete': {
+          const uploadId = String(commandData?.uploadId || '');
+          const upload = remoteMediaChunksRef.current.get(uploadId);
+          if (!upload || upload.chunks.some(chunk => typeof chunk !== 'string')) break;
+          remoteMediaChunksRef.current.delete(uploadId);
+          publishRemoteMedia([{
+            id: `remote_slide_${uploadId}`,
+            type: upload.type,
+            content: '',
+            mediaUrl: upload.chunks.join(''),
+            label: upload.label
+          }], { title: upload.title, batchId: upload.batchId, makeLive: upload.makeLive });
+          break;
+        }
         case 'image_zoom':
-          updateLiveItemTheme(itemTheme => ({
+          updateRemoteItemTheme(itemTheme => ({
             ...itemTheme,
             imageContentScale: clampImageScale((itemTheme.imageContentScale || 1) * (Number(commandData?.factor) || 1))
           }));
           break;
         case 'image_pan':
-          updateLiveItemTheme(itemTheme => ({
+          updateRemoteItemTheme(itemTheme => ({
             ...itemTheme,
             imageContentOffsetX: clampImageOffset((itemTheme.imageContentOffsetX || 0) + (Number(commandData?.deltaX) || 0)),
             imageContentOffsetY: clampImageOffset((itemTheme.imageContentOffsetY || 0) + (Number(commandData?.deltaY) || 0))
           }));
           break;
+        case 'image_set_transform':
+          updateRemoteItemTheme(itemTheme => ({
+            ...itemTheme,
+            imageContentScale: clampImageScale(Number(commandData?.scale) || itemTheme.imageContentScale || 1),
+            imageContentOffsetX: clampImageOffset(Number(commandData?.offsetX) || 0),
+            imageContentOffsetY: clampImageOffset(Number(commandData?.offsetY) || 0)
+          }));
+          break;
+        case 'image_focus': {
+          const pointX = Math.min(100, Math.max(0, Number(commandData?.xPercent) || 50));
+          const pointY = Math.min(100, Math.max(0, Number(commandData?.yPercent) || 50));
+          const targetScale = clampImageScale(Number(commandData?.scale) || 2);
+          updateRemoteItemTheme(itemTheme => ({
+            ...itemTheme,
+            imageContentScale: targetScale,
+            imageContentOffsetX: clampImageOffset((50 - pointX) * 0.9),
+            imageContentOffsetY: clampImageOffset((50 - pointY) * 0.9)
+          }));
+          break;
+        }
         case 'image_reset':
-          updateLiveItemTheme(itemTheme => ({
+          updateRemoteItemTheme(itemTheme => ({
             ...itemTheme,
             imageContentScale: 1,
             imageContentOffsetX: 0,
@@ -1130,6 +1275,15 @@ const App: React.FC = () => {
           break;
         case 'audio_toggle_mute':
           toggleBackgroundAudioMute();
+          break;
+        case 'clear_background': setIsBackgroundHidden(prev => !prev); break;
+        case 'toggle_split': setShowSplitScreen(prev => !prev); break;
+        case 'toggle_karaoke': setIsKaraokeActive(prev => !prev); break;
+        case 'restore_live':
+          setIsPreviewHidden(false);
+          setIsTextHidden(false);
+          setIsBackgroundHidden(false);
+          setIsLogoActive(false);
           break;
         case 'add_background_audio': {
           const videoId = typeof commandData?.videoId === 'string' ? commandData.videoId.trim() : '';
@@ -1304,15 +1458,25 @@ const App: React.FC = () => {
       if (!commandData?.transient) {
         realtimeSyncService.updateState(remoteControlId, { command: null, commandId: null, commandData: null });
       }
-    });
+  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, makeLive, handleSelectProject, toggleAudioPlayback, navigateNextAudio, navigatePrevAudio, seekAudio, seekAudioTo, setBackgroundAudioVolume, toggleBackgroundAudioMute, stopLive, saveCurrentProjectInto, creationTheme]);
 
+  const remoteCommandHandlerRef = useRef(handleRemoteCommand);
+  useEffect(() => {
+    remoteCommandHandlerRef.current = handleRemoteCommand;
+  }, [handleRemoteCommand]);
+
+  // The channel remains stable while state changes; only its handler ref is refreshed.
+  useEffect(() => {
+    if (!remoteControlId || isRemoteControlMode) return;
+    realtimeSyncService.subscribe(remoteControlId, state => remoteCommandHandlerRef.current(state));
     return () => {
       realtimeSyncService.unsubscribe();
     };
-  }, [remoteControlId, isRemoteControlMode, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, playlist, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, setIsPreviewHidden, setIsTextHidden, setIsLogoActive, setActiveItemId, setActiveSlideIndex, makeLive, handleSelectProject, toggleAudioPlayback, navigateNextAudio, navigatePrevAudio, seekAudio, seekAudioTo, setBackgroundAudioVolume, toggleBackgroundAudioMute, stopLive, isAudioPlaying, saveCurrentProjectInto, creationTheme]);
+  }, [remoteControlId, isRemoteControlMode]);
 
   // Broadcast live state (debounced)
   const lastStateStr = useRef<string>('');
+  const lastRemoteCatalogStr = useRef<string>('');
   useEffect(() => {
     if (!remoteControlId || isProjectorMode || isRemoteControlMode) return;
 
@@ -1330,6 +1494,7 @@ const App: React.FC = () => {
       activeSlideIndex,
       isPreviewHidden,
       isTextHidden,
+      isBackgroundHidden,
       isLogoActive,
       showSplitScreen,
       isKaraokeActive,
@@ -1345,40 +1510,57 @@ const App: React.FC = () => {
       isAudioPlaying: isAudioPlaying,
       recentActions,
       zoomState,
-      imageContentScale: liveItem?.theme?.imageContentScale ?? 1,
-      imageContentOffsetX: liveItem?.theme?.imageContentOffsetX ?? 0,
-      imageContentOffsetY: liveItem?.theme?.imageContentOffsetY ?? 0
+      imageContentScale: remoteVisualItem?.theme?.imageContentScale ?? 1,
+      imageContentOffsetX: remoteVisualItem?.theme?.imageContentOffsetX ?? 0,
+      imageContentOffsetY: remoteVisualItem?.theme?.imageContentOffsetY ?? 0
+    };
+
+    const remoteCatalog = {
+      playlist: playlist.map(p => ({
+        id: p.id,
+        title: p.title,
+        type: p.type,
+        slides: p.slides.map(s => ({ id: s.id, type: s.type, label: s.label }))
+      })),
+      activeItemSlides: activeItem?.slides.map(s => ({
+        id: s.id,
+        label: s.label,
+        type: s.type,
+        content: s.content,
+        operatorNotes: s.operatorNotes,
+        mediaUrl: s.type === 'image'
+          ? (remoteSlidePreviews[s.id] || (s.mediaUrl && s.mediaUrl.length < 220000 ? s.mediaUrl : undefined))
+          : (s.mediaUrl && s.mediaUrl.length < 220000 ? s.mediaUrl : undefined),
+        videoId: s.videoId
+      })),
+      projects: projects.map(p => ({ id: p.id, name: p.name })),
+      currentProjectName: projects.find(p => p.id === currentProjectId)?.name
     };
 
     const currentStateStr = JSON.stringify(stateToBroadcast);
-    if (currentStateStr === lastStateStr.current) return;
+    const currentCatalogStr = JSON.stringify(remoteCatalog);
+    const catalogChanged = currentCatalogStr !== lastRemoteCatalogStr.current;
+    if (currentStateStr === lastStateStr.current && !catalogChanged) return;
 
     const timer = setTimeout(async () => {
       await realtimeSyncService.updateState(remoteControlId, {
         ...stateToBroadcast,
-        playlist: playlist.map(p => ({
-          id: p.id,
-          title: p.title,
-          type: p.type,
-          slides: p.slides.map(s => ({ id: s.id, type: s.type, label: s.label }))
-        })),
-        activeItemSlides: activeItem?.slides.map(s => ({
-          id: s.id,
-          label: s.label,
-          type: s.type,
-          content: s.content,
-          operatorNotes: s.operatorNotes,
-          mediaUrl: s.mediaUrl && s.mediaUrl.length < 300000 ? s.mediaUrl : undefined,
-          videoId: s.videoId
-        })),
-        projects: projects.map(p => ({ id: p.id, name: p.name })),
-        currentProjectName: projects.find(p => p.id === currentProjectId)?.name,
+        ...(catalogChanged ? remoteCatalog : {})
       });
       lastStateStr.current = currentStateStr;
-    }, 150);
+      if (catalogChanged) lastRemoteCatalogStr.current = currentCatalogStr;
+    }, 80);
 
     return () => clearTimeout(timer);
-  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, isRemoteControlMode, playlist, activeItem, liveItem, projects, currentProjectId, backgroundAudioItem, audioCurrentTime, audioDuration, currentAudioIndex, bgAudioPlaylist.length, audioVolume, isAudioMuted, isAudioPlaying]);
+  }, [remoteControlId, liveItemId, liveSlideIndex, activeItemId, activeSlideIndex, isPreviewHidden, isTextHidden, isBackgroundHidden, isLogoActive, showSplitScreen, isKaraokeActive, karaokeIndex, isProjectorMode, isRemoteControlMode, playlist, activeItem, remoteVisualItem, remoteSlidePreviews, projects, currentProjectId, backgroundAudioItem, audioCurrentTime, audioDuration, currentAudioIndex, bgAudioPlaylist.length, audioVolume, isAudioMuted, isAudioPlaying]);
+
+  useEffect(() => {
+    if (!remoteControlId || isProjectorMode || isRemoteControlMode) return;
+    const heartbeat = window.setInterval(() => {
+      realtimeSyncService.updateState(remoteControlId, {});
+    }, 3500);
+    return () => window.clearInterval(heartbeat);
+  }, [remoteControlId, isProjectorMode, isRemoteControlMode]);
 
   useEffect(() => {
     if (!isRemoteControlMode || !remoteControlIdFromUrl) return;
@@ -1386,7 +1568,7 @@ const App: React.FC = () => {
     const remoteService = remotePanelSyncService.current;
     remoteService.subscribe(remoteControlIdFromUrl, (state: LiveState) => {
       setRemoteLiveState(state);
-      setIsRemoteRealtimeConnected(remoteService.isConnected());
+      setIsRemoteRealtimeConnected(true);
     });
 
     const connectionTimer = window.setInterval(() => {
@@ -2092,7 +2274,7 @@ const App: React.FC = () => {
         setSyncError(describeCloudError(e, "Guardado local. Nube: error al sincronizar."));
         setIsSyncing(false);
       }
-    }, 700);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [playlist, customThemes, projects, currentProjectId, session, autoCloudSync, enqueueCloudWrite, markThemesSynced, saveCurrentProjectInto, stripProjectsForStorage]);

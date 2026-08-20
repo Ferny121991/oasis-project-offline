@@ -11,6 +11,7 @@ export interface LiveState {
     activeSlideIndex?: number;
     isPreviewHidden?: boolean;
     isTextHidden?: boolean;
+    isBackgroundHidden?: boolean;
     isLogoActive?: boolean;
     showSplitScreen?: boolean;
     isKaraokeActive?: boolean;
@@ -55,6 +56,35 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
     let isSubscribed = false;
     let lastKnownState: LiveState | null = null;
     let currentUserId: string | null = null;
+    let persistTimer: ReturnType<typeof setTimeout> | null = null;
+    let pendingPersistence: { userId: string; state: LiveState } | null = null;
+    let persistenceQueue: Promise<void> = Promise.resolve();
+
+    const persistLatestState = () => {
+        const pending = pendingPersistence;
+        pendingPersistence = null;
+        persistTimer = null;
+        if (!pending || !shouldPersistRealtimeState(pending.userId)) return;
+
+        persistenceQueue = persistenceQueue.then(async () => {
+            const { error } = await supabase
+                .from('realtime_sync')
+                .upsert({
+                    user_id: pending.userId,
+                    live_state: pending.state,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id' });
+
+            if (error) console.error('Error updating realtime state:', error);
+        }).catch(error => console.error('Realtime persistence error:', error));
+    };
+
+    const scheduleStatePersistence = (userId: string, state: LiveState) => {
+        if (!shouldPersistRealtimeState(userId)) return;
+        pendingPersistence = { userId, state };
+        if (persistTimer) clearTimeout(persistTimer);
+        persistTimer = setTimeout(persistLatestState, 650);
+    };
 
     return {
         subscribe: (userId: string, onStateChange: (state: LiveState) => void) => {
@@ -67,7 +97,8 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 .channel(`realtime_sync:${userId}`)
                 .on('broadcast', { event: 'state' }, (payload) => {
                     if (payload.payload?.state) {
-                        lastKnownState = payload.payload.state as LiveState;
+                        const incomingState = payload.payload.state as LiveState;
+                        lastKnownState = { ...(lastKnownState || incomingState), ...incomingState };
                         onStateChange(lastKnownState);
                     }
                 })
@@ -75,7 +106,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                     if (payload.payload?.state) {
                         const commandState = payload.payload.state as LiveState;
                         lastKnownState = { ...(lastKnownState || commandState), ...commandState };
-                        onStateChange(commandState);
+                        onStateChange(lastKnownState);
                     }
                 })
                 .on('broadcast', { event: 'request_state' }, () => {
@@ -155,28 +186,23 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 lastKnownState = newState;
 
                 if (channel && isSubscribed) {
+                    const broadcastState = {
+                        ...state,
+                        lastUpdated: newState.lastUpdated,
+                        command: null,
+                        commandId: newState.commandId,
+                        commandData: newState.commandData
+                    };
                     await channel.send({
                         type: 'broadcast',
                         event: 'state',
-                        payload: { state: newState }
+                        payload: { state: broadcastState }
                     });
                 }
 
-                // Anonymous/local remotes use the live broadcast channel only. Attempting
-                // a database upsert is rejected by RLS and adds latency to every update.
-                if (!shouldPersistRealtimeState(userId)) return;
-
-                const { error } = await supabase
-                    .from('realtime_sync')
-                    .upsert({
-                        user_id: userId,
-                        live_state: newState,
-                        updated_at: new Date().toISOString()
-                    }, { onConflict: 'user_id' });
-
-                if (error) {
-                    console.error('Error updating realtime state:', error);
-                }
+                // Broadcast immediately for responsive controls; persist the latest
+                // snapshot on a trailing timer to avoid several database writes per second.
+                scheduleStatePersistence(userId, newState);
             } catch (e) {
                 console.error('Realtime sync error:', e);
             }
@@ -204,7 +230,14 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                     await channel.send({
                         type: 'broadcast',
                         event: 'command',
-                        payload: { state: newState }
+                        payload: {
+                            state: {
+                                command: newState.command,
+                                commandId: newState.commandId,
+                                commandData: newState.commandData,
+                                lastUpdated: newState.lastUpdated
+                            }
+                        }
                     });
                 }
 
@@ -227,6 +260,11 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
         },
 
         unsubscribe: () => {
+            if (persistTimer) {
+                clearTimeout(persistTimer);
+                persistTimer = null;
+                pendingPersistence = null;
+            }
             if (channel) {
                 channel.unsubscribe();
                 channel = null;
