@@ -1,6 +1,8 @@
 import { supabase } from './supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
+const shouldPersistRealtimeState = (userId: string) => !userId.startsWith('local_');
+
 // Types for realtime sync
 export interface LiveState {
     liveItemId: string | null;
@@ -112,18 +114,20 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                     }
                 });
 
-            supabase
-                .from('realtime_sync')
-                .select('live_state')
-                .eq('user_id', userId)
-                .single()
-                .then(({ data }) => {
-                    if (data?.live_state) {
-                        lastKnownState = data.live_state as LiveState;
-                        onStateChange(lastKnownState);
-                    }
-                })
-                .catch((error) => console.warn('Realtime initial state fetch failed:', error));
+            if (shouldPersistRealtimeState(userId)) {
+                supabase
+                    .from('realtime_sync')
+                    .select('live_state')
+                    .eq('user_id', userId)
+                    .single()
+                    .then(({ data }) => {
+                        if (data?.live_state) {
+                            lastKnownState = data.live_state as LiveState;
+                            onStateChange(lastKnownState);
+                        }
+                    })
+                    .catch((error) => console.warn('Realtime initial state fetch failed:', error));
+            }
         },
 
         updateState: async (userId: string, state: Partial<LiveState>) => {
@@ -157,6 +161,10 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                         payload: { state: newState }
                     });
                 }
+
+                // Anonymous/local remotes use the live broadcast channel only. Attempting
+                // a database upsert is rejected by RLS and adds latency to every update.
+                if (!shouldPersistRealtimeState(userId)) return;
 
                 const { error } = await supabase
                     .from('realtime_sync')
@@ -200,7 +208,7 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                     });
                 }
 
-                if (isTransientCommand) return;
+                if (isTransientCommand || !shouldPersistRealtimeState(userId)) return;
 
                 const { error } = await supabase
                     .from('realtime_sync')

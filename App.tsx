@@ -43,6 +43,41 @@ const LOCAL_THEMES_KEY = 'oasis_custom_themes';
 const LOCAL_PROJECTS_KEY = 'oasis_projects_v2';
 const LOCAL_CURRENT_PROJECT_KEY = 'oasis_current_project_id';
 const LOCAL_LOGO_SETTINGS_KEY = 'oasis_global_logo_settings_v1';
+const LOCAL_THEME_SYNC_META_KEY = 'oasis_theme_sync_meta_v1';
+
+interface ThemeSyncMeta {
+  dirty: boolean;
+  changedAt: string;
+  lastSyncedHash?: string;
+}
+
+const themesHash = (themes: Theme[]) => JSON.stringify(themes);
+
+const projectsHash = (projects: Project[]) => JSON.stringify(projects.map(project => {
+  const { updatedAt, ...stableProject } = project;
+  return stableProject;
+}));
+
+const mergeThemeCollections = (...collections: Theme[][]): Theme[] => {
+  const merged = new Map<string, Theme>();
+
+  collections.forEach(collection => {
+    (collection || []).forEach(theme => {
+      if (!theme?.id) return;
+      const existing = merged.get(theme.id);
+      if (!existing) {
+        merged.set(theme.id, theme);
+        return;
+      }
+
+      const existingTime = Date.parse(existing.updatedAt || '') || 0;
+      const incomingTime = Date.parse(theme.updatedAt || '') || 0;
+      if (incomingTime > existingTime) merged.set(theme.id, theme);
+    });
+  });
+
+  return Array.from(merged.values());
+};
 
 type LogoSettings = {
   [K in keyof Theme as K extends `logo${string}` ? K : never]: Theme[K];
@@ -198,6 +233,54 @@ const App: React.FC = () => {
     if (initialIsProjectorMode || initialIsRemoteControlMode) return [];
     return readLocalJson<Theme[]>(LOCAL_THEMES_KEY, []);
   });
+  const customThemesRef = useRef(customThemes);
+  const themeRevisionRef = useRef(0);
+  const cloudSyncRevisionRef = useRef(0);
+  const cloudWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const lastCloudPlaylist = useRef<string>('');
+  const lastCloudProjects = useRef<string>('');
+  const lastCloudThemes = useRef<string>('');
+
+  const writeThemeSyncMeta = useCallback((meta: ThemeSyncMeta) => {
+    try {
+      localStorage.setItem(LOCAL_THEME_SYNC_META_KEY, JSON.stringify(meta));
+    } catch (error) {
+      console.warn('Theme sync metadata update failed', error);
+    }
+  }, []);
+
+  const updateCustomThemes = useCallback((themes: Theme[]) => {
+    themeRevisionRef.current += 1;
+    customThemesRef.current = themes;
+    setCustomThemes(themes);
+
+    try {
+      localStorage.setItem(LOCAL_THEMES_KEY, JSON.stringify(themes));
+    } catch (error) {
+      console.warn('Immediate theme save failed', error);
+    }
+
+    writeThemeSyncMeta({
+      dirty: true,
+      changedAt: new Date().toISOString(),
+      lastSyncedHash: readLocalJson<ThemeSyncMeta | null>(LOCAL_THEME_SYNC_META_KEY, null)?.lastSyncedHash
+    });
+  }, [writeThemeSyncMeta]);
+
+  const markThemesSynced = useCallback((themes: Theme[]) => {
+    if (themesHash(customThemesRef.current) !== themesHash(themes)) return;
+    writeThemeSyncMeta({
+      dirty: false,
+      changedAt: new Date().toISOString(),
+      lastSyncedHash: themesHash(themes)
+    });
+  }, [writeThemeSyncMeta]);
+
+  const enqueueCloudWrite = useCallback(<T,>(write: () => PromiseLike<T>): Promise<T> => {
+    const queued = cloudWriteQueueRef.current.then(() => write(), () => write());
+    cloudWriteQueueRef.current = queued.then(() => undefined, () => undefined);
+    return queued;
+  }, []);
 
   // Onboarding & Timer states
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -278,6 +361,7 @@ const App: React.FC = () => {
   const dataLoaded = useRef(!initialIsProjectorMode && !initialIsRemoteControlMode);
   const lastAuthUserId = useRef<string | null>(null);
   const isSwitchingProject = useRef(false);
+  const isSigningOut = useRef(false);
   const lastProcessedCommandId = useRef<string | null>(null);
   const remoteControlId = session?.user?.id || localRemoteControlId;
 
@@ -303,16 +387,19 @@ const App: React.FC = () => {
 
     return sourceProjects.map(p =>
       p.id === currentProjectId
-        ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+        ? { ...p, playlist, updatedAt: new Date().toISOString() }
         : p
     );
-  }, [currentProjectId, playlist, customThemes]);
+  }, [currentProjectId, playlist]);
 
   const stripProjectsForStorage = useCallback((sourceProjects: Project[]) => {
-    return sourceProjects.map(p => ({
-      ...p,
-      playlist: stripPlaylistMedia(p.playlist || [])
-    }));
+    return sourceProjects.map(project => {
+      const { customThemes: legacyProjectThemes, ...projectWithoutThemes } = project;
+      return {
+        ...projectWithoutThemes,
+        playlist: stripPlaylistMedia(project.playlist || [])
+      };
+    });
   }, []);
 
   const navigateLiveNext = useCallback(() => {
@@ -400,7 +487,7 @@ const App: React.FC = () => {
     // 2. SNAPSHOT BACKUP: Save current project state for failsafe
     if (currentProjectId) {
       try {
-        const snapshot = { playlist, customThemes, timestamp: Date.now() };
+        const snapshot = { playlist, timestamp: Date.now() };
         localStorage.setItem(`project_snapshot_${currentProjectId}`, JSON.stringify(snapshot));
       } catch (e) { }
     }
@@ -417,9 +504,9 @@ const App: React.FC = () => {
       setActiveSlideIndex(-1);
     }
 
-    // 5. UNBLOCK auto-saves after delay
-    setTimeout(() => { isSwitchingProject.current = false; }, 500);
-  }, [currentProjectId, customThemes, playlist, projects, saveCurrentProjectInto]);
+    // React effects run after this handler, so the saved snapshot is already coherent.
+    isSwitchingProject.current = false;
+  }, [currentProjectId, playlist, projects, saveCurrentProjectInto]);
 
   // YouTube IFrame Player API for background audio auto-advance and timeline sync
   const bgPlayerRef = useRef<any>(null);
@@ -963,17 +1050,14 @@ const App: React.FC = () => {
               description: 'Creado desde control remoto',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
-              playlist: [],
-              customThemes: []
+              playlist: []
             };
             setProjects(prev => [...saveCurrentProjectInto(prev), newProject]);
             setCurrentProjectId(newProject.id);
             setPlaylist([]);
             setActiveItemId(null);
             setActiveSlideIndex(-1);
-            setTimeout(() => {
-              isSwitchingProject.current = false;
-            }, 250);
+            isSwitchingProject.current = false;
           }
           break;
         case 'add_media':
@@ -1321,6 +1405,8 @@ const App: React.FC = () => {
 
   const fetchUserData = useCallback(async () => {
     if (!session?.user) return;
+    cloudSyncRevisionRef.current += 1;
+    const fetchThemeRevision = themeRevisionRef.current;
 
     // BLOCK persistence during cloud load
     isCloudLoading.current = true;
@@ -1356,26 +1442,40 @@ const App: React.FC = () => {
         const localProjects = readLocalJson<Project[]>(LOCAL_PROJECTS_KEY, []);
         const localPlaylist = readLocalJson<PresentationItem[]>(LOCAL_PLAYLIST_KEY, []);
         const localThemes = readLocalJson<Theme[]>(LOCAL_THEMES_KEY, []);
+        const cloudThemes = (settings.custom_themes || []) as Theme[];
+        const legacyProjectThemes = migratedProjects.flatMap((project: Project) => project.customThemes || []);
+        const themeSyncMeta = readLocalJson<ThemeSyncMeta | null>(LOCAL_THEME_SYNC_META_KEY, null);
+        const themesChangedWhileLoading = fetchThemeRevision !== themeRevisionRef.current;
+        const resolvedThemes = themesChangedWhileLoading
+          ? customThemesRef.current
+          : themeSyncMeta?.dirty
+            ? localThemes
+            : themeSyncMeta?.lastSyncedHash
+              ? cloudThemes
+              : mergeThemeCollections(localThemes, cloudThemes, legacyProjectThemes);
         const cloudHasData =
           migratedProjects.length > 0 ||
           (settings.playlist || []).length > 0 ||
-          (settings.custom_themes || []).length > 0;
+          cloudThemes.length > 0;
         const localHasData = localProjects.length > 0 || localPlaylist.length > 0 || localThemes.length > 0;
 
         if (!cloudHasData && localHasData) {
-          await supabase.from('user_settings').upsert({
+          const { error: localUploadError } = await enqueueCloudWrite(() => supabase.from('user_settings').upsert({
             id: session.user.id,
             playlist: stripPlaylistMedia(localPlaylist),
-            custom_themes: localThemes,
+            custom_themes: resolvedThemes,
             projects: stripProjectsForStorage(localProjects),
             current_project_id: localStorage.getItem(LOCAL_CURRENT_PROJECT_KEY),
             updated_at: new Date().toISOString()
-          });
+          }));
 
           setProjects(localProjects);
           setCurrentProjectId(localStorage.getItem(LOCAL_CURRENT_PROJECT_KEY));
           setPlaylist(localPlaylist);
-          setCustomThemes(localThemes);
+          customThemesRef.current = resolvedThemes;
+          setCustomThemes(resolvedThemes);
+          localStorage.setItem(LOCAL_THEMES_KEY, JSON.stringify(resolvedThemes));
+          if (!localUploadError) markThemesSynced(resolvedThemes);
           dataLoaded.current = true;
           return;
         }
@@ -1388,25 +1488,26 @@ const App: React.FC = () => {
           if (currentProject) {
             setCurrentProjectId(settings.current_project_id);
             setPlaylist(currentProject.playlist);
-            
-            // Unificar temas globales con los del proyecto de forma failsafe
-            const mergedThemes = [
-              ...(settings.custom_themes || []),
-              ...(currentProject.customThemes || [])
-            ].filter((theme, index, self) => 
-              self.findIndex(t => t.id === theme.id) === index
-            );
-            setCustomThemes(mergedThemes);
           } else {
             setCurrentProjectId(null);
             setPlaylist(migratePlaylist(settings.playlist));
-            setCustomThemes(settings.custom_themes || []);
           }
         } else {
           setCurrentProjectId(null);
           setPlaylist(migratePlaylist(settings.playlist));
-          setCustomThemes(settings.custom_themes || []);
         }
+
+        // Themes are account-wide. A project change must never replace or clear them.
+        customThemesRef.current = resolvedThemes;
+        setCustomThemes(resolvedThemes);
+        try {
+          localStorage.setItem(LOCAL_THEMES_KEY, JSON.stringify(resolvedThemes));
+        } catch (themeStorageError) {
+          console.warn('Hydrated themes local backup failed', themeStorageError);
+        }
+        lastCloudPlaylist.current = JSON.stringify(stripPlaylistMedia(settings.playlist || []));
+        lastCloudThemes.current = themesHash(cloudThemes);
+        lastCloudProjects.current = projectsHash(migratedProjects);
 
         // 3. Mark as loaded
         dataLoaded.current = true;
@@ -1417,14 +1518,14 @@ const App: React.FC = () => {
         const localThemes = readLocalJson<Theme[]>(LOCAL_THEMES_KEY, []);
         const localCurrentProjectId = localStorage.getItem(LOCAL_CURRENT_PROJECT_KEY);
 
-        const { error: insertError } = await supabase.from('user_settings').upsert({
+        const { error: insertError } = await enqueueCloudWrite(() => supabase.from('user_settings').upsert({
           id: session.user.id,
           playlist: stripPlaylistMedia(localPlaylist),
           custom_themes: localThemes,
           projects: stripProjectsForStorage(localProjects),
           current_project_id: localCurrentProjectId,
           updated_at: new Date().toISOString()
-        });
+        }));
 
         if (insertError) {
           setSyncError(describeCloudError(insertError, "Guardado local. Nube: error al inicializar."));
@@ -1432,7 +1533,9 @@ const App: React.FC = () => {
           setProjects(localProjects);
           setCurrentProjectId(localCurrentProjectId);
           setPlaylist(localPlaylist);
+          customThemesRef.current = localThemes;
           setCustomThemes(localThemes);
+          markThemesSynced(localThemes);
           dataLoaded.current = true;
         }
       }
@@ -1442,13 +1545,11 @@ const App: React.FC = () => {
       setSyncError(describeCloudError(e, "Guardado local. Nube: error de conexion."));
     } finally {
       setIsSyncing(false);
-      // Wait longer to ensure all state setters finished and React re-rendered
-      setTimeout(() => {
-        isCloudLoading.current = false;
-        isSwitchingProject.current = false;
-      }, 1000);
+      // Effects run after this callback finishes and can safely persist the hydrated state.
+      isCloudLoading.current = false;
+      isSwitchingProject.current = false;
     }
-  }, [session, stripProjectsForStorage]);
+  }, [enqueueCloudWrite, markThemesSynced, session, stripProjectsForStorage]);
 
 
   useEffect(() => {
@@ -1599,6 +1700,7 @@ const App: React.FC = () => {
       return;
     }
 
+    cloudSyncRevisionRef.current += 1;
     setIsSyncing(true);
     try {
       // 1. Obtener la data actual en la nube antes de sobrescribirla
@@ -1680,16 +1782,17 @@ const App: React.FC = () => {
           const safePlaylist = stripPlaylistMedia(playlist);
           const finalProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
 
-          const { error } = await supabase
+          const themesToSave = customThemesRef.current;
+          const { error } = await enqueueCloudWrite(() => supabase
             .from('user_settings')
             .upsert({
               id: session.user.id,
               playlist: safePlaylist,
-              custom_themes: customThemes,
+              custom_themes: themesToSave,
               projects: finalProjects,
               current_project_id: currentProjectId,
               updated_at: new Date().toISOString()
-            });
+            }));
 
           if (error) {
             console.error("Cloud save error:", error);
@@ -1698,6 +1801,10 @@ const App: React.FC = () => {
           }
 
           setSyncError(null);
+          lastCloudPlaylist.current = JSON.stringify(safePlaylist);
+          lastCloudThemes.current = themesHash(themesToSave);
+          lastCloudProjects.current = projectsHash(finalProjects);
+          markThemesSynced(themesToSave);
           actionHistoryService.log(
             session.user.id,
             'cloud_sync_saved',
@@ -1760,6 +1867,7 @@ const App: React.FC = () => {
   const handleSignOut = async () => {
     // 1. DISABLE SYNC IMMEDIATELY
     dataLoaded.current = false;
+    isSigningOut.current = true;
 
     try {
       // 2. Immediate visual feedback: Clear local state and session
@@ -1791,22 +1899,26 @@ const App: React.FC = () => {
   // Persistence Effect
   // Persistence Effect: Local Storage (Immediate)
   useEffect(() => {
-    if (initialIsProjectorMode || initialIsRemoteControlMode || isCloudLoading.current) return;
+    if (initialIsProjectorMode || initialIsRemoteControlMode || isCloudLoading.current || isSigningOut.current) return;
+
+    // Save independently so a large playlist can never prevent theme persistence.
+    const persistLocalValue = (key: string, value: unknown) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (error) {
+        console.warn(`Local storage update failed for ${key}`, error);
+      }
+    };
+
+    persistLocalValue(LOCAL_THEMES_KEY, customThemes);
+    persistLocalValue(LOCAL_PLAYLIST_KEY, stripPlaylistMedia(playlist));
+    persistLocalValue(LOCAL_PROJECTS_KEY, stripProjectsForStorage(saveCurrentProjectInto(projects)));
 
     try {
-      // Strip large video blobs before saving to localStorage to avoid quota errors
-      const safePlaylist = stripPlaylistMedia(playlist);
-      const safeProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
-      localStorage.setItem(LOCAL_PLAYLIST_KEY, JSON.stringify(safePlaylist));
-      localStorage.setItem(LOCAL_THEMES_KEY, JSON.stringify(customThemes));
-      localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(safeProjects));
-      if (currentProjectId) {
-        localStorage.setItem(LOCAL_CURRENT_PROJECT_KEY, currentProjectId);
-      } else {
-        localStorage.removeItem(LOCAL_CURRENT_PROJECT_KEY);
-      }
-    } catch (e) {
-      console.warn("Local storage update failed", e);
+      if (currentProjectId) localStorage.setItem(LOCAL_CURRENT_PROJECT_KEY, currentProjectId);
+      else localStorage.removeItem(LOCAL_CURRENT_PROJECT_KEY);
+    } catch (error) {
+      console.warn('Current project local save failed', error);
     }
   }, [playlist, customThemes, projects, currentProjectId, saveCurrentProjectInto, stripProjectsForStorage, initialIsProjectorMode, initialIsRemoteControlMode]);
 
@@ -1820,22 +1932,16 @@ const App: React.FC = () => {
   }, [globalLogoSettings, initialIsRemoteControlMode]);
 
   // Persistence Effect: Cloud SYNC (Debounced with Deep Comparison)
-  const lastCloudPlaylist = useRef<string>('');
-  const lastCloudProjects = useRef<string>('');
-  const lastCloudThemes = useRef<string>('');
-
   useEffect(() => {
+    const syncRevision = ++cloudSyncRevisionRef.current;
     if (!autoCloudSync || !session?.user || !dataLoaded.current || isCloudLoading.current || isSwitchingProject.current) return;
 
-    // Skip if nothing changed according to string comparison (IGNORING volatile updatedAt field)
-    const stripVolatile = (projs: any[]) => projs.map(p => {
-      const { updatedAt, ...rest } = p;
-      return rest;
-    });
-
-    const currentPlaylistStr = JSON.stringify(playlist);
-    const currentThemesStr = JSON.stringify(customThemes);
-    const currentProjectsStr = JSON.stringify(stripVolatile(projects));
+    const safePlaylist = stripPlaylistMedia(playlist);
+    const themesSnapshot = customThemes;
+    const finalProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
+    const currentPlaylistStr = JSON.stringify(safePlaylist);
+    const currentThemesStr = themesHash(themesSnapshot);
+    const currentProjectsStr = projectsHash(finalProjects);
 
     if (currentPlaylistStr === lastCloudPlaylist.current &&
       currentThemesStr === lastCloudThemes.current &&
@@ -1846,15 +1952,23 @@ const App: React.FC = () => {
     const timer = setTimeout(async () => {
       setIsSyncing(true);
       try {
-        const safePlaylist = stripPlaylistMedia(playlist);
-        const finalProjects = stripProjectsForStorage(saveCurrentProjectInto(projects));
+        const needsDeletionCheck =
+          currentPlaylistStr !== lastCloudPlaylist.current ||
+          currentProjectsStr !== lastCloudProjects.current;
+        let settings: { playlist?: PresentationItem[]; projects?: Project[] } | null = null;
 
-        // 1. Pre-chequear borrados locales antes de subir a la nube
-        const { data: settings } = await supabase
-          .from('user_settings')
-          .select('playlist, projects')
-          .eq('id', session.user.id)
-          .maybeSingle();
+        // Theme-only edits can be written immediately. Playlist/project changes keep
+        // the deletion safety check without slowing every style adjustment.
+        if (needsDeletionCheck) {
+          const { data } = await supabase
+            .from('user_settings')
+            .select('playlist, projects')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          settings = data;
+        }
+
+        if (syncRevision !== cloudSyncRevisionRef.current) return;
 
         const deletedItems: string[] = [];
 
@@ -1922,22 +2036,24 @@ const App: React.FC = () => {
         }
 
         const executeUpsert = async () => {
+          if (syncRevision !== cloudSyncRevisionRef.current) return;
           setIsSyncing(true);
-          const { error } = await supabase
+          const { error } = await enqueueCloudWrite(() => supabase
             .from('user_settings')
             .upsert({
               id: session.user.id,
               playlist: safePlaylist,
-              custom_themes: customThemes,
+              custom_themes: themesSnapshot,
               projects: finalProjects,
               current_project_id: currentProjectId,
               updated_at: new Date().toISOString()
-            });
+            }));
 
           if (!error) {
             lastCloudPlaylist.current = currentPlaylistStr;
             lastCloudThemes.current = currentThemesStr;
             lastCloudProjects.current = currentProjectsStr;
+            markThemesSynced(themesSnapshot);
             setSyncError(null);
           } else {
             console.error("Cloud sync error:", error);
@@ -1976,10 +2092,10 @@ const App: React.FC = () => {
         setSyncError(describeCloudError(e, "Guardado local. Nube: error al sincronizar."));
         setIsSyncing(false);
       }
-    }, 5000); // 5 second debounce for stability
+    }, 700);
 
     return () => clearTimeout(timer);
-  }, [playlist, customThemes, projects, currentProjectId, session, autoCloudSync, saveCurrentProjectInto, stripProjectsForStorage]);
+  }, [playlist, customThemes, projects, currentProjectId, session, autoCloudSync, enqueueCloudWrite, markThemesSynced, saveCurrentProjectInto, stripProjectsForStorage]);
 
 
 
@@ -2004,18 +2120,17 @@ const App: React.FC = () => {
       // Skip if project doesn't exist (edge case during deletion)
       if (!target) return prev;
 
-      // Use deep comparison to avoid spamming updates and triggering sync loops
-      if (JSON.stringify(target.playlist) !== JSON.stringify(playlist) ||
-        JSON.stringify(target.customThemes) !== JSON.stringify(customThemes)) {
+      // Themes are global account settings; projects persist only their own playlist.
+      if (JSON.stringify(target.playlist) !== JSON.stringify(playlist)) {
         return prev.map(p =>
           p.id === currentProjectId
-            ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+            ? { ...p, playlist, updatedAt: new Date().toISOString() }
             : p
         );
       }
       return prev;
     });
-  }, [playlist, customThemes, currentProjectId, projects.length]);
+  }, [playlist, currentProjectId, projects.length]);
 
   // Keep frozenLiveItem in sync with changes in the active playlist
   useEffect(() => {
@@ -2038,15 +2153,13 @@ const App: React.FC = () => {
       description,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      playlist: [],
-      customThemes: []
+      playlist: []
     };
 
     // Update all relevant states after preserving the current project.
     setProjects(prev => [...saveCurrentProjectInto(prev), newProject]);
     setCurrentProjectId(newProject.id);
     setPlaylist([]);
-    setCustomThemes([]);
     setActiveSlideIndex(-1);
 
     // Log to action history
@@ -2057,10 +2170,7 @@ const App: React.FC = () => {
       { projectId: newProject.id, name }
     );
 
-    // Unblock after state settles
-    setTimeout(() => {
-      isSwitchingProject.current = false;
-    }, 250);
+    isSwitchingProject.current = false;
   }, [saveCurrentProjectInto, session?.user?.id]);
 
 
@@ -2073,7 +2183,6 @@ const App: React.FC = () => {
     if (currentProjectId === projectId) {
       setCurrentProjectId(null);
       setPlaylist([]);
-      setCustomThemes([]);
     }
 
     // Log to action history
@@ -2144,7 +2253,7 @@ const App: React.FC = () => {
     if (currentProjectId) {
       setProjects(prev => prev.map(p =>
         p.id === currentProjectId
-          ? { ...p, playlist, customThemes, updatedAt: new Date().toISOString() }
+          ? { ...p, playlist, updatedAt: new Date().toISOString() }
           : p
       ));
     }
@@ -2163,10 +2272,7 @@ const App: React.FC = () => {
     setPlaylist([]); // Start empty for the new project
     setShowCalendar(false); // Switch to editor
 
-    // Unblock after state settles
-    setTimeout(() => {
-      isSwitchingProject.current = false;
-    }, 500);
+    isSwitchingProject.current = false;
   };
 
   // Import Playlist Handler - supports selective import
@@ -2200,13 +2306,11 @@ const App: React.FC = () => {
     // Handle themes import
     if (themes.length > 0) {
       if (mode === 'replace') {
-        setCustomThemes(themes);
+        updateCustomThemes(themes);
       } else {
-        setCustomThemes(prev => {
-          const existingNames = prev.map(t => t.name);
-          const newThemes = themes.filter(t => !existingNames.includes(t.name));
-          return [...prev, ...newThemes];
-        });
+        const existingNames = customThemesRef.current.map(theme => theme.name);
+        const newThemes = themes.filter(theme => !existingNames.includes(theme.name));
+        updateCustomThemes([...customThemesRef.current, ...newThemes]);
       }
 
       if (userId) {
@@ -3365,7 +3469,7 @@ const App: React.FC = () => {
           onSelectAudio={(index) => setCurrentAudioIndex(index)}
           // Custom Themes
           customThemes={customThemes}
-          onUpdateCustomThemes={setCustomThemes}
+          onUpdateCustomThemes={updateCustomThemes}
           onUploadImages={handleUploadImages}
           // History
           history={history}

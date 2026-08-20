@@ -934,10 +934,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   const saveCurrentAsCustomTheme = () => {
     if (!newThemeName.trim()) return;
+    const now = new Date().toISOString();
     const newTheme: Theme = {
       ...currentTheme,
       id: `custom-${Date.now()}`,
-      name: newThemeName.trim()
+      name: newThemeName.trim(),
+      createdAt: now,
+      updatedAt: now
     };
     newTheme.isDefault = saveThemeAsDefault;
     setCustomThemes(prev => [
@@ -956,9 +959,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const toggleDefaultTheme = (themeId: string) => {
     const selected = customThemes.find(theme => theme.id === themeId);
     const shouldSetDefault = !selected?.isDefault;
+    const now = new Date().toISOString();
     setCustomThemes(prev => prev.map(theme => ({
       ...theme,
-      isDefault: shouldSetDefault && theme.id === themeId
+      isDefault: shouldSetDefault && theme.id === themeId,
+      updatedAt: theme.id === themeId || theme.isDefault ? now : theme.updatedAt
     })));
   };
 
@@ -980,7 +985,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       ...(replaceWithCurrent ? currentTheme : editingTheme),
       id: editingTheme.id,
       name: editingThemeName.trim(),
-      isDefault: editingThemeDefault
+      isDefault: editingThemeDefault,
+      createdAt: editingTheme.createdAt,
+      updatedAt: new Date().toISOString()
     };
 
     setCustomThemes(prev => prev.map(theme => {
