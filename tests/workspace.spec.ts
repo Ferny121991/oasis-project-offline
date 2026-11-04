@@ -40,7 +40,7 @@ test('P opens one projector; real fullscreen survives sync and PDF/PPTX import',
   await page.keyboard.press('p');
   const projector = await popup;
   await expect(projector.getByRole('button', { name: 'Pantalla completa' })).toBeVisible();
-  await projector.keyboard.press('p');
+  await page.getByRole('button', { name: 'Ampliar proyector', exact: true }).click();
   await expect.poll(() => projector.evaluate(() => !!document.fullscreenElement)).toBe(true);
   await expect(projector.getByRole('button', { name: 'Pantalla completa' })).toBeHidden();
   await expect(projector.locator('body')).toContainText('Bienvenidos a casa');
@@ -60,6 +60,8 @@ test('P opens one projector; real fullscreen survives sync and PDF/PPTX import',
   await page.getByRole('heading', { name: 'Organizar', exact: true }).click();
   await page.keyboard.press('p');
   expect(context.pages()).toHaveLength(2);
+  await projector.bringToFront();
+  await expect.poll(() => projector.evaluate(() => !!document.fullscreenElement)).toBe(true);
   await projector.evaluate(() => document.exitFullscreen());
   await expect(projector.getByRole('button', { name: 'Pantalla completa' })).toBeVisible();
   await projector.getByRole('button', { name: 'Pantalla completa' }).click();
@@ -119,4 +121,41 @@ test('mobile navigation and tutorial stay inside the viewport', async ({ page })
   await expect(page.locator('#playlist-panel')).toBeVisible();
   await page.getByRole('button', { name: 'Preparar', exact: true }).click();
   await expect(page.locator('#control-panel')).toBeVisible();
+});
+
+
+test('screen discovery places the popup on the other display, including negative coordinates', async ({ page }) => {
+  await page.addInitScript(() => {
+    const current = {left:0, top:0, availLeft:0, availTop:0, availWidth:1920, availHeight:1040, width:1920, height:1080, label:'Control', isPrimary:true};
+    const other = {left:-1920, top:0, availLeft:-1920, availTop:0, availWidth:1920, availHeight:1040, width:1920, height:1080, label:'Proyector externo', isPrimary:false};
+    (window as any).getScreenDetails = async () => ({screens:[current, other], currentScreen:current});
+    const original = window.open.bind(window);
+    window.open = (...args) => {
+      const win = original(...args);
+      if (win) {
+        win.moveTo = (x, y) => { (window as any).__projectorPosition = {x,y}; };
+        win.resizeTo = (width, height) => { (window as any).__projectorSize = {width,height}; };
+      }
+      return win;
+    };
+  });
+  await enter(page);
+  await page.getByRole('button', { name: 'Proyectar P', exact: true }).click();
+  await expect(page.getByText(/Proyector en Proyector externo/)).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__projectorPosition)).toEqual({x:-1920,y:0});
+  expect(await page.evaluate(() => (window as any).__projectorSize)).toEqual({width:1920,height:1040});
+});
+
+test('denied screen access keeps a usable projector and explains manual placement', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).getScreenDetails = async () => { throw new DOMException('Denied', 'NotAllowedError'); };
+  });
+  await enter(page);
+  const popup = page.waitForEvent('popup');
+  await page.getByRole('button', { name: 'Proyectar P', exact: true }).click();
+  const projector = await popup;
+  await expect(page.getByText(/Permite la administración de ventanas/)).toBeVisible();
+  await expect(projector.getByRole('button', {name:'Pantalla completa',exact:true})).toBeVisible();
+  await page.getByRole('button', {name:'Ampliar proyector',exact:true}).click();
+  await expect.poll(() => projector.evaluate(() => !!document.fullscreenElement)).toBe(true);
 });

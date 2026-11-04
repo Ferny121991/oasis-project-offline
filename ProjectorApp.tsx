@@ -157,6 +157,7 @@ const ProjectorApp: React.FC = () => {
     const handleFullscreenChange = () => {
       const fullscreen = !!document.fullscreenElement;
       setIsFullscreen(fullscreen);
+      window.opener?.postMessage({type: 'PROJECTOR_FULLSCREEN_STATUS', fullscreen}, location.origin);
       setShowStartOverlay(!fullscreen);
     };
 
@@ -190,7 +191,7 @@ const ProjectorApp: React.FC = () => {
       {showStartOverlay && !isFullscreen && (
         <div className="projector-start" role="region" aria-label="Activar proyector">
           <Monitor size={24} />
-          <div><strong>Proyector listo</strong><p>Mueve esta ventana a tu pantalla y pulsa P o el botón para ampliarla.</p></div>
+          <div><strong>Proyector listo</strong><p>Pulsa Ampliar proyector en el escritorio, o usa P o este botón.</p></div>
           <button onClick={enterFullscreen}>Pantalla completa</button>
         </div>
       )}

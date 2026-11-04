@@ -1,3 +1,4 @@
+import { detectDisplays, otherDisplay, placeProjector, fullscreenProjector } from './services/projectorWindow';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import ControlPanel from './components/ControlPanel';
@@ -258,6 +259,7 @@ const App: React.FC = () => {
 
   // State for External Projector Window
   const [externalWindow, setExternalWindow] = useState<Window | null>(null);
+  const [projectorFullscreen, setProjectorFullscreen] = useState(false);
   const [isProjectorMode, setIsProjectorMode] = useState(initialIsProjectorMode);
   const [isProjectorFullscreen, setIsProjectorFullscreen] = useState(() => !!document.fullscreenElement);
   const [showProjectorStartOverlay, setShowProjectorStartOverlay] = useState(initialIsProjectorMode && !document.fullscreenElement);
@@ -3059,28 +3061,43 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // External Window Logic
+  // Discover already-authorized screens without prompting on page load.
+  useEffect(() => { void detectDisplays(false).catch(() => {}); }, []);
+
   const openProjectorWindow = useCallback(async (): Promise<Window | null> => {
     if (externalWindow && !externalWindow.closed) {
-      externalWindow.focus();
+      const target = otherDisplay();
+      if (target) placeProjector(externalWindow, target);
+      fullscreenProjector(externalWindow);
       sendSyncState(true);
-      externalWindow.postMessage('OASIS_ENTER_FULLSCREEN', window.location.origin);
       return externalWindow;
     }
-    // Open immediately in the user gesture. Awaiting screen permissions first
-    // loses popup activation and requesting fullscreen on about:blank is lost on navigation.
+    // Keep the permission prompt on the operator's window. If approval takes
+    // too long for popup activation, the next click reuses the granted access.
+    const found = await detectDisplays(true).catch(() => undefined);
+    const target = otherDisplay();
     const url = new URL(window.location.href);
     url.search = '?projector=true';
     const win = window.open(url.href, 'ProjectorWindow',
-      `popup=yes,width=${screen.availWidth},height=${screen.availHeight},left=${window.screenX},top=${window.screenY}`);
+      `popup=yes,width=${target?.availWidth ?? screen.availWidth},height=${target?.availHeight ?? screen.availHeight},left=${target?.availLeft ?? window.screenX},top=${target?.availTop ?? window.screenY}`);
     if (!win) {
-      setWorkspaceNotice('El navegador bloqueó el proyector. Permite las ventanas emergentes y vuelve a pulsar Proyectar.');
+      setWorkspaceNotice('Pantallas preparadas. Pulsa Proyectar de nuevo; si no abre, permite las ventanas emergentes de este sitio.');
       return null;
     }
-    setWorkspaceNotice('En la ventana del proyector, pulsa P o haz clic en Pantalla completa. Puedes moverla a tu segunda pantalla.');
     setExternalWindow(win);
+    setWorkspaceNotice('Preparando la pantalla de proyección…');
     setTimeout(() => sendSyncState(true), 250);
     setTimeout(() => sendSyncState(true), 900);
+    if (win.closed) return null;
+    const destination = otherDisplay();
+    if (destination) {
+      placeProjector(win, destination);
+      setWorkspaceNotice(`Proyector en ${destination.label || 'la segunda pantalla'}. Pulsa Ampliar proyector para quitar los bordes del navegador.`);
+    } else {
+      setWorkspaceNotice(found
+        ? 'Solo se detectó una pantalla. Conecta la segunda en modo Extender y vuelve a abrir el proyector.'
+        : 'Permite la administración de ventanas para detectar la segunda pantalla. Mientras tanto puedes mover el proyector manualmente.');
+    }
     return win;
   }, [externalWindow, sendSyncState]);
 
@@ -3092,6 +3109,16 @@ const App: React.FC = () => {
     return () => window.clearInterval(timer);
   }, [externalWindow]);
 
+  useEffect(() => {
+    const status = (event: MessageEvent) => {
+      if (event.origin !== location.origin || event.source !== externalWindow) return;
+      if (event.data?.type === 'PROJECTOR_FULLSCREEN_STATUS') setProjectorFullscreen(!!event.data.fullscreen);
+    };
+    window.addEventListener('message', status);
+    setProjectorFullscreen(false);
+    return () => window.removeEventListener('message', status);
+  }, [externalWindow]);
+
   const closeProjectorWindow = useCallback(() => {
     if (externalWindow && !externalWindow.closed) externalWindow.close();
     setExternalWindow(null);
@@ -3100,8 +3127,7 @@ const App: React.FC = () => {
   const toggleProjectorFullscreen = useCallback(() => {
     // One idempotent command; do not toggle via both BroadcastChannel and postMessage.
     if (externalWindow && !externalWindow.closed) {
-      externalWindow.focus();
-      externalWindow.postMessage('OASIS_ENTER_FULLSCREEN', window.location.origin);
+      fullscreenProjector(externalWindow);
       sendSyncState(true);
     } else void openProjectorWindow();
   }, [externalWindow, openProjectorWindow, sendSyncState]);
@@ -3858,7 +3884,7 @@ const App: React.FC = () => {
               Espacio: enviar en vivo · ← →: diapositivas · B: negro · C: texto · L: logo
             </div>
             <div className="text-[11px] text-slate-400 text-center">
-              P abre el proyector · En esa ventana, pulsa P para ampliar.
+              {externalWindow ? (projectorFullscreen ? 'Proyector en pantalla completa' : 'Proyector abierto · Pulsa Ampliar proyector') : 'P abre el proyector en la segunda pantalla'}
             </div>
           </div>
         </div>
