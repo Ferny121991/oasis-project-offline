@@ -22,7 +22,7 @@ import { fetchSongLyrics, fetchBiblePassage, searchSongs, DensityMode } from './
 import { createRealtimeSyncService, realtimeSyncService, actionHistoryService, LiveState } from './services/realtimeService';
 import { compressImage } from './services/imageService';
 import { deleteMediaBlob, getMediaBlobUrl, getSlideIdFromIdbUrl, isIdbMediaUrl, storeMediaBlob, stripPlaylistMedia } from './services/mediaBlobStore';
-import { isPresentationFile, parsePptxFile, parsePdfFile, getPresentationTypeName } from './services/presentationImportService';
+import { isPresentationFile, getPresentationTypeName } from './services/presentationTypes';
 
 // Mobile Tab Type
 type MobileTab = 'control' | 'playlist' | 'preview';
@@ -33,6 +33,7 @@ interface SyncConfirmConfig {
   message: string;
   itemsList?: string[];
   onConfirm: () => void;
+  onCancel?: () => void;
   confirmText?: string;
   cancelText?: string;
   type: 'warning' | 'danger' | 'info';
@@ -177,20 +178,26 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem('oasis_authenticated') === 'true';
   });
-  const [passcodeInput, setPasscodeInput] = useState('');
-  const [authError, setAuthError] = useState(false);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passcodeInput === '1291') {
-      setIsAuthenticated(true);
-      setAuthError(false);
-      localStorage.setItem('oasis_authenticated', 'true');
-    } else {
-      setAuthError(true);
-      setPasscodeInput('');
-    }
+  const enterLocalWorkspace = () => {
+    localStorage.setItem('oasis_authenticated', 'true');
+    setIsAuthenticated(true);
   };
+  const [workspaceNotice, setWorkspaceNotice] = useState('');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [offlineReady, setOfflineReady] = useState(false);
+  useEffect(() => {
+    const online = () => setIsOnline(navigator.onLine);
+    const ready = () => setOfflineReady(true);
+    window.addEventListener('online', online);
+    window.addEventListener('offline', online);
+    window.addEventListener('flujo-offline-ready', ready);
+    if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(reg => { if (reg?.active) ready(); });
+    return () => {
+      window.removeEventListener('online', online);
+      window.removeEventListener('offline', online);
+      window.removeEventListener('flujo-offline-ready', ready);
+    };
+  }, []);
 
   // Initialize state from LocalStorage if available
   const [playlist, setPlaylist] = useState<PresentationItem[]>(() => {
@@ -2259,10 +2266,8 @@ const App: React.FC = () => {
             },
             onCancel: () => {
               setSyncConfirm(null);
-              // Sincronizar referencias locales para evitar un bucle de modales
-              lastCloudPlaylist.current = currentPlaylistStr;
-              lastCloudThemes.current = currentThemesStr;
-              lastCloudProjects.current = currentProjectsStr;
+              setAutoCloudSync(false);
+              localStorage.setItem('oasis_auto_cloud_sync', 'false');
             }
           });
         } else {
@@ -2916,6 +2921,7 @@ const App: React.FC = () => {
         setIsSyncing(true); // Show loading indicator
         try {
           let importedSlides: Slide[];
+          const { parsePptxFile, parsePdfFile } = await import('./services/presentationImportService');
           if (file.name.toLowerCase().endsWith('.pptx')) {
             importedSlides = await parsePptxFile(file);
           } else {
@@ -3058,105 +3064,52 @@ const App: React.FC = () => {
     if (externalWindow && !externalWindow.closed) {
       externalWindow.focus();
       sendSyncState(true);
+      externalWindow.postMessage('OASIS_ENTER_FULLSCREEN', window.location.origin);
       return externalWindow;
     }
-    if (externalWindow?.closed) {
-      setExternalWindow(null);
+    // Open immediately in the user gesture. Awaiting screen permissions first
+    // loses popup activation and requesting fullscreen on about:blank is lost on navigation.
+    const url = new URL(window.location.href);
+    url.search = '?projector=true';
+    const win = window.open(url.href, 'ProjectorWindow',
+      `popup=yes,width=${screen.availWidth},height=${screen.availHeight},left=${window.screenX},top=${window.screenY}`);
+    if (!win) {
+      setWorkspaceNotice('El navegador bloqueó el proyector. Permite las ventanas emergentes y vuelve a pulsar Proyectar.');
+      return null;
     }
-
-    // Use current URL with projector=true to ensure same origin for YouTube
-    const projectorUrl = window.location.origin + window.location.pathname + '?projector=true';
-
-    // Default Fallback: Assume 2nd screen is to the right
-    let left = window.screen.availWidth;
-    let top = 0;
-
-    // Advanced: Try to use the modern Window Management API for precise placement
-    // This requires a one-time permission grant from the user in Chrome/Edge.
-    if ('getScreenDetails' in window) {
-      try {
-        const screenDetails = await (window as any).getScreenDetails();
-        // Find a screen that is NOT the current one
-        const currentScreen = screenDetails.currentScreen;
-        const extendedScreen = screenDetails.screens.find((s: any) => s !== currentScreen);
-
-        if (extendedScreen) {
-          left = extendedScreen.left;
-          top = extendedScreen.top;
-        }
-      } catch (e) {
-        console.warn("Projector: Auto-screen detection failed or denied. Using default offset.", e);
-      }
-    }
-
-    const newWindow = window.open(
-      projectorUrl,
-      'ProjectorWindow',
-      `width=1280,height=720,left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`
-    );
-
-    if (newWindow) {
-      newWindow.onbeforeunload = () => setExternalWindow(null);
-      setExternalWindow(newWindow);
-
-      // Attempt synchronous fullscreen while user activation is still hot!
-      try {
-        newWindow.document.documentElement.requestFullscreen().catch(() => undefined);
-      } catch (e) {}
-
-      // Send current state immediately to the new window
-      setTimeout(() => sendSyncState(true), 250);
-      setTimeout(() => sendSyncState(true), 900);
-
-      // Give it a moment to load then try to focus and fullscreen as a fallback
-      setTimeout(() => {
-        if (newWindow && !newWindow.closed) {
-          newWindow.focus();
-          newWindow.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
-        }
-      }, 1000);
-
-      return newWindow;
-    }
-    return null;
+    setWorkspaceNotice('En la ventana del proyector, pulsa P o haz clic en Pantalla completa. Puedes moverla a tu segunda pantalla.');
+    setExternalWindow(win);
+    setTimeout(() => sendSyncState(true), 250);
+    setTimeout(() => sendSyncState(true), 900);
+    return win;
   }, [externalWindow, sendSyncState]);
 
+  useEffect(() => {
+    if (!externalWindow) return;
+    const timer = window.setInterval(() => {
+      if (externalWindow.closed) setExternalWindow(null);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [externalWindow]);
+
   const closeProjectorWindow = useCallback(() => {
-    if (externalWindow && !externalWindow.closed) {
-      externalWindow.close();
-    }
+    if (externalWindow && !externalWindow.closed) externalWindow.close();
     setExternalWindow(null);
   }, [externalWindow]);
 
   const toggleProjectorFullscreen = useCallback(() => {
-    // Send command via BroadcastChannel so it reaches any open projector window, even after page reloads!
-    const bc = new BroadcastChannel('flujo_projector_sync');
-    bc.postMessage({ type: 'TOGGLE_FULLSCREEN' });
-    bc.close();
-
+    // One idempotent command; do not toggle via both BroadcastChannel and postMessage.
     if (externalWindow && !externalWindow.closed) {
-      sendSyncState(true);
-      
-      // Attempt synchronous fullscreen from the active user click in the parent window!
-      try {
-        const doc = externalWindow.document;
-        if (!doc.fullscreenElement) {
-          doc.documentElement.requestFullscreen().catch(() => {
-            externalWindow.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
-          });
-        } else {
-          doc.exitFullscreen().catch(() => undefined);
-        }
-      } catch (e) {
-        externalWindow.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
-      }
-
       externalWindow.focus();
-    } else {
-      setExternalWindow(null);
-      openProjectorWindow();
-    }
+      externalWindow.postMessage('OASIS_ENTER_FULLSCREEN', window.location.origin);
+      sendSyncState(true);
+    } else void openProjectorWindow();
   }, [externalWindow, openProjectorWindow, sendSyncState]);
+
+  const toggleWorkspaceFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => setWorkspaceNotice('No se pudo activar pantalla completa. Vuelve a pulsar el botón Ampliar escritorio.'));
+  };
 
   const [previewSlide, setPreviewSlide] = useState<Slide | null>(null);
 
@@ -3291,7 +3244,9 @@ const App: React.FC = () => {
         setPaletteActiveIndex(0);
         return;
       }
-      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+      const target = e.target as HTMLElement;
+      if (!isAuthenticated || e.repeat || e.altKey || e.metaKey || e.ctrlKey || target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
+      if (showCommandPalette || showOnboarding || showExportImport) return;
       switch (e.key) {
         case 'ArrowRight':
           e.preventDefault();
@@ -3323,7 +3278,6 @@ const App: React.FC = () => {
           }
           break;
         case 'Enter': case ' ': e.preventDefault(); makeLive(); break;
-        case 'Escape':
         case 'F9':
           e.preventDefault();
           setIsPreviewHidden(prev => !prev);
@@ -3332,8 +3286,7 @@ const App: React.FC = () => {
           e.preventDefault();
           setIsTextHidden(prev => !prev);
           break;
-        case 'F11':
-          e.preventDefault();
+        case 'h': case 'H':
           setIsBackgroundHidden(prev => !prev);
           break;
         case 'F12':
@@ -3347,25 +3300,14 @@ const App: React.FC = () => {
         case 'g': case 'G': e.preventDefault(); toggleProjectorFullscreen(); break;
 
         case 'p': case 'P':
-          if (externalWindow) {
-            closeProjectorWindow();
-          } else {
-            openProjectorWindow().then(win => {
-              if (win) {
-                // Second attempt slightly later to ensure DOM is settled
-                setTimeout(() => {
-                  win.focus();
-                  win.postMessage('OASIS_TOGGLE_FULLSCREEN', '*');
-                }, 600);
-              }
-            });
-          }
+          e.preventDefault();
+          void openProjectorWindow();
           break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigateNext, navigatePrev, toggleFullscreen, toggleProjectorFullscreen, openProjectorWindow, closeProjectorWindow, externalWindow, showCommandPalette]);
+  }, [navigateNext, navigatePrev, toggleFullscreen, toggleProjectorFullscreen, openProjectorWindow, closeProjectorWindow, externalWindow, showCommandPalette, showOnboarding, showExportImport, isAuthenticated, playlist, liveItemId, liveSlideIndex, isKaraokeActive, karaokeIndex, navigateLiveNext, navigateLivePrev, makeLive]);
 
   if (isProjectorMode) {
     return (
@@ -3517,57 +3459,33 @@ const App: React.FC = () => {
   }
 
   if (!isAuthenticated && !isProjectorMode) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[radial-gradient(circle_at_top,#1e1b4b_0%,#020617_48%,#000_100%)] text-white p-4">
-        <div className="w-full max-w-md bg-slate-950/85 border border-indigo-400/20 rounded-3xl shadow-2xl shadow-indigo-950/40 p-8 flex flex-col items-center gap-6 backdrop-blur">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-20 h-20 bg-indigo-500/15 rounded-3xl flex items-center justify-center text-indigo-400 mb-2 ring-4 ring-indigo-500/10 border border-indigo-400/20">
-              <Lock size={40} />
-            </div>
-            <h2 className="text-2xl font-black tracking-tight text-center">Acceso Restringido</h2>
-            <p className="text-gray-400 text-center text-sm">Esta es un area protegida. Por favor ingresa el codigo de seguridad para continuar.</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="w-full flex flex-col gap-4">
-            <div className="relative">
-              <input
-                type="password"
-                value={passcodeInput}
-                onChange={(e) => {
-                  setPasscodeInput(e.target.value);
-                  setAuthError(false);
-                }}
-                className={`w-full bg-gray-950 border ${authError ? 'border-red-500 text-red-500 focus:ring-red-500/50' : 'border-gray-800 focus:border-indigo-500 focus:ring-indigo-500/50'} rounded-xl px-4 py-4 text-center text-2xl font-mono tracking-[0.5em] outline-none focus:ring-4 transition-all placeholder:tracking-normal`}
-                placeholder="••••"
-                maxLength={4}
-                autoFocus
-              />
-              {authError && (
-                <div className="absolute -bottom-6 left-0 w-full text-center text-xs font-bold text-red-500 animate-pulse">
-                  Codigo Incorrecto
-                </div>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-indigo-600/20 mt-4 flex items-center justify-center gap-2"
-            >
-              <Lock size={18} />
-              Desbloquear Acceso
-            </button>
-          </form>
-
-          <div className="mt-4 flex flex-col items-center gap-2">
-            <p className="text-[10px] text-gray-600 uppercase font-bold tracking-widest">FlujoEclesial Security</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <main className="welcome-screen">
+      <section className="welcome-card">
+        <div className="welcome-mark"><Monitor size={32} /></div>
+        <p className="eyebrow">TU SERVICIO, EN ORDEN</p>
+        <h1>FlujoEclesial<span>Prepara con calma.<br />Proyecta con confianza.</span></h1>
+        <p>Canciones, pasajes y presentaciones en un solo espacio para tu equipo.</p>
+        <button className="primary-action" onClick={enterLocalWorkspace}>Abrir mi espacio de trabajo <ChevronRight size={18} /></button>
+        <p className="welcome-note">Tus proyectos se guardan en este navegador. Dentro puedes iniciar sesión con Google para sincronizarlos con tu cuenta.</p>
+        <div className="welcome-steps"><span>01 · Preparar</span><span>02 · Organizar</span><span>03 · Proyectar</span></div>
+      </section>
+    </main>;
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-[100dvh] bg-[linear-gradient(135deg,#07111d_0%,#0b1020_46%,#020409_100%)] text-white font-sans overflow-hidden select-none">
+    <div className="studio-shell flex flex-col lg:flex-row h-[100dvh] bg-[linear-gradient(135deg,#07111d_0%,#0b1020_46%,#020409_100%)] text-white font-sans overflow-hidden select-none">
+      <header className="workspace-header">
+        <div className="workspace-brand"><img src="./logo.svg" alt="" /><div><strong>FlujoEclesial</strong><span>Estudio de proyección</span></div></div>
+        <div className="workspace-project"><span>SERVICIO ACTUAL</span><strong>{projects.find(project => project.id === currentProjectId)?.name || 'Mi espacio de trabajo'}</strong></div>
+        <div className="workspace-actions">
+          {session && <button className="quiet-action" disabled={isSyncing} onClick={handleSyncCloud} aria-label="Sincronizar con la nube"><RefreshCw size={16} /></button>}
+          <span className={`connection-status ${!isOnline ? 'is-offline' : ''}`} title={offlineReady ? 'La aplicación está preparada para volver a abrirse sin conexión' : 'El modo sin conexión se prepara en la versión publicada'}>{!isOnline ? 'Sin conexión' : offlineReady ? 'Disponible sin conexión' : 'Guardado local'}</span>
+          <button className="quiet-action" onClick={() => setShowCommandPalette(true)} title="Buscar canciones o pasajes (Ctrl+K)">Buscar <kbd>Ctrl K</kbd></button>
+          <button className="quiet-action fullscreen-workspace" onClick={toggleWorkspaceFullscreen} aria-label="Ampliar escritorio" title="Pantalla completa del escritorio"><Maximize2 size={17} /></button>
+          <button className="primary-action" onClick={() => void openProjectorWindow()}><Monitor size={17} /><span>Proyectar</span><kbd>P</kbd></button>
+        </div>
+      </header>
+      {workspaceNotice && <div className="workspace-notice" role="status"><span>{workspaceNotice}</span><button aria-label="Cerrar aviso" onClick={() => setWorkspaceNotice('')}>×</button></div>}
       {/* LEFT: Control Center (30%) */}
       <div 
         id="control-panel" 
@@ -3578,6 +3496,7 @@ const App: React.FC = () => {
           borderRightWidth: isLeftSidebarCollapsed ? '0px' : '1px'
         }}
       >
+        <div className="section-heading"><span>01</span><div><h2>Preparar</h2><p>Crea y da estilo al contenido</p></div></div>
         <ControlPanel
           onAddItem={handleAddItem}
           onUpdateTheme={handleUpdateActiveItemTheme}
@@ -3682,39 +3601,6 @@ const App: React.FC = () => {
             {isRightSidebarCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
         )}
-        {/* Mobile Header - Compact with Live Status */}
-        <div className="lg:hidden bg-slate-900/80 backdrop-blur-md px-4 py-3 border-b border-white/10 flex justify-between items-center shrink-0 relative z-20">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-400/20 flex items-center justify-center shadow-lg shadow-indigo-950/20">
-              <img src="/logo.svg" alt="Logo" className="w-7 h-7 object-contain brightness-110 contrast-125 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]" />
-            </div>
-            <h1 className="text-base font-black tracking-tight text-white flex items-center gap-1">
-              <span className="bg-gradient-to-r from-cyan-300 via-indigo-300 to-amber-200 bg-clip-text text-transparent">FlujoEclesial</span>
-              <span className="font-light text-slate-400 text-xs">Studio</span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {session && (
-              <button
-                onClick={handleSyncCloud}
-                disabled={isSyncing}
-                className={`p-2 rounded-xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-600/20 transition-all active:scale-90 ${isSyncing ? 'animate-spin' : ''}`}
-                title="Sincronizar con la nube"
-              >
-                <RefreshCw size={16} />
-              </button>
-            )}
-            {liveItemId && (
-              <div className="flex items-center gap-1.5 bg-red-600/15 border border-red-500/30 rounded-full px-2.5 py-1 shadow-[0_0_12px_rgba(239,68,68,0.2)]">
-                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_6px_#ef4444]"></div>
-                <span className="text-[9px] font-black text-red-400 uppercase tracking-wider">VIVO</span>
-              </div>
-            )}
-            {session?.user?.user_metadata?.avatar_url && (
-              <img src={session.user.user_metadata.avatar_url} alt="" className="w-7 h-7 rounded-full border border-indigo-500 shadow-lg shadow-indigo-500/20" />
-            )}
-          </div>
-        </div>
         {/* Mobile Quick Actions Bar */}
         <div className="lg:hidden bg-gray-950 px-3 py-2 border-b border-gray-800 flex gap-2 shrink-0">
           <button
@@ -3733,84 +3619,21 @@ const App: React.FC = () => {
             </button>
           )}
         </div>
-        {/* Desktop Header */}
-        <div className="hidden lg:flex bg-[#0a101b]/90 backdrop-blur-xl px-6 py-4 border-b border-white/10 justify-between items-center shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-cyan-400/10 border border-cyan-300/20 flex items-center justify-center shadow-lg shadow-cyan-950/30">
-              <img src="/logo.svg" alt="Logo" className="w-11 h-11 object-contain brightness-110 contrast-125 drop-shadow-[0_0_12px_rgba(129,140,248,0.6)]" />
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-                <span className="bg-gradient-to-r from-cyan-300 via-indigo-300 to-amber-200 bg-clip-text text-transparent">FlujoEclesial</span>
-                <span className="font-light text-slate-400">Studio</span>
-              </h1>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Centro de control para proyeccion en vivo</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            {session ? (
-              <div className="flex items-center gap-4 bg-gray-850/50 p-1.5 pr-4 rounded-xl border border-gray-700/50 shadow-inner">
-                <button
-                  onClick={handleSyncCloud}
-                  disabled={isSyncing}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition-all font-black text-[10px] uppercase shadow-lg shadow-indigo-600/20 active:scale-95 disabled:opacity-50 ${isSyncing ? 'animate-pulse' : ''}`}
-                >
-                  <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-                  {isSyncing ? 'Sincronizando...' : 'Sincronizar Nube'}
-                </button>
-                <div className="flex flex-col">
-                  <div className="text-[9px] text-gray-500 font-black uppercase tracking-tight">Estado</div>
-                  <div className="text-[10px] text-green-500 font-bold flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></div>
-                    Conectado
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    localStorage.removeItem('oasis_authenticated');
-                    window.location.reload();
-                  }}
-                  className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                  title="Bloquear Sistema"
-                >
-                  <Lock size={18} />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-4">
-                <div className="text-xs text-gray-500 italic bg-gray-850 px-3 py-1.5 rounded-lg border border-gray-800">
-                  Guardado Local Activo
-                </div>
-                <button
-                  onClick={() => {
-                    localStorage.removeItem('oasis_authenticated');
-                    window.location.reload();
-                  }}
-                  className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                  title="Bloquear Sistema"
-                >
-                  <Lock size={18} />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div id="playlist-panel" className="flex-1 flex flex-col min-h-0 relative">
+        <div className="section-heading"><span>02</span><div><h2>Organizar</h2><p>El orden de tu servicio</p></div></div>
+        <div id="program-content" className="flex-1 flex flex-col min-h-0 relative">
           {/* Header Switcher */}
           <div className="flex bg-[#080d17] border-b border-white/10 p-2 gap-2 shrink-0">
             <button
               onClick={() => { setShowCalendar(false); setShowReflow(false); }}
               className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${!showCalendar && !showReflow ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/25' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
             >
-              <LayoutGrid size={14} /> Rejilla
+              <LayoutGrid size={14} /> Programa
             </button>
             <button
               onClick={() => { setShowCalendar(false); setShowReflow(true); }}
               className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${showReflow && !showCalendar ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/25' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}
             >
-              <FileText size={14} /> Reflow Editor
+              <FileText size={14} /> Editar texto
             </button>
             <button
               onClick={() => { setShowCalendar(true); setShowReflow(false); }}
@@ -3861,7 +3684,7 @@ const App: React.FC = () => {
                 <div className="text-center max-w-sm">
                   <h3 className="text-white font-black text-sm uppercase tracking-wider">Sin Cancion Seleccionada</h3>
                   <p className="text-xs text-slate-400 mt-2 leading-relaxed font-medium">
-                    Selecciona una cancion o pasaje en tu playlist lateral izquierda primero, y luego abre el Reflow Editor para editarla fluidamente en texto corrido.
+                    Selecciona una cancion o pasaje en tu playlist lateral izquierda primero, y luego abre el Editar texto para editarla fluidamente en texto corrido.
                   </p>
                 </div>
               </div>
@@ -3907,7 +3730,7 @@ const App: React.FC = () => {
                 >
                   <Download size={14} />
                   <Upload size={14} />
-                  <span className="hidden xl:inline">Exportar</span>
+                  <span>Respaldos</span>
                 </button>
                 <button
                   onClick={() => setShowActionHistory(true)}
@@ -3915,7 +3738,7 @@ const App: React.FC = () => {
                   title="Historial de Acciones"
                 >
                   <History size={14} />
-                  <span className="hidden xl:inline">Historial</span>
+                  <span>Historial</span>
                 </button>
                 <button
                   onClick={() => setShowMobileConnect(true)}
@@ -3923,7 +3746,7 @@ const App: React.FC = () => {
                   title="Control Movil"
                 >
                   <Smartphone size={14} />
-                  <span className="hidden xl:inline">Movil</span>
+                  <span>Remoto</span>
                 </button>
               </div>
               <Playlist
@@ -4024,7 +3847,7 @@ const App: React.FC = () => {
                 <Smartphone size={12} /> App Movil
               </button>
               <div className="text-[10px] text-gray-500 italic">
-                {isSyncing ? 'Sincronizando...' : 'Nube Activa'}
+                {isSyncing ? 'Sincronizando…' : session ? 'Cuenta conectada' : 'En este dispositivo'}
               </div>
             </div>
           </div>
@@ -4032,10 +3855,10 @@ const App: React.FC = () => {
           {/* Desktop Only Footer */}
           <div className="hidden lg:flex bg-gray-900 p-4 border-t border-gray-800 flex-col gap-2 shrink-0">
             <div className="text-[10px] text-gray-600 text-center mt-1">
-              Atajos: Espacio (Sig), Flechas (Nav), B (Black), C (Clear), L (Logo), F (Pantalla), P (Proyector)
+              Espacio: enviar en vivo · ← →: diapositivas · B: negro · C: texto · L: logo
             </div>
-            <div className="text-[10px] text-orange-400 text-center font-bold animate-pulse">
-              NOTA: Para pantalla completa dale a cualquier letra y despues a proy-full.
+            <div className="text-[11px] text-slate-400 text-center">
+              P abre el proyector · En esa ventana, pulsa P para ampliar.
             </div>
           </div>
         </div>
@@ -4052,6 +3875,7 @@ const App: React.FC = () => {
         }}
       >
 
+        <div className="section-heading"><span>03</span><div><h2>Proyectar</h2><p>Controla lo que ve tu audiencia</p></div></div>
         {/* TOP BAR: Clock and Status - Responsive */}
         <div className="h-12 lg:h-14 bg-[#0a101b] border-b border-white/10 flex items-center justify-between px-3 lg:px-4 shrink-0 shadow-[0_16px_45px_rgba(0,0,0,0.24)]">
           <div className="flex items-center gap-2 text-cyan-300 font-black text-xs lg:text-sm truncate max-w-[55%] lg:max-w-[50%]">
@@ -4080,7 +3904,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Hotline Emergency Panic Controls (ProPresenter-style) */}
-        <div className="bg-slate-950/80 backdrop-blur-md px-4 py-2 border-b border-white/10 flex gap-2 shrink-0 overflow-x-auto no-scrollbar">
+        <div className="panic-controls bg-slate-950/80 backdrop-blur-md px-4 py-2 border-b border-white/10 flex gap-2 shrink-0">
           <button
             onClick={() => setIsPreviewHidden(prev => !prev)}
             className={`flex-1 min-w-[100px] py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-300 border ${
@@ -4088,7 +3912,7 @@ const App: React.FC = () => {
                 ? 'bg-red-500/20 text-red-400 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse'
                 : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
             }`}
-            title="Limpia texto y fondo (Pantalla a negro) [F9 o ESC]"
+            title="Limpia texto y fondo (Pantalla a negro) [F9 o B]"
           >
             <div className={`w-2 h-2 rounded-full ${isPreviewHidden ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 'bg-red-500/40'}`} />
             NEGRO
@@ -4126,7 +3950,7 @@ const App: React.FC = () => {
           >
             <div className={`w-2 h-2 rounded-full ${isBackgroundHidden ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-emerald-500/40'}`} />
             SIN FONDO
-            <span className="hidden sm:inline opacity-50 text-[8px] font-normal">F11</span>
+            <span className="hidden sm:inline opacity-50 text-[8px] font-normal">H</span>
           </button>
 
           <button
@@ -4182,7 +4006,7 @@ const App: React.FC = () => {
 
           <div ref={liveViewRef} className="w-full aspect-video max-h-full flex items-center justify-center relative group rounded-2xl overflow-hidden border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_40px_rgba(99,102,241,0.08)] bg-slate-950 transition-all duration-300">
             {!activeItem && !isLogoActive && !isPreviewHidden && (
-              <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/88 px-8 text-center">
+              <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950 px-6 text-center">
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-400/10 text-cyan-200">
                   <Monitor size={24} />
                 </div>
@@ -4190,7 +4014,7 @@ const App: React.FC = () => {
                   Selecciona contenido
                 </h3>
                 <p className="mt-2 max-w-sm text-xs font-medium leading-relaxed text-slate-400">
-                  Haz clic en una fila de la rejilla para ver sus diapositivas, editarla o enviarla al proyector.
+                  Selecciona un elemento del programa para preparar la siguiente diapositiva.
                 </p>
               </div>
             )}
@@ -4227,7 +4051,7 @@ const App: React.FC = () => {
             )}
 
             {/* LIVE MONITOR PIP (Picture-in-Picture) */}
-            {(liveItemId || isLogoActive) && (
+            {(liveItemId || isLogoActive) && (liveItemId !== activeItemId || liveSlideIndex !== activeSlideIndex || isLogoActive) && (
               <div className="absolute bottom-6 right-6 w-56 aspect-video bg-black border-2 border-red-600 rounded-lg shadow-[0_0_20px_rgba(220,38,38,0.4)] z-50 overflow-hidden ring-4 ring-black/50">
                 <div className="absolute top-0 left-0 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 z-[60] flex items-center gap-1 shadow-md">
                   <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
@@ -4295,40 +4119,28 @@ const App: React.FC = () => {
           </div>
 
           {/* Row 1: Quick Actions - Larger on Mobile */}
-          <div id="live-action-controls" className="grid grid-cols-5 gap-2 p-3 border-b border-white/10">
-            <button onClick={() => setIsPreviewHidden(!isPreviewHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2.5 rounded-xl transition-all active:scale-95 ${isPreviewHidden ? 'bg-red-600 text-white' : 'bg-white/[0.07] border border-white/10 text-gray-400 hover:bg-white/[0.1] hover:text-white'}`}>
-              {isPreviewHidden ? <EyeOff size={20} className="lg:w-4 lg:h-4" /> : <Eye size={20} className="lg:w-4 lg:h-4" />}
-              <span className="text-[8px] lg:text-[9px] font-bold mt-1">BLACK</span>
-            </button>
-            <button onClick={() => setIsTextHidden(!isTextHidden)} className={`flex flex-col items-center justify-center p-3 lg:p-2.5 rounded-xl transition-all active:scale-95 ${isTextHidden ? 'bg-yellow-600 text-white' : 'bg-white/[0.07] border border-white/10 text-gray-400 hover:bg-white/[0.1] hover:text-white'}`}>
-              <Eraser size={20} className="lg:w-4 lg:h-4" />
-              <span className="text-[8px] lg:text-[9px] font-bold mt-1">CLEAR</span>
-            </button>
-            <button onClick={() => { setIsLogoActive(!isLogoActive); setIsPreviewHidden(false); }} className={`flex flex-col items-center justify-center p-3 lg:p-2.5 rounded-xl transition-all active:scale-95 ${isLogoActive ? 'bg-cyan-400 text-slate-950' : 'bg-white/[0.07] border border-white/10 text-gray-400 hover:bg-white/[0.1] hover:text-white'}`}>
-              <Image size={20} className="lg:w-4 lg:h-4" />
-              <span className="text-[8px] lg:text-[9px] font-bold mt-1">LOGO</span>
-            </button>
+          <div id="live-action-controls" className="grid grid-cols-2 gap-2 p-3 border-b border-white/10">
             <button onClick={() => setShowSplitScreen(!showSplitScreen)} className={`flex flex-col items-center justify-center p-3 lg:p-2.5 rounded-xl transition-all active:scale-95 ${showSplitScreen ? 'bg-purple-600 text-white' : 'bg-white/[0.07] border border-white/10 text-gray-400 hover:bg-white/[0.1] hover:text-white'}`}>
               <Columns size={20} className="lg:w-4 lg:h-4" />
-              <span className="text-[8px] lg:text-[9px] font-bold mt-1">SPLIT</span>
+              <span className="text-[8px] lg:text-[9px] font-bold mt-1">Dividir</span>
             </button>
             <div className="flex flex-col gap-1">
               {!externalWindow ? (
                 <button onClick={openProjectorWindow} className="flex-1 bg-indigo-600/35 hover:bg-indigo-500 active:bg-indigo-500 text-indigo-100 hover:text-white rounded-xl flex items-center justify-center gap-1 text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95 border border-indigo-300/20">
-                  <ExternalLink size={12} /> <span className="hidden sm:inline">PROY</span><span className="sm:hidden">P</span>
+                  <ExternalLink size={12} /> <span>Proyector</span>
                 </button>
               ) : (
                 <div className="flex flex-1 gap-1">
-                  <button onClick={toggleProjectorFullscreen} className="flex-1 bg-green-600 hover:bg-green-500 active:bg-green-400 text-white rounded-lg lg:rounded flex items-center justify-center text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
+                  <button aria-label="Ampliar proyector" onClick={toggleProjectorFullscreen} className="flex-1 bg-green-600 hover:bg-green-500 active:bg-green-400 text-white rounded-lg lg:rounded flex items-center justify-center text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
                     <Maximize2 size={14} />
                   </button>
-                  <button onClick={closeProjectorWindow} className="flex-1 bg-red-900/50 hover:bg-red-600 active:bg-red-500 text-red-200 hover:text-white rounded-lg lg:rounded flex items-center justify-center text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
+                  <button aria-label="Cerrar proyector" onClick={closeProjectorWindow} className="flex-1 bg-red-900/50 hover:bg-red-600 active:bg-red-500 text-red-200 hover:text-white rounded-lg lg:rounded flex items-center justify-center text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95">
                     <XCircle size={14} />
                   </button>
                 </div>
               )}
-              <button onClick={toggleFullscreen} className="flex-1 bg-white/[0.07] hover:bg-white/[0.1] active:bg-gray-600 text-gray-400 hover:text-white rounded-xl flex items-center justify-center gap-1 text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95 border border-white/10">
-                <Maximize2 size={12} /> <span className="hidden sm:inline">FULL</span>
+              <button aria-label="Ampliar vista previa" onClick={toggleFullscreen} className="flex-1 bg-white/[0.07] hover:bg-white/[0.1] active:bg-gray-600 text-gray-400 hover:text-white rounded-xl flex items-center justify-center gap-1 text-[8px] lg:text-[9px] font-bold transition-colors active:scale-95 border border-white/10">
+                <Maximize2 size={12} /> <span>Vista previa</span>
               </button>
             </div>
           </div>
@@ -4396,14 +4208,21 @@ const App: React.FC = () => {
           className={`flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 h-full rounded-[18px] transition-all active:scale-90 ${mobileTab === 'control' ? 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 shadow-inner' : 'text-slate-400 border border-transparent'}`}
         >
           <Edit2 size={20} className={mobileTab === 'control' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'} />
-          <span className="text-[9px] font-black uppercase tracking-widest">Editor</span>
+          <span className="text-[11px] font-semibold">Preparar</span>
         </button>
         <button
           onClick={() => setMobileTab('playlist')}
           className={`flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 h-full rounded-[18px] transition-all active:scale-90 ${mobileTab === 'playlist' ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 shadow-inner' : 'text-slate-400 border border-transparent'}`}
         >
           <Music size={20} className={mobileTab === 'playlist' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'} />
-          <span className="text-[9px] font-black uppercase tracking-widest">Lista</span>
+          <span className="text-[11px] font-semibold">Programa</span>
+        </button>
+        <button
+          onClick={() => setMobileTab('preview')}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 h-full rounded-[18px] ${mobileTab === 'preview' ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/20' : 'text-slate-400 border border-transparent'}`}
+        >
+          <Monitor size={20} />
+          <span className="text-[11px] font-semibold">Proyección</span>
         </button>
       </div>
 
@@ -4486,6 +4305,7 @@ const App: React.FC = () => {
             <div className="px-6 py-4 bg-slate-950/65 border-t border-white/5 flex gap-3">
               <button
                 onClick={() => {
+                  syncConfirm.onCancel?.();
                   setSyncConfirm(null);
                 }}
                 className="flex-1 py-2.5 px-4 rounded-xl border border-white/15 text-slate-300 hover:text-white hover:bg-white/[0.04] transition-all font-black text-[10px] uppercase tracking-wider active:scale-95"

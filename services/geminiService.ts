@@ -1123,7 +1123,7 @@ const fetchYouTubeDirect = async (query: string, proxyUrl: string, isAllOrigins 
         const duration = vr.lengthText?.simpleText || undefined;
         results.push({
           id: videoId,
-          kind: 'video',
+          kind: 'video' as const,
           title,
           author,
           thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
@@ -1173,7 +1173,7 @@ const fetchYouTubeOfficial = async (query: string): Promise<YouTubeSearchResult[
       if (videoId && videoId.length === 11) {
         return {
           id: videoId,
-          kind: 'video',
+          kind: 'video' as const,
           title: snippet.title || 'Sin titulo',
           author: snippet.channelTitle || 'Desconocido',
           thumbnail: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
@@ -1219,7 +1219,7 @@ const mapInvidiousResults = (data: any[]): YouTubeSearchResult[] => {
     const videoId = extractVideoId(item.videoId || item.url || '');
     return {
       id: videoId,
-      kind: 'video',
+      kind: 'video' as const,
       title: item.title || 'Sin titulo',
       author: item.author || item.authorId || 'Desconocido',
       thumbnail: item.videoThumbnails?.find?.((thumb: any) => thumb.quality === 'medium')?.url || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
@@ -1696,7 +1696,7 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
               const videoId = extractVideoId(item.url || '');
               return {
                 id: videoId,
-                kind: 'video',
+                kind: 'video' as const,
                 title: item.title || 'Sin titulo',
                 author: item.uploaderName || item.uploader || 'Desconocido',
                 thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
@@ -1746,7 +1746,7 @@ export const searchYouTube = async (query: string): Promise<YouTubeSearchResult[
               const videoId = extractVideoId(item.videoId || '');
               return {
                 id: videoId,
-                kind: 'video',
+                kind: 'video' as const,
                 title: item.title || 'Sin titulo',
                 author: item.author || 'Desconocido',
                 thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,

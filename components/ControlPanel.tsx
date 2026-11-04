@@ -447,7 +447,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [loading, setLoading] = useState(false);
   const [inputText, setInputText] = useState('');
   const [inputType, setInputType] = useState<'youtube' | 'scripture' | 'manual'>(
-    typeof window !== 'undefined' && window.innerWidth < 1024 ? 'scripture' : 'youtube'
+    'manual'
   );
 
   const [bibleVersion, setBibleVersion] = useState('Reina Valera 1960');
@@ -1766,7 +1766,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => {
-              const resetLogoTheme = {
+              const resetLogoTheme: Theme = {
                 ...currentTheme,
                 logoUrl: '/logo.png',
                 logoBackground: 'radial-gradient(circle at center, #ffffff 0%, #eef2ff 45%, #dbeafe 100%)',
@@ -3132,7 +3132,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#080d17] border-r border-white/10 font-sans">
+    <div className="control-workspace flex-1 min-h-0 flex flex-col bg-[#080d17] font-sans">
       <div className="p-3 border-b border-white/10 bg-[#080d17]/95">
         <div className="grid grid-cols-3 gap-2 rounded-[1.35rem] border border-white/10 bg-[#030711] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_18px_45px_rgba(0,0,0,0.28)]">
           <button onClick={() => setActiveTab('content')} className={`py-3 text-[11px] font-black uppercase tracking-wide flex items-center justify-center gap-2 rounded-2xl transition-all ${activeTab === 'content' ? 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/30' : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'}`}>
@@ -3167,11 +3167,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
       <div className="flex-1 overflow-y-auto no-scrollbar bg-[linear-gradient(180deg,#0d1524_0%,#0a0f1b_45%,#070b13_100%)]">
         {activeTab === 'content' && (
-          <div className="p-5 space-y-6">
+          <div className="p-4 space-y-4">
 
             <div className="bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(8,13,25,0.78))] rounded-[1.35rem] p-4 border border-white/10 shadow-2xl shadow-black/20">
               <label className="text-[10px] uppercase text-cyan-300 font-black tracking-[0.22em] mb-3 block">Seleccionar Origen</label>
-              <div className={`grid ${isMobile ? 'grid-cols-4' : 'grid-cols-5'} gap-3`}>
+              <div className={`source-picker grid ${isMobile ? 'grid-cols-4' : 'grid-cols-5'} gap-3`}>
                 <button
                   onClick={() => { setInputType('youtube'); setSongResults([]); }}
                   className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${inputType === 'youtube' ? 'bg-gradient-to-br from-red-600/35 to-rose-600/20 border-red-400/60 shadow-lg shadow-red-950/20' : 'bg-slate-950/60 border-white/10 hover:border-cyan-300/40 hover:bg-white/[0.04]'}`}
@@ -3192,7 +3192,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${inputType === 'manual' ? 'bg-cyan-500' : 'bg-slate-700'}`}>
                     <Edit3 size={18} className="text-white" />
                   </div>
-                  <span className={`text-[10px] font-bold uppercase ${inputType === 'manual' ? 'text-indigo-300' : 'text-gray-400'}`}>Manual</span>
+                  <span className={`text-[10px] font-bold uppercase ${inputType === 'manual' ? 'text-indigo-300' : 'text-gray-400'}`}>Texto</span>
                 </button>
                 <button
                   onClick={() => { setInputType('scripture'); setSongResults([]); }}
@@ -3215,7 +3215,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-slate-700 group-hover/nv:bg-emerald-500 transition-colors">
                     <Plus size={18} className="text-white" />
                   </div>
-                  <span className="text-[10px] font-bold uppercase text-gray-400 group-hover/nv:text-emerald-300">NV</span>
+                  <span className="text-[10px] font-bold uppercase text-gray-400 group-hover/nv:text-emerald-300">Nuevo</span>
                 </button>
                 {!isMobile && (
                   <button
@@ -3233,69 +3233,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
             </div>
 
-            {/* DENSITY SELECTOR - Compact */}
             {inputType !== 'youtube' && (
-              <div className="bg-slate-950/55 rounded-2xl p-4 border border-white/10 shadow-inner shadow-black/20">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <label className="text-[10px] uppercase text-cyan-300/80 font-black tracking-[0.22em] block">Densidad de Texto</label>
-                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                      Decide como se divide el texto en diapositivas.
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-300">
-                    {inputType === 'scripture' ? 'Biblia' : 'Manual'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {densityOptions.map((option) => {
-                    const isSelected = density === option.id;
-                    const isRecommended = option.id === recommendedDensity;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setDensity(option.id)}
-                        className={`group relative min-h-[86px] rounded-xl border p-3 text-left transition-all ${
-                          isSelected
-                            ? 'border-cyan-300/70 bg-gradient-to-br from-cyan-500/25 via-indigo-500/20 to-slate-900 shadow-lg shadow-cyan-950/25'
-                            : 'border-white/10 bg-slate-900/70 hover:border-cyan-300/40 hover:bg-slate-800/80'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                            isSelected ? 'bg-cyan-400 text-slate-950' : 'bg-slate-800 text-slate-300 group-hover:bg-slate-700'
-                          }`}>
-                            {option.icon}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-[11px] font-black text-white">{option.label}</span>
-                            <span className="block truncate text-[10px] font-bold text-slate-400">{option.short}</span>
-                          </span>
-                        </div>
-                        <p className="mt-2 text-[10px] leading-snug text-slate-400">
-                          {inputType === 'scripture' ? option.bibleHint : option.manualHint}
-                        </p>
-                        {isRecommended && (
-                          <span className="absolute right-2 top-2 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-emerald-300">
-                            recomendado
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-400/5 p-3">
-                  <div className="flex items-center gap-2 text-[11px] font-black text-cyan-200">
-                    <Check size={14} />
-                    Modo activo: {selectedDensityOption.label}
-                  </div>
-                  <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
-                    {selectedDensityOption.detail}
-                  </p>
-                </div>
+              <div className="density-picker">
+                <label htmlFor="text-density">Dividir en diapositivas</label>
+                <select id="text-density" value={density} onChange={event => setDensity(event.target.value as DensityMode)}>
+                  {densityOptions.map(option => <option key={option.id} value={option.id}>{option.label} · {option.short}</option>)}
+                </select>
+                <p>{selectedDensityOption.detail}</p>
               </div>
             )}
 

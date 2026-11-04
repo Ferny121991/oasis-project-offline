@@ -41,7 +41,7 @@ const STEPS: TutorialStep[] = [
     {
         icon: Sparkles,
         tag: 'Bienvenida',
-        title: '¡Bienvenido a OASIS Studio!',
+        title: '¡Bienvenido a FlujoEclesial!',
         description: 'Este tour te guiará paso a paso por cada sección de la cabina de proyección. Al terminar, sabrás exactamente cómo buscar canciones, crear diapositivas, controlar el vivo y sincronizar con la nube.',
         focus: [
             {
@@ -591,7 +591,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
             {/* Guided Tutorial Card */}
             <div
-                style={tooltipStyle}
+                style={{ ...tooltipStyle, position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'min(460px, calc(100vw - 32px))', maxHeight: 'calc(100dvh - 32px)', zIndex: 8500 }}
                 className={`flex flex-col bg-[#0c1221] border border-white/[0.12] rounded-[24px] shadow-[0_30px_100px_rgba(0,0,0,0.95),0_0_40px_rgba(99,102,241,0.12)] overflow-hidden transition-all duration-300 ${isExiting ? 'opacity-0 scale-95 translate-y-8' : 'opacity-100 scale-100 translate-y-0'}`}
             >
                 {/* Arrows */}

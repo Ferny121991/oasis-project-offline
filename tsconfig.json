@@ -11,12 +11,12 @@
     ],
     "skipLibCheck": true,
     "types": [
-      "node"
+      "node", "vite/client"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
-    "allowJs": true,
+    "allowJs": false,
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
@@ -26,5 +26,6 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "noEmit": true
-  }
+  },
+  "exclude": ["node_modules", "dist", "tests", "playwright.config.ts"]
 }

@@ -5,6 +5,8 @@ dist-ssr/
 
 # Dependencies
 node_modules/
+test-results/
+playwright-report/
 
 # Environment files
 .env
