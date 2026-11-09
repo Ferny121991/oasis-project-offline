@@ -97,7 +97,12 @@ test('workspace fullscreen and recovery after a picker interruption', async ({ p
   await file.setFiles(path.resolve('tests/fixtures/servicio.pdf'));
   await expect.poll(async () => (await page.evaluate(() => !!document.fullscreenElement)) || (await page.getByRole('button', { name: 'Volver a pantalla completa' }).isVisible())).toBe(true);
   if (!(await page.evaluate(() => !!document.fullscreenElement))) {
-    await page.getByRole('button', { name: 'Volver a pantalla completa' }).click();
+    try {
+      await page.getByRole('button', { name: 'Volver a pantalla completa' }).click({ timeout: 2000 });
+    } catch (error) {
+      // Automatic restoration can finish between the state check and the click.
+      if (!(await page.evaluate(() => !!document.fullscreenElement))) throw error;
+    }
   }
   await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
 });

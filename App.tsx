@@ -327,7 +327,7 @@ const App: React.FC = () => {
 
   // Onboarding & Timer states
   const [showOnboarding, setShowOnboarding] = useState(() => {
-    return localStorage.getItem('oasis_onboarding_complete') !== 'true';
+    return localStorage.getItem('flujo_tutorial_v2_seen') !== 'true';
   });
   const [showTimer, setShowTimer] = useState(false);
   const [showExportImport, setShowExportImport] = useState(false);
@@ -4264,7 +4264,11 @@ const App: React.FC = () => {
       {/* Onboarding Tutorial */}
       {
         showOnboarding && (
-          <Onboarding onComplete={() => setShowOnboarding(false)} />
+          <Onboarding onComplete={() => setShowOnboarding(false)} onLocate={area => {
+            setMobileTab(area);
+            if (area === 'control') setIsLeftSidebarCollapsed(false);
+            if (area === 'preview') setIsRightSidebarCollapsed(false);
+          }} />
         )
       }
 

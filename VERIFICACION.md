@@ -51,3 +51,13 @@ La suite automatizada ahora activa fullscreen desde el botón del escritorio y c
 Referencias de implementación: https://github.com/WICG/capability-delegation y https://developer.chrome.com/docs/capabilities/web-apis/window-management
 
 Resultado final: npm run build correcto y 7 pruebas de Playwright aprobadas (14,8 s).
+
+## Tutorial interactivo en español (9 de noviembre de 2026)
+
+Se reemplazó el tutorial anterior por ocho capítulos, diccionario de 45 iconos con buscador, tarjetas desplegables, localizador de secciones y un simulador independiente de Negro/Sin texto/Sin fondo/Logo. Se corrigieron nombres y atajos antiguos: Espacio/Enter envían la selección; las flechas navegan por el vivo; Escape sale de fullscreen. Se distinguen Ampliar escritorio, Ampliar proyector y Ampliar vista previa.
+
+Audioguía generada con ElevenLabs, voz Arturo Tutorias, español latino (174,8 s), incluida como MP3 local con transcripción. Reproducción voluntaria, pausa y reinicio; no hay clave de ElevenLabs en la aplicación. El archivo se precarga en la caché offline del build. Se guarda el capítulo para reanudar y se conserva la navegación por teclado dentro del diálogo. Cerrar devuelve el foco y detiene la narración.
+
+QA: inspección visual 1440×900 y 360×640; pruebas del buscador (incluida búsqueda sin resultados), localizador, reanudación, foco, cierre, simulador reversible sin abrir proyector, reproducción/pausa/transcripción y audio tras recarga sin conexión. También se ejecuta la suite previa de siete pruebas.
+
+Resultado final del tutorial: npm run build correcto; 11 pruebas aprobadas (21,7 s), incluidas las 7 regresiones de la aplicación.

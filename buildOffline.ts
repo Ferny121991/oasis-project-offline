@@ -5,7 +5,7 @@ export function offlinePlugin(): Plugin {
     name: 'flujo-offline',
     apply: 'build',
     generateBundle(_options, bundle) {
-      const files = ['./', './index.html', './logo.svg', ...Object.keys(bundle).filter(name => name !== 'index.html').map(name => './' + name)];
+      const files = ['./', './index.html', './logo.svg', './tutorial/guia-es.mp3', ...Object.keys(bundle).filter(name => name !== 'index.html').map(name => './' + name)];
       const version = `flujo-shell-${Date.now()}`;
       this.emitFile({type: 'asset', fileName: 'sw.js', source: `
 const CACHE = ${JSON.stringify(version)};
