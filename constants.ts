@@ -2,6 +2,7 @@
 import { Theme } from './types';
 
 export const DEFAULT_THEME: Theme = {
+  logoGlow: false,
   id: 'default-blue',
   name: 'Azul Profundo',
   background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)',

@@ -1,5 +1,7 @@
 # Oasis Project Offline
 
+> La interfaz se llama **FlujoEclesial**. Consulta [cambios, pruebas y operación de pantalla completa](VERIFICACION.md). El acceso local no requiere un PIN compartido; la cuenta cloud se conecta con Google/Supabase.
+
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=fff)](https://vite.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=fff)](https://www.typescriptlang.org/)
@@ -172,7 +174,9 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_de_supabase
 | `npm run dev` | Inicia la aplicacion en modo desarrollo con Vite. |
 | `npm run build` | Genera una compilacion de produccion. |
 | `npm run preview` | Sirve localmente la compilacion de produccion para validarla. |
-| `npm run deploy` | Compila, crea un commit automatico y hace push a `main`. |
+| `npm run deploy` | Valida tipos y compila. No publica ni modifica Git. |
+| `npm run typecheck` | Comprueba los tipos de TypeScript. |
+| `npm test` | Ejecuta las pruebas de navegador sobre la compilación. |
 | `npm run prepare` | Ejecuta la configuracion de Husky. |
 
 ## Flujo de trabajo recomendado

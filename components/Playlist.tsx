@@ -440,7 +440,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
 
   const isItemLive = liveItemId === item.id;
   const isItemActive = activeItemId === item.id;
-  const slideTypeCounts = item.slides.reduce<Record<string, number>>((counts, slide) => {
+  const slideTypeCounts = item.slides.reduce((counts: Record<string, number>, slide: Slide) => {
     counts[slide.type] = (counts[slide.type] || 0) + 1;
     return counts;
   }, {});
@@ -478,7 +478,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
     >
       {/* Collapsible Header */}
       <div
-        className={`px-4 py-3.5 flex items-center gap-3 cursor-pointer transition-colors group ${isItemLive ? 'bg-red-500/10' : isItemActive ? 'bg-indigo-500/10' : 'bg-slate-900/80 hover:bg-slate-800/90'
+        className={`playlist-item-header px-4 py-3.5 flex items-center gap-3 cursor-pointer transition-colors group ${isItemLive ? 'bg-red-500/10' : isItemActive ? 'bg-indigo-500/10' : 'bg-slate-900/80 hover:bg-slate-800/90'
           }`}
         onClick={() => {
           onToggleExpand();
@@ -517,7 +517,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
         {isExpanded ? <ChevronDown size={18} className="text-gray-300 animate-pulse" /> : <ChevronRight size={18} className="text-gray-300" />}
 
         {/* Icon & Title */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="playlist-item-title flex items-center gap-3 flex-1 min-w-0">
           <div className={`h-10 w-10 rounded-2xl border flex items-center justify-center shrink-0 ${
             isItemLive
               ? 'bg-red-500/15 border-red-400/30 text-red-200'
@@ -583,7 +583,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
 
         {/* Quick Color Pills Selector */}
         {editingItemId !== item.id && (
-        <div className="hidden sm:flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded-full border border-white/5 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto shrink-0" onClick={(e) => e.stopPropagation()}>
+        <div className="playlist-colors hidden sm:flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded-full border border-white/5 shrink-0" onClick={(e) => e.stopPropagation()}>
           {[
             { value: '#6366f1', label: 'Indigo' },
             { value: '#10b981', label: 'Verde' },
@@ -628,7 +628,7 @@ const SortablePlaylistItem: React.FC<SortableItemProps> = ({
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto shrink-0" onClick={(e) => e.stopPropagation()}>
+        <div className="playlist-item-actions flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onSlideDoubleClick(item.id, isItemActive ? activeSlideIndex : 0)}
             className={`p-1.5 rounded-lg transition-colors ${isItemLive ? 'text-red-400 bg-red-900/30' : 'text-gray-400 hover:text-green-400 hover:bg-green-900/20'}`}

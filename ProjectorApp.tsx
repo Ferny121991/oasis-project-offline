@@ -92,6 +92,11 @@ const ProjectorApp: React.FC = () => {
   const projectorContent = isPreviewHidden || isLogoActive ? null : (projectorSlide || (liveItemId ? lastStableSlide : null));
   const displayedTheme = liveItemId && !liveItem ? lastStableTheme : projectorTheme;
 
+  const enterFullscreen = useCallback(() => {
+    if (document.fullscreenElement) return;
+    document.documentElement.requestFullscreen().catch(() => setShowStartOverlay(true));
+  }, []);
+
   const handleVideoEnd = useCallback(() => {
     syncChannel.current?.postMessage({ type: 'VIDEO_ENDED' });
   }, []);
@@ -104,7 +109,6 @@ const ProjectorApp: React.FC = () => {
       if (incomingSyncStr === lastAppliedSyncStr.current) return;
       lastAppliedSyncStr.current = incomingSyncStr;
 
-      setShowStartOverlay(false);
       setLiveItemId(prev => prev === data.liveItemId ? prev : data.liveItemId);
       setLiveSlideIndex(prev => prev === data.liveSlideIndex ? prev : data.liveSlideIndex);
       setPlaylist(prev => JSON.stringify(prev) === JSON.stringify(data.playlist || []) ? prev : data.playlist || []);
@@ -129,18 +133,7 @@ const ProjectorApp: React.FC = () => {
     syncChannel.current.onmessage = (event: MessageEvent) => {
       const { type, data } = event.data || {};
       if (type === 'SYNC_STATE') applyState(data);
-      if (type === 'TOGGLE_FULLSCREEN') {
-        if (!document.fullscreenElement) {
-          setShowStartOverlay(false);
-          document.documentElement.requestFullscreen().catch(() => {
-            // Browser security blocks automatic fullscreen from window postMessage.
-            // We elegantly show the friendly overlay so a single click executes it.
-            setShowStartOverlay(true);
-          });
-        } else {
-          document.exitFullscreen?.().catch(() => undefined);
-        }
-      }
+      if (type === 'TOGGLE_FULLSCREEN' || type === 'ENTER_FULLSCREEN') enterFullscreen();
     };
 
     syncChannel.current.postMessage({ type: 'REQUEST_STATE' });
@@ -152,25 +145,20 @@ const ProjectorApp: React.FC = () => {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (typeof event.data === 'string' && event.data === 'OASIS_TOGGLE_FULLSCREEN' && !document.fullscreenElement) {
-        setShowStartOverlay(false);
-        document.documentElement.requestFullscreen().catch(() => undefined);
-      }
+      if (event.origin !== window.location.origin || event.source !== window.opener) return;
+      if (event.data === 'OASIS_ENTER_FULLSCREEN' || event.data === 'OASIS_TOGGLE_FULLSCREEN') enterFullscreen();
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== 'f' && event.key !== 'F11') return;
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (!['p', 'f', 'Enter'].includes(event.key.length === 1 ? event.key.toLowerCase() : event.key)) return;
       event.preventDefault();
-      if (!document.fullscreenElement) {
-        setShowStartOverlay(false);
-        document.documentElement.requestFullscreen().catch(() => undefined);
-      } else {
-        document.exitFullscreen?.();
-      }
+      enterFullscreen();
     };
     const handleFullscreenChange = () => {
       const fullscreen = !!document.fullscreenElement;
       setIsFullscreen(fullscreen);
-      if (fullscreen) setShowStartOverlay(false);
+      window.opener?.postMessage({type: 'PROJECTOR_FULLSCREEN_STATUS', fullscreen}, location.origin);
+      setShowStartOverlay(!fullscreen);
     };
 
     window.addEventListener('message', handleMessage);
@@ -185,23 +173,10 @@ const ProjectorApp: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!showStartOverlay) return;
-    const timer = window.setTimeout(() => setShowStartOverlay(false), 2200);
-    return () => window.clearTimeout(timer);
-  }, [showStartOverlay]);
-
   return (
     <div
       className="fixed inset-0 w-screen h-screen bg-black overflow-hidden flex flex-col items-center justify-center cursor-none z-[9999]"
-      onDoubleClick={() => {
-        if (!document.fullscreenElement) {
-          setShowStartOverlay(false);
-          document.documentElement.requestFullscreen().catch(() => undefined);
-        } else {
-          document.exitFullscreen?.();
-        }
-      }}
+      onDoubleClick={enterFullscreen}
     >
       <style>{`
         body, html, #root {
@@ -214,25 +189,10 @@ const ProjectorApp: React.FC = () => {
         }
       `}</style>
       {showStartOverlay && !isFullscreen && (
-        <div
-          className="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center text-white cursor-pointer group"
-          onClick={() => {
-            setShowStartOverlay(false);
-            document.documentElement.requestFullscreen().catch(() => undefined);
-          }}
-        >
-          <div className="p-16 border-4 border-white/20 rounded-[4rem] bg-gray-900 flex flex-col items-center gap-6 transition-all hover:bg-gray-800 hover:border-white/40 shadow-3xl">
-            <div className="w-24 h-24 bg-white text-black rounded-full flex items-center justify-center animate-bounce">
-              <Monitor size={48} />
-            </div>
-            <div className="text-center">
-              <p className="text-5xl font-black mb-2 tracking-tight">PANTALLA COMPLETA</p>
-              <p className="text-xl text-gray-400 font-medium">Haz clic aqui para iniciar la proyeccion</p>
-            </div>
-            <div className="mt-4 px-6 py-2 bg-white/10 rounded-full text-sm text-gray-500 font-mono">
-              Presiona 'F' para alternar
-            </div>
-          </div>
+        <div className="projector-start" role="region" aria-label="Activar proyector">
+          <Monitor size={24} />
+          <div><strong>Proyector listo</strong><p>Pulsa Ampliar proyector en el escritorio, o usa P o este botón.</p></div>
+          <button onClick={enterFullscreen}>Pantalla completa</button>
         </div>
       )}
       <div className="w-full h-full relative">

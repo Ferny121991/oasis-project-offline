@@ -214,6 +214,9 @@ async function renderPptxWithPreviewer(
 
       const slideIndex = slideFiles[i]?.index ?? i + 1;
       let dataUrl = await toJpeg(slideNode, {
+        // Avoid crawling every remote stylesheet/font during a live service.
+        // The preview has already laid out text with the available fonts.
+        skipFonts: true,
         quality: 0.92,
         pixelRatio: 1,
         cacheBust: true,
@@ -252,17 +255,17 @@ async function waitForPptxPreviewAssets(host: HTMLElement): Promise<void> {
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
   const images = Array.from(host.querySelectorAll<HTMLImageElement>('img'));
-  await Promise.all(images.map(image => {
+  await Promise.race([Promise.all(images.map(image => {
     if (image.complete) return Promise.resolve();
     return new Promise<void>(resolve => {
       image.onload = () => resolve();
       image.onerror = () => resolve();
     });
-  }));
+  })), new Promise(resolve => setTimeout(resolve, 3000))]);
 
   if ('fonts' in document) {
     try {
-      await document.fonts.ready;
+      await Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 3000))]);
     } catch (e) {
       // Font readiness is best effort.
     }
@@ -570,7 +573,6 @@ export async function parsePdfFile(file: File): Promise<Slide[]> {
   const pdf = await pdfjsLib.getDocument({
     data: arrayBuffer,
     useWorkerFetch: false,
-    isEvalSupported: false,
   }).promise;
   
   const slides: Slide[] = [];

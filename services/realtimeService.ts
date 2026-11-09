@@ -146,11 +146,11 @@ export const createRealtimeSyncService = (): RealtimeSyncService => {
                 });
 
             if (shouldPersistRealtimeState(userId)) {
-                supabase
+                Promise.resolve(supabase
                     .from('realtime_sync')
                     .select('live_state')
                     .eq('user_id', userId)
-                    .single()
+                    .single())
                     .then(({ data }) => {
                         if (data?.live_state) {
                             lastKnownState = data.live_state as LiveState;
